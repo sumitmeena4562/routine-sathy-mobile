@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import {
-  Platform,
   StyleSheet,
   Text,
   View,
@@ -18,33 +17,32 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, GlassCard } from '@/components/ui';
-import { Radius } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 /**
- * Three subtle, elegant breathing dots in a smooth continuous wave.
+ * Three delicate, minimal breathing dots in a gentle continuous wave.
+ * Kept ultra-light without heavy scaling or visual distraction.
  */
 function MinimalPulsingDots({ color }: { color: string }) {
-  const dot1 = useSharedValue(0.25);
-  const dot2 = useSharedValue(0.25);
-  const dot3 = useSharedValue(0.25);
+  const dot1 = useSharedValue(0.2);
+  const dot2 = useSharedValue(0.2);
+  const dot3 = useSharedValue(0.2);
 
   useEffect(() => {
     dot1.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.25, { duration: 600, easing: Easing.inOut(Easing.quad) })
+        withTiming(0.85, { duration: 650, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.2, { duration: 650, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       true
     );
 
     dot2.value = withDelay(
-      200,
+      220,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.25, { duration: 600, easing: Easing.inOut(Easing.quad) })
+          withTiming(0.85, { duration: 650, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.2, { duration: 650, easing: Easing.inOut(Easing.quad) })
         ),
         -1,
         true
@@ -52,11 +50,11 @@ function MinimalPulsingDots({ color }: { color: string }) {
     );
 
     dot3.value = withDelay(
-      400,
+      440,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.25, { duration: 600, easing: Easing.inOut(Easing.quad) })
+          withTiming(0.85, { duration: 650, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.2, { duration: 650, easing: Easing.inOut(Easing.quad) })
         ),
         -1,
         true
@@ -66,17 +64,14 @@ function MinimalPulsingDots({ color }: { color: string }) {
 
   const style1 = useAnimatedStyle(() => ({
     opacity: dot1.value,
-    transform: [{ scale: 0.75 + dot1.value * 0.35 }],
   }));
 
   const style2 = useAnimatedStyle(() => ({
     opacity: dot2.value,
-    transform: [{ scale: 0.75 + dot2.value * 0.35 }],
   }));
 
   const style3 = useAnimatedStyle(() => ({
     opacity: dot3.value,
-    transform: [{ scale: 0.75 + dot3.value * 0.35 }],
   }));
 
   return (
@@ -89,81 +84,53 @@ function MinimalPulsingDots({ color }: { color: string }) {
 }
 
 export default function SplashScreen() {
-  const theme = useTheme();
-
-  // Subtle breathing animation for brand emblem
+  // Very gentle, almost imperceptible breathing pulse
   const scale = useSharedValue(1);
-  const auraOpacity = useSharedValue(0.35);
 
   useEffect(() => {
-    // Gentle emblem breathing pulse
     scale.value = withRepeat(
       withSequence(
-        withTiming(1.03, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.98, { duration: 2400, easing: Easing.inOut(Easing.quad) })
+        withTiming(1.02, { duration: 2600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.99, { duration: 2600, easing: Easing.inOut(Easing.sin) })
       ),
       -1,
       true
     );
-
-    // Soft ambient aura pulse
-    auraOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.55, { duration: 2400, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.25, { duration: 2400, easing: Easing.inOut(Easing.quad) })
-      ),
-      -1,
-      true
-    );
-  }, [scale, auraOpacity]);
+  }, [scale]);
 
   const animatedEmblemStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
-  const animatedAuraStyle = useAnimatedStyle(() => ({
-    opacity: auraOpacity.value,
-  }));
-
   return (
     <View style={styles.root}>
-      {/* 1. Bright, Luminous Morning Canvas (No dim/grey tint) */}
+      {/* 1. Luminous, Airy Pastel Morning Canvas */}
       <LinearGradient
-        colors={['#F6F4FE', '#FAF9FF', '#F0F6FF']}
+        colors={['#FAF9FF', '#FFFFFF', '#F5F8FF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* 2. Optical Pastel Atmospheric Glow Mesh */}
+      {/* 2. Soft Whispering Optical Pastel Glow Mesh */}
       <AmbientAtmosphere />
 
-      {/* 3. Subtle Ethereal Abstract Glass Circles (Soft depth without distraction) */}
-      <View pointerEvents="none" style={styles.abstractRingsContainer}>
-        <View style={styles.ringOuter} />
-        <View style={styles.ringMiddle} />
-      </View>
-
-      {/* 4. Center Brand Identity (Clean, Refined & Balanced) */}
+      {/* 3. Center Brand Identity (Light, Refined & Perfectly Balanced) */}
       <View style={styles.centerContainer}>
         {/* Animated Brand Emblem */}
         <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
-          {/* Radiant Soft Lavender Aura behind glass */}
-          <Animated.View style={[styles.emblemAura, animatedAuraStyle]} />
-
-          {/* Refined Frosted Glass Emblem Box with Specular Rim Highlight */}
           <GlassCard
-            variant="heavy"
+            variant="default"
             padding={0}
-            radius={26}
+            radius={24}
             specularHighlight
             style={styles.glassEmblemBox}>
             <LinearGradient
-              colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
+              colors={['#8B7CF6', '#7C3AED']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.innerGlyphGradient}>
-              <Ionicons name="sparkles" size={36} color="#FFFFFF" />
+              style={styles.innerGlyphBox}>
+              <Ionicons name="sparkles" size={32} color="#FFFFFF" />
             </LinearGradient>
           </GlassCard>
         </Animated.View>
@@ -175,9 +142,9 @@ export default function SplashScreen() {
         <Text style={styles.brandTagline}>Your Mindful Daily Rhythm</Text>
       </View>
 
-      {/* 5. Minimal Breathing Dots Loader (• • •) */}
+      {/* 4. Minimal Breathing Dots Loader (• • •) */}
       <View style={styles.bottomLoaderContainer}>
-        <MinimalPulsingDots color={theme.colors.primary} />
+        <MinimalPulsingDots color="#8B7CF6" />
       </View>
     </View>
   );
@@ -191,28 +158,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
-  abstractRingsContainer: {
-    ...StyleSheet.absoluteFill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  ringOuter: {
-    position: 'absolute',
-    width: 290,
-    height: 290,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 124, 246, 0.12)',
-  },
-  ringMiddle: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: Radius.full,
-    borderWidth: 1,
-    borderColor: 'rgba(139, 124, 246, 0.08)',
-  },
   centerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -220,60 +165,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   emblemWrapper: {
-    position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-  },
-  emblemAura: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: Radius.full,
-    backgroundColor: 'rgba(139, 124, 246, 0.24)',
-    ...(Platform.OS === 'web'
-      ? ({
-          filter: 'blur(28px)',
-          WebkitFilter: 'blur(28px)',
-        } as any)
-      : {}),
+    marginBottom: 18,
   },
   glassEmblemBox: {
-    width: 88,
-    height: 88,
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#8B7CF6',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 4,
   },
-  innerGlyphGradient: {
-    width: 66,
-    height: 66,
-    borderRadius: 20,
+  innerGlyphBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandTitle: {
-    fontSize: 30,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-    color: '#25233A',
+    fontSize: 28,
+    fontWeight: '600',
+    letterSpacing: -0.4,
+    color: '#222034',
     textAlign: 'center',
   },
   brandTagline: {
-    fontSize: 14,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-    color: '#77758B',
-    marginTop: 8,
+    fontSize: 13.5,
+    fontWeight: '400',
+    letterSpacing: 0.3,
+    color: '#7C7994',
+    marginTop: 6,
     textAlign: 'center',
   },
   bottomLoaderContainer: {
     position: 'absolute',
-    bottom: 48,
+    bottom: 52,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
@@ -282,11 +213,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 7,
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
 });

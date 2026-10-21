@@ -2,8 +2,6 @@ import React from 'react';
 import { Dimensions, Platform, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { useTheme } from '@/hooks/use-theme';
-
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface AmbientAtmosphereProps {
@@ -11,67 +9,32 @@ export interface AmbientAtmosphereProps {
 }
 
 /**
- * AmbientAtmosphere provides the radiant optical color backdrop
- * essential for authentic VisionOS / iOS glassmorphism refraction.
+ * AmbientAtmosphere provides a soft, ethereal pastel ambient glow.
+ * Kept ultra-light and restrained to prevent visual heaviness.
  */
 export function AmbientAtmosphere({ style }: AmbientAtmosphereProps) {
-  const theme = useTheme();
-
   return (
     <View pointerEvents="none" style={[styles.container, style]}>
-      {/* 1. Primary Lavender Nebula (Top-Left / Center) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbPrimary,
-          {
-            backgroundColor: theme.colors.ambientOrb1,
-            opacity: theme.isDark ? 0.45 : 0.65,
-          },
-        ]}>
+      {/* 1. Ethereal Soft Lavender Glow (Top-Left) */}
+      <View style={[styles.orb, styles.orbPrimary]}>
         <LinearGradient
-          colors={[
-            theme.colors.ambientOrb1,
-            theme.isDark ? 'rgba(45, 32, 84, 0)' : 'rgba(221, 213, 254, 0)',
-          ]}
+          colors={['rgba(221, 214, 254, 0.45)', 'rgba(237, 233, 254, 0.1)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
       </View>
 
-      {/* 2. Calming Sky Aura (Center-Right) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbSky,
-          {
-            backgroundColor: theme.colors.ambientOrb2,
-            opacity: theme.isDark ? 0.35 : 0.55,
-          },
-        ]}>
+      {/* 2. Delicate Icy Blue Glow (Center-Right) */}
+      <View style={[styles.orb, styles.orbSky]}>
         <LinearGradient
-          colors={[
-            theme.colors.ambientOrb2,
-            theme.isDark ? 'rgba(19, 40, 71, 0)' : 'rgba(186, 230, 253, 0)',
-          ]}
+          colors={['rgba(186, 230, 253, 0.38)', 'rgba(224, 242, 254, 0.08)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
       </View>
 
-      {/* 3. Fresh Emerald Vitality Aura (Bottom-Center) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbEmerald,
-          {
-            backgroundColor: theme.colors.ambientOrb3,
-            opacity: theme.isDark ? 0.30 : 0.45,
-          },
-        ]}>
+      {/* 3. Whispering Pale Mint Glow (Bottom-Center) */}
+      <View style={[styles.orb, styles.orbEmerald]}>
         <LinearGradient
-          colors={[
-            theme.colors.ambientOrb3,
-            theme.isDark ? 'rgba(17, 51, 40, 0)' : 'rgba(209, 250, 229, 0)',
-          ]}
+          colors={['rgba(209, 250, 229, 0.30)', 'rgba(236, 253, 245, 0.05)', 'transparent']}
           style={StyleSheet.absoluteFill}
         />
       </View>
@@ -90,27 +53,27 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     ...(Platform.OS === 'web'
       ? ({
-          filter: 'blur(60px)',
-          WebkitFilter: 'blur(60px)',
+          filter: 'blur(70px)',
+          WebkitFilter: 'blur(70px)',
         } as any)
       : {}),
   },
   orbPrimary: {
-    width: Math.min(SCREEN_WIDTH * 0.95, 380),
-    height: Math.min(SCREEN_WIDTH * 0.95, 380),
-    top: -60,
-    left: -40,
+    width: Math.min(SCREEN_WIDTH * 0.9, 360),
+    height: Math.min(SCREEN_WIDTH * 0.9, 360),
+    top: -50,
+    left: -30,
   },
   orbSky: {
-    width: Math.min(SCREEN_WIDTH * 0.85, 320),
-    height: Math.min(SCREEN_WIDTH * 0.85, 320),
-    top: '35%',
-    right: -60,
+    width: Math.min(SCREEN_WIDTH * 0.8, 300),
+    height: Math.min(SCREEN_WIDTH * 0.8, 300),
+    top: '36%',
+    right: -40,
   },
   orbEmerald: {
-    width: Math.min(SCREEN_WIDTH * 0.90, 340),
-    height: Math.min(SCREEN_WIDTH * 0.90, 340),
-    bottom: -60,
-    left: '15%',
+    width: Math.min(SCREEN_WIDTH * 0.85, 320),
+    height: Math.min(SCREEN_WIDTH * 0.85, 320),
+    bottom: -50,
+    left: '12%',
   },
 });

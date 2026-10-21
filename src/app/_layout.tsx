@@ -32,7 +32,7 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+      <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="explore" options={{ headerShown: false }} />

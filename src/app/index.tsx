@@ -5,7 +5,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
@@ -129,7 +128,7 @@ export default function SplashScreen() {
       <View style={styles.centerContainer}>
         {/* Animated Brand Emblem & Purple Glow */}
         <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
-          {/* Soft Feathered Purple Radiant Glow behind white glass container */}
+          {/* Soft Feathered Purple Radiant Glow behind the hero icon */}
           <Animated.View style={[styles.purpleGlowAura, animatedGlowStyle]}>
             <LinearGradient
               colors={['rgba(139, 124, 246, 0.50)', 'rgba(167, 139, 250, 0.20)', 'transparent']}
@@ -139,29 +138,26 @@ export default function SplashScreen() {
             />
           </Animated.View>
 
-          {/* Frosted White Glass Container with Specular Top Rim */}
-          <View style={styles.whiteGlassBox}>
-            {/* Native Blur Layer */}
-            {Platform.OS !== 'web' ? (
-              <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
-            ) : null}
-
-            {/* Specular Top Rim Highlight Line */}
+          {/* Unified Brand Hero App Icon (Clean, Luminous Purple Glass Jewel - No Double Box) */}
+          <View style={styles.heroAppIconTile}>
+            {/* Rich Royal Violet Gradient Base */}
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.25)', 'transparent']}
+              colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+
+            {/* Specular Top Rim Highlight Line for Glass Realism */}
+            <LinearGradient
+              colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.specularRim}
             />
 
-            {/* Inner Vibrant Purple Gradient Glyph with Custom Brand Insignia */}
-            <LinearGradient
-              colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.innerPurpleGlyph}>
-              <RoutineSathyEmblem size={44} />
-            </LinearGradient>
+            {/* Official Brand Insignia: Circadian Rhythm Arcs + Sathy Dawn Lotus */}
+            <RoutineSathyEmblem size={52} />
           </View>
         </Animated.View>
 
@@ -202,39 +198,32 @@ const styles = StyleSheet.create({
   },
   purpleGlowAura: {
     position: 'absolute',
-    width: 136,
-    height: 136,
+    width: 144,
+    height: 144,
     borderRadius: 9999,
     overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? ({
-          filter: 'blur(30px)',
-          WebkitFilter: 'blur(30px)',
+          filter: 'blur(32px)',
+          WebkitFilter: 'blur(32px)',
         } as any)
       : {}),
   },
-  whiteGlassBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 26,
+  heroAppIconTile: {
+    width: 84,
+    height: 84,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.72)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
     overflow: 'hidden',
     position: 'relative',
-    shadowColor: '#8B7CF6',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.40)',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.30,
-    shadowRadius: 24,
-    elevation: 8,
-    ...(Platform.OS === 'web'
-      ? ({
-          backdropFilter: 'blur(24px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(190%)',
-        } as any)
-      : {}),
+    shadowOpacity: 0.38,
+    shadowRadius: 20,
+    elevation: 10,
   },
   specularRim: {
     position: 'absolute',
@@ -243,14 +232,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: 1.5,
     zIndex: 1,
-  },
-  innerPurpleGlyph: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
   },
   brandTitle: {
     fontSize: 30,

@@ -24,69 +24,70 @@ export interface RoutineSathyEmblemProps {
  * 3. Sacred Geometry: Clean, harmonious circular proportions with soft rounded caps.
  */
 export function RoutineSathyEmblem({
-  size = 42,
+  size = 52,
 }: RoutineSathyEmblemProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
       <Defs>
-        {/* Core Dawn Gradient */}
+        {/* Core Luminous Dawn Lotus Gradient */}
         <LinearGradient id="emblemDawn" x1="0%" y1="0%" x2="100%" y2="100%">
           <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="1" />
-          <Stop offset="50%" stopColor="#EDE9FE" stopOpacity="0.95" />
-          <Stop offset="100%" stopColor="#DDD6FE" stopOpacity="0.9" />
+          <Stop offset="60%" stopColor="#F5F3FF" stopOpacity="0.98" />
+          <Stop offset="100%" stopColor="#DDD6FE" stopOpacity="0.92" />
         </LinearGradient>
 
-        {/* Outer Ring Ambient Accent */}
-        <LinearGradient id="emblemRing" x1="0%" y1="100%" x2="100%" y2="0%">
-          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.75" />
-          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.2" />
+        {/* Circadian Rhythm Arc Specular Stroke */}
+        <LinearGradient id="emblemRing" x1="0%" y1="0%" x2="100%" y2="100%">
+          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+          <Stop offset="50%" stopColor="#FFFFFF" stopOpacity="0.65" />
+          <Stop offset="100%" stopColor="#EDE9FE" stopOpacity="0.30" />
         </LinearGradient>
       </Defs>
 
-      {/* 1. Outer Circadian Rhythm Flow Arc (The Habit Loop / Continuous Cycle) */}
+      {/* 1. Outer Circadian Rhythm Flow Arcs (The Continuous Daily Habit Loop) */}
       <Path
         d="M 50 14 C 70 14, 86 30, 86 50 C 86 64, 78 76, 66 82"
         stroke="url(#emblemRing)"
-        strokeWidth="3.5"
+        strokeWidth="4"
         strokeLinecap="round"
       />
       <Path
         d="M 50 86 C 30 86, 14 70, 14 50 C 14 36, 22 24, 34 18"
         stroke="url(#emblemRing)"
-        strokeWidth="3.5"
+        strokeWidth="4"
         strokeLinecap="round"
       />
 
-      {/* 2. Micro Rhythm Orbit Dots (Representing 4 Sacred Habit Quadrants) */}
-      <Circle cx="50" cy="14" r="3" fill="#FFFFFF" />
-      <Circle cx="86" cy="50" r="2.5" fill="#FFFFFF" fillOpacity="0.8" />
-      <Circle cx="50" cy="86" r="3" fill="#FFFFFF" />
-      <Circle cx="14" cy="50" r="2.5" fill="#FFFFFF" fillOpacity="0.8" />
+      {/* 2. Four Sacred Habit Quadrants (Morning Dawn, Focus Midday, Evening Unwind, Rest) */}
+      <Circle cx="50" cy="14" r="3.5" fill="#FFFFFF" />
+      <Circle cx="86" cy="50" r="3" fill="#FFFFFF" fillOpacity="0.85" />
+      <Circle cx="50" cy="86" r="3.5" fill="#FFFFFF" />
+      <Circle cx="14" cy="50" r="3" fill="#FFFFFF" fillOpacity="0.85" />
 
-      {/* 3. Center Mindful Sathy Lotus & Sacred Sun (Inner Truth & Awakening) */}
-      {/* Central Ascending Lotus Petal */}
+      {/* 3. Center Mindful Sathy Lotus & Sacred Awakening Sun */}
+      {/* Central Ascending Dawn Petal */}
       <Path
-        d="M 50 28 C 45 40, 43 49, 50 64 C 57 49, 55 40, 50 28 Z"
+        d="M 50 26 C 44 39, 43 49, 50 63 C 57 49, 56 39, 50 26 Z"
         fill="url(#emblemDawn)"
       />
 
-      {/* Left Mindful Petal */}
+      {/* Left Awakening Petal */}
       <Path
-        d="M 50 64 C 41 57, 33 50, 31 43 C 30 38, 34 35, 38 37 C 44 40, 48 48, 50 64 Z"
+        d="M 50 63 C 40 56, 32 49, 30 42 C 29 37, 33 34, 38 36 C 44 39, 48 48, 50 63 Z"
         fill="url(#emblemDawn)"
-        fillOpacity="0.9"
+        fillOpacity="0.92"
       />
 
-      {/* Right Mindful Petal */}
+      {/* Right Awakening Petal */}
       <Path
-        d="M 50 64 C 59 57, 67 50, 69 43 C 70 38, 66 35, 62 37 C 56 40, 52 48, 50 64 Z"
+        d="M 50 63 C 60 56, 68 49, 70 42 C 71 37, 67 34, 62 36 C 56 39, 52 48, 50 63 Z"
         fill="url(#emblemDawn)"
-        fillOpacity="0.9"
+        fillOpacity="0.92"
       />
 
-      {/* Radiant Central Awakening Core (Sacred Spark) */}
-      <Circle cx="50" cy="54" r="3.5" fill="#FFFFFF" />
-      <Circle cx="50" cy="54" r="6" stroke="#FFFFFF" strokeWidth="1" strokeOpacity="0.4" />
+      {/* Radiant Central Awakening Core (Sacred Inner Spark) */}
+      <Circle cx="50" cy="53" r="3.5" fill="#FFFFFF" />
+      <Circle cx="50" cy="53" r="7" stroke="#FFFFFF" strokeWidth="1.2" strokeOpacity="0.45" />
     </Svg>
   );
 }

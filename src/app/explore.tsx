@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import {
@@ -19,10 +20,13 @@ import {
 } from '@/components/ui';
 import { ThemedText } from '@/components/themed-text';
 import { Radius, Spacing } from '@/constants/theme';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ExploreScreen() {
   const theme = useTheme();
+  const router = useRouter();
+  const { resetOnboarding } = useOnboarding();
 
   // Component state demonstrations
   const [inputText, setInputText] = useState('Drink 2L Water');
@@ -35,6 +39,15 @@ export default function ExploreScreen() {
   const simulateLoading = () => {
     setButtonLoading(true);
     setTimeout(() => setButtonLoading(false), 2000);
+  };
+
+  const handleOpenOnboarding = async () => {
+    try {
+      await resetOnboarding();
+    } catch {
+      // ignore
+    }
+    router.replace('/onboarding');
   };
 
   const colorTokens = [
@@ -55,6 +68,8 @@ export default function ExploreScreen() {
       <ScreenHeader
         title="Design System"
         subtitle="Single Source of Truth tokens & components"
+        showBack
+        onBack={handleOpenOnboarding}
         rightAction={
           <IconButton
             variant="glass"
@@ -72,6 +87,17 @@ export default function ExploreScreen() {
           />
         }
       />
+
+      {/* Quick Access to Onboarding Flow */}
+      <View style={{ marginTop: Spacing.md, marginBottom: Spacing.sm }}>
+        <Button
+          title="✨ Test Onboarding Flow (Reset & Open)"
+          variant="primary"
+          size="md"
+          icon={<Ionicons name="sparkles" size={16} color={theme.colors.primaryForeground} />}
+          onPress={handleOpenOnboarding}
+        />
+      </View>
 
       {/* 2. Color Tokens Palette */}
       <View style={styles.section}>

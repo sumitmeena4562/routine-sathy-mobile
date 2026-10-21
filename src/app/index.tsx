@@ -22,7 +22,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
-import { useOnboarding } from '@/context/OnboardingContext';
 
 /**
  * Three subtle, minimal breathing dots in a gentle continuous wave: • • •
@@ -84,30 +83,21 @@ export default function SplashScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { hasCompletedOnboarding, isLoading } = useOnboarding();
-
   const isCompact = windowHeight < 700 || windowWidth < 380;
-
   // Gentle breathing motion for emblem and ambient purple glow
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.35);
 
   const handleProceed = useCallback(() => {
-    if (isLoading) return;
-    if (hasCompletedOnboarding) {
-      router.replace('/explore');
-    } else {
-      router.replace('/onboarding');
-    }
-  }, [hasCompletedOnboarding, isLoading, router]);
+    router.replace('/onboarding');
+  }, [router]);
 
   useEffect(() => {
-    if (isLoading) return;
     const timer = setTimeout(() => {
       handleProceed();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [handleProceed, isLoading]);
+  }, [handleProceed]);
 
   useEffect(() => {
     scale.value = withRepeat(

@@ -1,10 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
@@ -18,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
+import { useOnboarding } from '@/context/OnboardingContext';
 
 /**
  * Three subtle, minimal breathing dots in a gentle continuous wave: • • •
@@ -76,9 +79,29 @@ function MinimalPulsingDots({ color }: { color: string }) {
 }
 
 export default function SplashScreen() {
+  const router = useRouter();
+  const { hasCompletedOnboarding, isLoading } = useOnboarding();
+
   // Gentle breathing motion for emblem and ambient purple glow
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.35);
+
+  const handleProceed = useCallback(() => {
+    if (isLoading) return;
+    if (hasCompletedOnboarding) {
+      router.replace('/explore');
+    } else {
+      router.replace('/onboarding');
+    }
+  }, [hasCompletedOnboarding, isLoading, router]);
+
+  useEffect(() => {
+    if (isLoading) return;
+    const timer = setTimeout(() => {
+      handleProceed();
+    }, 2400);
+    return () => clearTimeout(timer);
+  }, [handleProceed, isLoading]);
 
   useEffect(() => {
     scale.value = withRepeat(
@@ -109,7 +132,7 @@ export default function SplashScreen() {
   }));
 
   return (
-    <View style={styles.root}>
+    <Pressable onPress={handleProceed} style={styles.root}>
       {/* Native Dark Status Bar icons over bright canvas */}
       <StatusBar style="dark" />
 
@@ -172,7 +195,7 @@ export default function SplashScreen() {
       <View style={styles.bottomLoaderContainer}>
         <MinimalPulsingDots color="#8B7CF6" />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

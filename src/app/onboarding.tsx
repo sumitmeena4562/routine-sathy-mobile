@@ -34,35 +34,29 @@ function triggerHaptic() {
 }
 
 // ----------------------------------------------------------------------------
-// Step 1: Benefits Data
+// Step 1: Benefits Data (Lightweight, Clear & Action-oriented)
 // ----------------------------------------------------------------------------
 const BENEFITS = [
   {
-    id: 'circadian',
-    tag: 'BIOLOGICAL CLOCK',
-    title: 'Circadian Flow Alignment',
-    description:
-      'Harmonize waking, deep focus, and rest with your natural solar biology for effortless daytime energy and focus.',
+    id: 'energy',
+    title: 'Wake with Energy',
+    description: 'Align with your natural body clock for calm, easy mornings.',
     icon: 'sunny',
     accentColor: '#8B7CF6',
     softBg: 'rgba(139, 124, 246, 0.12)',
   },
   {
-    id: 'continuity',
-    tag: 'EFFORTLESS STREAKS',
-    title: 'Mindful Continuity ("Sathy")',
-    description:
-      'Consistency over intense checklists. Flexible micro-rituals that adapt when life gets busy so your streak never feels burdensome.',
-    icon: 'infinite',
+    id: 'focus',
+    title: 'Focus without Burnout',
+    description: 'Small, flexible micro-habits that build effortless momentum.',
+    icon: 'sparkles',
     accentColor: '#10B981',
     softBg: 'rgba(16, 185, 129, 0.12)',
   },
   {
-    id: 'recovery',
-    tag: 'RESTORATIVE RECOVERY',
-    title: 'Adaptive Energy Pacing',
-    description:
-      'Listen to daily energy rhythms. Routine Sathy gently guides evening digital sunsets and deep sleep preparation.',
+    id: 'rest',
+    title: 'Rest & Recharge',
+    description: 'Wind down peacefully each night and wake up restored.',
     icon: 'moon',
     accentColor: '#0EA5E9',
     softBg: 'rgba(14, 165, 233, 0.12)',
@@ -74,7 +68,6 @@ const BENEFITS = [
 // ----------------------------------------------------------------------------
 interface ChronotypeOption {
   id: Chronotype;
-  badge: string;
   title: string;
   peakTime: string;
   description: string;
@@ -84,26 +77,23 @@ interface ChronotypeOption {
 const CHRONOTYPES: ChronotypeOption[] = [
   {
     id: 'sunrise_riser',
-    badge: 'MORNING LARK',
-    title: 'Sunrise Riser',
-    peakTime: 'Peak: 06:00 AM – 11:00 AM',
-    description: 'Natural early riser. Ideal for dawn grounding, morning movement, and early clarity.',
+    title: 'Early Bird',
+    peakTime: 'Morning • 6 AM – 11 AM',
+    description: 'Best for dawn clarity and early focus.',
     icon: 'sunny-outline',
   },
   {
     id: 'balanced_pacer',
-    badge: 'STEADY FLOW',
-    title: 'Balanced Day Pacer',
-    peakTime: 'Peak: 09:00 AM – 03:00 PM',
-    description: 'Steady circadian rhythm. Ideal for regular workdays, midday focus, and peaceful evenings.',
+    title: 'Steady Pacer',
+    peakTime: 'Midday • 9 AM – 3 PM',
+    description: 'Balanced flow for consistent progress.',
     icon: 'partly-sunny-outline',
   },
   {
     id: 'night_mind',
-    badge: 'EVENING OWL',
-    title: 'Night Mind',
-    peakTime: 'Peak: 05:00 PM – Midnight',
-    description: 'Deep nocturnal focus. Best for relaxed mornings and uninterrupted late-day momentum.',
+    title: 'Night Owl',
+    peakTime: 'Evening • 6 PM – Midnight',
+    description: 'Deep nocturnal focus and late creativity.',
     icon: 'moon-outline',
   },
 ];
@@ -111,57 +101,50 @@ const CHRONOTYPES: ChronotypeOption[] = [
 const WAKE_TIMES = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM'];
 
 // ----------------------------------------------------------------------------
-// Step 3: Goals Data
+// Step 3: Goals Data (Punchy & Compact)
 // ----------------------------------------------------------------------------
 interface GoalOption {
   id: GoalId;
   title: string;
   subtitle: string;
-  category: string;
   icon: keyof typeof Ionicons.glyphMap;
 }
 
 const GOALS_LIST: GoalOption[] = [
   {
     id: 'morning_grounding',
-    title: 'Morning Grounding',
-    subtitle: 'Hydration, sunlight & 20 min screen-free dawn',
-    category: 'MORNING',
+    title: 'Morning Calm',
+    subtitle: 'Screen-free dawn',
     icon: 'sunny',
   },
   {
     id: 'deep_work',
-    title: 'Deep Work & Focus',
-    subtitle: 'High-output flow blocks with zero mental fatigue',
-    category: 'PRODUCTIVITY',
+    title: 'Deep Focus',
+    subtitle: 'Flow blocks',
     icon: 'flash',
   },
   {
     id: 'mindful_movement',
-    title: 'Mindful Daily Movement',
-    subtitle: 'Gentle stretching, steps & posture resets',
-    category: 'VITALITY',
-    icon: 'body',
+    title: 'Movement',
+    subtitle: 'Gentle walk & stretch',
+    icon: 'walk',
   },
   {
     id: 'stress_relief',
-    title: 'Nervous System Reset',
-    subtitle: '2-minute box breathing & midday pauses',
-    category: 'CALM',
+    title: 'Stress Reset',
+    subtitle: '2-min breath pause',
     icon: 'leaf',
   },
   {
     id: 'digital_sunset',
     title: 'Digital Sunset',
-    subtitle: 'Screen dimming, journaling & evening decompression',
-    category: 'EVENING',
+    subtitle: 'Screen-off unwind',
     icon: 'bulb-outline',
   },
   {
     id: 'deep_sleep',
-    title: 'Restorative Sleep',
-    subtitle: 'Consistent bedtime rhythm for 8 hours of recovery',
-    category: 'NIGHT',
+    title: 'Deep Sleep',
+    subtitle: '8 hrs restful recovery',
     icon: 'moon',
   },
 ];
@@ -293,50 +276,36 @@ export default function OnboardingScreen() {
               exiting={FadeOutLeft.duration(200)}>
               {/* Header */}
               <View style={styles.headerBlock}>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgePillText}>✦ WHY ROUTINE SATHY</Text>
-                </View>
-                <Text style={styles.stepTitle}>Rhythm Over Hustle</Text>
+                <Text style={styles.stepTitle}>Build habits that stick</Text>
                 <Text style={styles.stepSubtitle}>
-                  Realign with your biological energy, build effortless continuity,
-                  and cultivate mindful peace every day.
+                  A calmer, natural way to flow through your day.
                 </Text>
               </View>
 
-              {/* Benefit Cards */}
+              {/* Benefit Cards (Lightweight Row Layout) */}
               <View style={styles.cardsStack}>
                 {BENEFITS.map((benefit, index) => (
                   <Animated.View
                     key={benefit.id}
-                    entering={FadeInDown.delay(index * 120).duration(400)}
-                    style={styles.glassCard}>
-                    <View style={styles.cardHeaderRow}>
-                      <View
-                        style={[
-                          styles.iconBadge,
-                          { backgroundColor: benefit.softBg },
-                        ]}>
-                        <Ionicons
-                          name={benefit.icon as any}
-                          size={22}
-                          color={benefit.accentColor}
-                        />
-                      </View>
-                      <View style={styles.cardTagPill}>
-                        <Text
-                          style={[
-                            styles.cardTagText,
-                            { color: benefit.accentColor },
-                          ]}>
-                          {benefit.tag}
-                        </Text>
-                      </View>
+                    entering={FadeInDown.delay(index * 90).duration(350)}
+                    style={styles.benefitRowCard}>
+                    <View
+                      style={[
+                        styles.benefitIconBox,
+                        { backgroundColor: benefit.softBg },
+                      ]}>
+                      <Ionicons
+                        name={benefit.icon as any}
+                        size={22}
+                        color={benefit.accentColor}
+                      />
                     </View>
-
-                    <Text style={styles.benefitTitle}>{benefit.title}</Text>
-                    <Text style={styles.benefitDescription}>
-                      {benefit.description}
-                    </Text>
+                    <View style={styles.benefitTextCol}>
+                      <Text style={styles.benefitRowTitle}>{benefit.title}</Text>
+                      <Text style={styles.benefitRowDescription}>
+                        {benefit.description}
+                      </Text>
+                    </View>
                   </Animated.View>
                 ))}
               </View>
@@ -350,77 +319,54 @@ export default function OnboardingScreen() {
               exiting={FadeOutLeft.duration(200)}>
               {/* Header */}
               <View style={styles.headerBlock}>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgePillText}>✦ STEP 2: PERSONALIZATION</Text>
-                </View>
-                <Text style={styles.stepTitle}>Your Chronotype Rhythm</Text>
+                <Text style={styles.stepTitle}>When do you feel best?</Text>
                 <Text style={styles.stepSubtitle}>
-                  Everyone&apos;s internal clock is unique. Select when your mind
-                  and energy feel most alive.
+                  We&apos;ll tailor your daily routine around your natural energy.
                 </Text>
               </View>
 
-              {/* Chronotype Cards */}
+              {/* Chronotype Row Cards */}
               <View style={styles.cardsStack}>
                 {CHRONOTYPES.map((item, index) => {
                   const isSelected = chronotype === item.id;
                   return (
                     <Animated.View
                       key={item.id}
-                      entering={FadeInDown.delay(index * 100).duration(400)}>
+                      entering={FadeInDown.delay(index * 80).duration(350)}>
                       <Pressable
                         onPress={() => {
                           triggerHaptic();
                           setChronotype(item.id);
                         }}
                         style={({ pressed }) => [
-                          styles.selectableCard,
-                          isSelected && styles.selectableCardActive,
+                          styles.chronotypeCard,
+                          isSelected && styles.chronotypeCardActive,
                           pressed && styles.buttonPressed,
                         ]}>
-                        <View style={styles.cardHeaderRow}>
-                          <View
-                            style={[
-                              styles.iconBadge,
-                              isSelected && styles.iconBadgeActive,
-                            ]}>
-                            <Ionicons
-                              name={item.icon}
-                              size={22}
-                              color={isSelected ? '#7C3AED' : '#6B7280'}
-                            />
-                          </View>
-                          <View style={styles.rowRight}>
-                            <View
-                              style={[
-                                styles.cardTagPill,
-                                isSelected && styles.cardTagPillActive,
-                              ]}>
-                              <Text
-                                style={[
-                                  styles.cardTagText,
-                                  isSelected && styles.cardTagTextActive,
-                                ]}>
-                                {item.badge}
-                              </Text>
-                            </View>
-                            <View
-                              style={[
-                                styles.radioCircle,
-                                isSelected && styles.radioCircleActive,
-                              ]}>
-                              {isSelected && (
-                                <View style={styles.radioInnerDot} />
-                              )}
-                            </View>
-                          </View>
+                        <View
+                          style={[
+                            styles.chronotypeIconBox,
+                            isSelected && styles.chronotypeIconBoxActive,
+                          ]}>
+                          <Ionicons
+                            name={item.icon}
+                            size={22}
+                            color={isSelected ? '#7C3AED' : '#64748B'}
+                          />
                         </View>
-
-                        <Text style={styles.benefitTitle}>{item.title}</Text>
-                        <Text style={styles.peakTimeText}>{item.peakTime}</Text>
-                        <Text style={styles.benefitDescription}>
-                          {item.description}
-                        </Text>
+                        <View style={styles.chronotypeTextCol}>
+                          <Text style={styles.chronotypeTitle}>{item.title}</Text>
+                          <Text style={styles.chronotypePeakTime}>
+                            {item.peakTime}
+                          </Text>
+                        </View>
+                        <View
+                          style={[
+                            styles.radioCircle,
+                            isSelected && styles.radioCircleActive,
+                          ]}>
+                          {isSelected && <View style={styles.radioInnerDot} />}
+                        </View>
                       </Pressable>
                     </Animated.View>
                   );
@@ -429,13 +375,7 @@ export default function OnboardingScreen() {
 
               {/* Target Wake-Up Time */}
               <View style={styles.wakeSection}>
-                <Text style={styles.sectionHeaderTitle}>
-                  Daily Morning Anchor
-                </Text>
-                <Text style={styles.sectionHeaderSubtitle}>
-                  Choose your target time to begin morning presence
-                </Text>
-
+                <Text style={styles.sectionHeaderTitle}>Target Wake-Up</Text>
                 <View style={styles.chipsRow}>
                   {WAKE_TIMES.map((time) => {
                     const isActive = wakeTime === time;
@@ -472,66 +412,59 @@ export default function OnboardingScreen() {
               exiting={FadeOutLeft.duration(200)}>
               {/* Header */}
               <View style={styles.headerBlock}>
-                <View style={styles.badgePill}>
-                  <Text style={styles.badgePillText}>✦ STEP 3: DAILY GOALS</Text>
-                </View>
-                <Text style={styles.stepTitle}>Choose Your Intentions</Text>
+                <Text style={styles.stepTitle}>What&apos;s your focus?</Text>
                 <Text style={styles.stepSubtitle}>
-                  Select the mindful habits you want Routine Sathy to nurture
-                  with you.
+                  Choose a few daily intentions to start with.
                 </Text>
               </View>
 
-              {/* Goals Multi-Select Grid */}
-              <View style={styles.goalsGrid}>
+              {/* 2-Column Compact Goals Grid */}
+              <View style={styles.goalsGridTwoCol}>
                 {GOALS_LIST.map((goal, index) => {
                   const isSelected = goals.includes(goal.id);
                   return (
                     <Animated.View
                       key={goal.id}
-                      entering={FadeInDown.delay(index * 70).duration(350)}>
+                      entering={FadeInDown.delay(index * 60).duration(300)}
+                      style={styles.goalGridItem}>
                       <Pressable
                         onPress={() => {
                           triggerHaptic();
                           toggleGoal(goal.id);
                         }}
                         style={({ pressed }) => [
-                          styles.goalCard,
-                          isSelected && styles.goalCardActive,
+                          styles.goalTile,
+                          isSelected && styles.goalTileActive,
                           pressed && styles.buttonPressed,
                         ]}>
-                        <View style={styles.goalTopRow}>
+                        <View style={styles.goalTileTop}>
                           <View
                             style={[
-                              styles.goalIconBox,
-                              isSelected && styles.goalIconBoxActive,
+                              styles.goalTileIconBox,
+                              isSelected && styles.goalTileIconBoxActive,
                             ]}>
                             <Ionicons
                               name={goal.icon}
-                              size={20}
-                              color={isSelected ? '#7C3AED' : '#6B7280'}
+                              size={18}
+                              color={isSelected ? '#7C3AED' : '#64748B'}
                             />
                           </View>
                           <View
                             style={[
-                              styles.checkboxSquare,
-                              isSelected && styles.checkboxSquareActive,
+                              styles.checkboxSmall,
+                              isSelected && styles.checkboxSmallActive,
                             ]}>
                             {isSelected && (
                               <Ionicons
                                 name="checkmark"
-                                size={14}
+                                size={12}
                                 color="#FFFFFF"
                               />
                             )}
                           </View>
                         </View>
-
-                        <Text style={styles.goalCategory}>
-                          {goal.category}
-                        </Text>
-                        <Text style={styles.goalTitle}>{goal.title}</Text>
-                        <Text style={styles.goalSubtitle}>
+                        <Text style={styles.goalTileTitle}>{goal.title}</Text>
+                        <Text style={styles.goalTileSubtitle}>
                           {goal.subtitle}
                         </Text>
                       </Pressable>
@@ -540,33 +473,19 @@ export default function OnboardingScreen() {
                 })}
               </View>
 
-              {/* Live Tailored Blueprint Summary Banner */}
+              {/* Minimal Clean Summary Pill */}
               <Animated.View
-                entering={FadeIn.delay(300).duration(400)}
-                style={styles.summaryGlassBanner}>
-                <LinearGradient
-                  colors={[
-                    'rgba(139, 124, 246, 0.12)',
-                    'rgba(167, 139, 250, 0.05)',
-                  ]}
-                  style={StyleSheet.absoluteFill}
-                />
-                <View style={styles.summaryIconCol}>
-                  <RoutineSathyEmblem size={32} />
-                </View>
-                <View style={styles.summaryTextCol}>
-                  <Text style={styles.summaryHeading}>
-                    Your Circadian Blueprint Ready
-                  </Text>
-                  <Text style={styles.summaryDetails}>
-                    {chronotype === 'sunrise_riser'
-                      ? '🌅 Sunrise Lark'
-                      : chronotype === 'night_mind'
-                      ? '🌙 Night Mind'
-                      : '☀️ Balanced Flow'}{' '}
-                    • {wakeTime} Anchor • {goals.length} Intentions
-                  </Text>
-                </View>
+                entering={FadeIn.delay(250).duration(350)}
+                style={styles.summaryMinimalPill}>
+                <RoutineSathyEmblem size={22} />
+                <Text style={styles.summaryMinimalText}>
+                  {chronotype === 'sunrise_riser'
+                    ? 'Early Bird'
+                    : chronotype === 'night_mind'
+                    ? 'Night Owl'
+                    : 'Steady Pacer'}{' '}
+                  • {wakeTime} • {goals.length} Intentions
+                </Text>
               </Animated.View>
             </Animated.View>
           )}
@@ -733,77 +652,89 @@ const styles = StyleSheet.create({
     letterSpacing: -0.1,
   },
   cardsStack: {
-    gap: 11,
+    gap: 10,
   },
-  glassCard: {
+  benefitRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(238, 242, 255, 0.95)',
-    borderRadius: 20,
-    padding: 14,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 3,
-  },
-  selectableCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: 'rgba(238, 242, 255, 0.95)',
-    borderRadius: 20,
-    padding: 14,
+    borderRadius: 18,
+    padding: 13,
+    gap: 13,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
   },
-  selectableCardActive: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#7C3AED',
-    shadowColor: '#7C3AED',
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-  },
-  cardHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  iconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  benefitIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(139, 124, 246, 0.12)',
   },
-  iconBadgeActive: {
-    backgroundColor: 'rgba(139, 124, 246, 0.20)',
+  benefitTextCol: {
+    flex: 1,
   },
-  cardTagPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: 'rgba(139, 124, 246, 0.08)',
-  },
-  cardTagPillActive: {
-    backgroundColor: 'rgba(139, 124, 246, 0.14)',
-  },
-  cardTagText: {
-    fontSize: 9.5,
+  benefitRowTitle: {
+    fontSize: 15,
     fontWeight: '700',
-    letterSpacing: 0.4,
+    color: '#0F172A',
+    marginBottom: 2,
+    letterSpacing: -0.2,
   },
-  cardTagTextActive: {
-    color: '#7C3AED',
+  benefitRowDescription: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    color: '#475569',
   },
-  rowRight: {
+  chronotypeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    borderRadius: 18,
+    padding: 13,
+    gap: 12,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  chronotypeCardActive: {
+    borderColor: '#7C3AED',
+    shadowColor: '#7C3AED',
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+  },
+  chronotypeIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    backgroundColor: 'rgba(139, 124, 246, 0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chronotypeIconBoxActive: {
+    backgroundColor: 'rgba(139, 124, 246, 0.20)',
+  },
+  chronotypeTextCol: {
+    flex: 1,
+  },
+  chronotypeTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 2,
+  },
+  chronotypePeakTime: {
+    fontSize: 12,
+    color: '#64748B',
   },
   radioCircle: {
     width: 20,
@@ -823,47 +754,24 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     backgroundColor: '#7C3AED',
   },
-  benefitTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 3,
-    letterSpacing: -0.2,
-  },
-  peakTimeText: {
-    fontSize: 11.5,
-    fontWeight: '700',
-    color: '#7C3AED',
-    marginBottom: 5,
-  },
-  benefitDescription: {
-    fontSize: 12.5,
-    lineHeight: 18,
-    color: '#334155',
-  },
   wakeSection: {
-    marginTop: 18,
+    marginTop: 16,
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(238, 242, 255, 0.95)',
-    borderRadius: 20,
-    padding: 15,
+    borderRadius: 18,
+    padding: 14,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
   sectionHeaderTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#1E1B4B',
-    marginBottom: 4,
-  },
-  sectionHeaderSubtitle: {
-    fontSize: 13,
-    color: '#6B7280',
-    marginBottom: 14,
+    color: '#0F172A',
+    marginBottom: 10,
   },
   chipsRow: {
     flexDirection: 'row',
@@ -872,11 +780,11 @@ const styles = StyleSheet.create({
   },
   timeChip: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#E2E8F0',
   },
   timeChipActive: {
     backgroundColor: '#7C3AED',
@@ -885,120 +793,97 @@ const styles = StyleSheet.create({
   timeChipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#4B5563',
+    color: '#475569',
   },
   timeChipTextActive: {
     color: '#FFFFFF',
     fontWeight: '700',
   },
-  goalsGrid: {
-    gap: 12,
+  goalsGridTwoCol: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
-  goalCard: {
+  goalGridItem: {
+    width: '48.4%',
+  },
+  goalTile: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(238, 242, 255, 0.95)',
-    borderRadius: 18,
-    padding: 13,
+    borderRadius: 16,
+    padding: 12,
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
     elevation: 2,
   },
-  goalCardActive: {
-    backgroundColor: '#FFFFFF',
+  goalTileActive: {
     borderColor: '#7C3AED',
     shadowColor: '#7C3AED',
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
   },
-  goalTopRow: {
+  goalTileTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  goalIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+  goalTileIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: 'rgba(139, 124, 246, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  goalIconBoxActive: {
-    backgroundColor: 'rgba(139, 124, 246, 0.22)',
+  goalTileIconBoxActive: {
+    backgroundColor: 'rgba(139, 124, 246, 0.20)',
   },
-  checkboxSquare: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
+  checkboxSmall: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
+    borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxSquareActive: {
+  checkboxSmallActive: {
     backgroundColor: '#7C3AED',
     borderColor: '#7C3AED',
   },
-  goalCategory: {
-    fontSize: 10,
+  goalTileTitle: {
+    fontSize: 13.5,
     fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 0.6,
-    marginBottom: 4,
+    color: '#0F172A',
+    marginBottom: 2,
   },
-  goalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1E1B4B',
-    marginBottom: 4,
-    letterSpacing: -0.2,
+  goalTileSubtitle: {
+    fontSize: 11,
+    color: '#64748B',
   },
-  goalSubtitle: {
-    fontSize: 12,
-    lineHeight: 17,
-    color: '#4B5563',
-  },
-  summaryGlassBanner: {
+  summaryMinimalPill: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(139, 124, 246, 0.35)',
-    borderRadius: 18,
-    padding: 14,
-    marginTop: 16,
-    overflow: 'hidden',
-    position: 'relative',
-    gap: 12,
+    borderColor: 'rgba(139, 124, 246, 0.25)',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 14,
+    gap: 10,
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.10,
-    shadowRadius: 14,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  summaryIconCol: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    backgroundColor: '#7C3AED',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  summaryTextCol: {
-    flex: 1,
-  },
-  summaryHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1E1B4B',
-    marginBottom: 3,
-  },
-  summaryDetails: {
-    fontSize: 12,
+  summaryMinimalText: {
+    fontSize: 12.5,
     fontWeight: '600',
     color: '#7C3AED',
   },

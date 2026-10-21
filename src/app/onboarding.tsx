@@ -18,7 +18,6 @@ import Animated, {
   FadeInDown,
   FadeInRight,
   FadeOutLeft,
-  Layout,
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
@@ -299,7 +298,6 @@ export default function OnboardingScreen() {
                   <Animated.View
                     key={benefit.id}
                     entering={FadeInDown.delay(index * 120).duration(400)}
-                    layout={Layout.springify()}
                     style={styles.glassCard}>
                     <View style={styles.cardHeaderRow}>
                       <View

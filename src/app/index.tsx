@@ -20,7 +20,6 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
-import { useOnboarding } from '@/context/OnboardingContext';
 
 /**
  * Three subtle, minimal breathing dots in a gentle continuous wave: • • •
@@ -80,28 +79,21 @@ function MinimalPulsingDots({ color }: { color: string }) {
 
 export default function SplashScreen() {
   const router = useRouter();
-  const { hasCompletedOnboarding, isLoading } = useOnboarding();
 
   // Gentle breathing motion for emblem and ambient purple glow
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.35);
 
   const handleProceed = useCallback(() => {
-    if (isLoading) return;
-    if (hasCompletedOnboarding) {
-      router.replace('/explore');
-    } else {
-      router.replace('/onboarding');
-    }
-  }, [hasCompletedOnboarding, isLoading, router]);
+    router.replace('/onboarding');
+  }, [router]);
 
   useEffect(() => {
-    if (isLoading) return;
     const timer = setTimeout(() => {
       handleProceed();
-    }, 2400);
+    }, 1500);
     return () => clearTimeout(timer);
-  }, [handleProceed, isLoading]);
+  }, [handleProceed]);
 
   useEffect(() => {
     scale.value = withRepeat(

@@ -6,6 +6,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface AmbientAtmosphereProps {
   style?: any;
+  opacity?: number;
 }
 
 /**
@@ -13,9 +14,9 @@ export interface AmbientAtmosphereProps {
  * Designed with translucent multi-stop gradient falloffs so it looks rich
  * and optical on native Android, iOS, and Web.
  */
-export function AmbientAtmosphere({ style }: AmbientAtmosphereProps) {
+export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps) {
   return (
-    <View pointerEvents="none" style={[styles.container, style]}>
+    <View pointerEvents="none" style={[styles.container, { opacity }, style]}>
       {/* 1. Luminous Soft Lavender Orb (Top-Right / Header) */}
       <View style={[styles.orb, styles.orbLavender]}>
         <LinearGradient

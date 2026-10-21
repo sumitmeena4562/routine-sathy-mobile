@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -203,6 +203,8 @@ export default function OnboardingScreen() {
     router.replace('/explore');
   }, [completeOnboarding, router]);
 
+  const insets = useSafeAreaInsets();
+
   const progressPercent = useMemo(() => {
     return (currentStep / 3) * 100;
   }, [currentStep]);
@@ -211,19 +213,28 @@ export default function OnboardingScreen() {
     <View style={styles.root}>
       <StatusBar style="dark" />
 
-      {/* 1. Luminous Ambient Gradient Canvas */}
+      {/* 1. Luminous Pure Pastel Morning Canvas */}
       <LinearGradient
-        colors={['#FAF9FF', '#FFFFFF', '#F3F7FF']}
+        colors={['#FFFFFF', '#F8F7FF', '#F1F5FF']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0.8, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* 2. Soft Organic Ambient Atmosphere Glass Orbs */}
-      <AmbientAtmosphere />
+      {/* 2. Soft Organic Ambient Atmosphere Glass Orbs (Subtle & Luminous) */}
+      <AmbientAtmosphere opacity={0.32} />
 
       {/* 3. Safe Container */}
-      <SafeAreaView style={styles.safeArea}>
+      <View
+        style={[
+          styles.safeArea,
+          {
+            paddingTop: insets.top + (Platform.OS === 'android' ? 6 : 2),
+            paddingBottom: Math.max(insets.bottom, 12),
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}>
         {/* Top Navigation & Step Indicator */}
         <View style={styles.topBar}>
           {currentStep > 1 ? (
@@ -589,7 +600,7 @@ export default function OnboardingScreen() {
             </LinearGradient>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -607,17 +618,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     zIndex: 10,
   },
   navIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.82)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(238, 242, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000000',
@@ -629,32 +640,32 @@ const styles = StyleSheet.create({
   logoPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 18,
+    gap: 7,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
     elevation: 2,
   },
   logoPillText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#1E1B4B',
+    color: '#0F172A',
     letterSpacing: -0.2,
   },
   progressContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
   progressTrack: {
-    width: 90,
+    width: 80,
     height: 4,
     borderRadius: 2,
     backgroundColor: 'rgba(139, 124, 246, 0.18)',
@@ -668,7 +679,7 @@ const styles = StyleSheet.create({
   stepCounterText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#475569',
     letterSpacing: 0.2,
   },
   skipButton: {
@@ -679,92 +690,92 @@ const styles = StyleSheet.create({
   skipButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#64748B',
   },
   scrollArea: {
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
+    paddingHorizontal: 18,
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   headerBlock: {
-    marginBottom: 22,
+    marginBottom: 16,
   },
   badgePill: {
     alignSelf: 'flex-start',
     backgroundColor: 'rgba(139, 124, 246, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(139, 124, 246, 0.25)',
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 10,
+    borderRadius: 10,
+    marginBottom: 8,
   },
   badgePillText: {
-    fontSize: 11,
+    fontSize: 10.5,
     fontWeight: '700',
     color: '#7C3AED',
     letterSpacing: 0.5,
   },
   stepTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '800',
-    color: '#1E1B4B',
-    letterSpacing: -0.6,
-    marginBottom: 8,
+    color: '#0F172A',
+    letterSpacing: -0.5,
+    marginBottom: 6,
   },
   stepSubtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    color: '#4B5563',
+    fontSize: 13.5,
+    lineHeight: 19.5,
+    color: '#334155',
     letterSpacing: -0.1,
   },
   cardsStack: {
-    gap: 14,
+    gap: 11,
   },
   glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 22,
-    padding: 18,
-    shadowColor: '#8B7CF6',
-    shadowOffset: { width: 0, height: 8 },
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
-    shadowRadius: 18,
+    shadowRadius: 14,
     elevation: 3,
   },
   selectableCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 22,
-    padding: 18,
-    shadowColor: '#8B7CF6',
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 2,
   },
   selectableCardActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    borderColor: '#8B7CF6',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#7C3AED',
     shadowColor: '#7C3AED',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
+    shadowOpacity: 0.16,
+    shadowRadius: 16,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(139, 124, 246, 0.12)',
@@ -773,18 +784,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(139, 124, 246, 0.20)',
   },
   cardTagPill: {
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+    borderRadius: 8,
+    backgroundColor: 'rgba(139, 124, 246, 0.08)',
   },
   cardTagPillActive: {
     backgroundColor: 'rgba(139, 124, 246, 0.14)',
   },
   cardTagText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
   },
   cardTagTextActive: {
     color: '#7C3AED',
@@ -799,7 +810,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#D1D5DB',
+    borderColor: '#CBD5E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -813,34 +824,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#7C3AED',
   },
   benefitTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#1E1B4B',
-    marginBottom: 4,
-    letterSpacing: -0.3,
+    color: '#0F172A',
+    marginBottom: 3,
+    letterSpacing: -0.2,
   },
   peakTimeText: {
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: '700',
     color: '#7C3AED',
-    marginBottom: 6,
+    marginBottom: 5,
   },
   benefitDescription: {
-    fontSize: 13,
-    lineHeight: 19,
-    color: '#4B5563',
+    fontSize: 12.5,
+    lineHeight: 18,
+    color: '#334155',
   },
   wakeSection: {
-    marginTop: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    marginTop: 18,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 22,
-    padding: 18,
-    shadowColor: '#8B7CF6',
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    borderRadius: 20,
+    padding: 15,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 2,
   },
   sectionHeaderTitle: {
@@ -884,23 +895,23 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   goalCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.80)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: '#8B7CF6',
-    shadowOffset: { width: 0, height: 6 },
+    borderColor: 'rgba(238, 242, 255, 0.95)',
+    borderRadius: 18,
+    padding: 13,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
-    shadowRadius: 14,
+    shadowRadius: 10,
     elevation: 2,
   },
   goalCardActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderColor: '#8B7CF6',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#7C3AED',
     shadowColor: '#7C3AED',
     shadowOpacity: 0.16,
-    shadowRadius: 16,
+    shadowRadius: 14,
   },
   goalTopRow: {
     flexDirection: 'row',
@@ -954,19 +965,19 @@ const styles = StyleSheet.create({
   summaryGlassBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(139, 124, 246, 0.35)',
-    borderRadius: 20,
-    padding: 16,
-    marginTop: 20,
+    borderRadius: 18,
+    padding: 14,
+    marginTop: 16,
     overflow: 'hidden',
     position: 'relative',
-    gap: 14,
+    gap: 12,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
+    shadowOpacity: 0.10,
+    shadowRadius: 14,
     elevation: 3,
   },
   summaryIconCol: {

@@ -8,6 +8,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -111,6 +112,9 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.root}>
+      {/* Native Dark Status Bar icons over bright canvas */}
+      <StatusBar style="dark" />
+
       {/* 1. Luminous Pastel Morning Canvas (Bright, Pure, Non-dim) */}
       <LinearGradient
         colors={['#FAF9FF', '#FFFFFF', '#F3F7FF']}
@@ -126,8 +130,15 @@ export default function SplashScreen() {
       <View style={styles.centerContainer}>
         {/* Animated Brand Emblem & Purple Glow */}
         <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
-          {/* Soft Purple Radiant Glow behind white glass container */}
-          <Animated.View style={[styles.purpleGlowAura, animatedGlowStyle]} />
+          {/* Soft Feathered Purple Radiant Glow behind white glass container */}
+          <Animated.View style={[styles.purpleGlowAura, animatedGlowStyle]}>
+            <LinearGradient
+              colors={['rgba(139, 124, 246, 0.50)', 'rgba(167, 139, 250, 0.20)', 'transparent']}
+              start={{ x: 0.5, y: 0.5 }}
+              end={{ x: 1, y: 1 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
 
           {/* Frosted White Glass Container with Specular Top Rim */}
           <View style={styles.whiteGlassBox}>
@@ -192,10 +203,10 @@ const styles = StyleSheet.create({
   },
   purpleGlowAura: {
     position: 'absolute',
-    width: 120,
-    height: 120,
+    width: 136,
+    height: 136,
     borderRadius: 9999,
-    backgroundColor: 'rgba(139, 124, 246, 0.32)',
+    overflow: 'hidden',
     ...(Platform.OS === 'web'
       ? ({
           filter: 'blur(30px)',

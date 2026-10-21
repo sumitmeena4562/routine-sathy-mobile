@@ -20,7 +20,11 @@ import Animated, {
   FadeOutLeft,
 } from 'react-native-reanimated';
 
-import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
+import {
+  AmbientAtmosphere,
+  CircadianRhythmDial,
+  RoutineSathyEmblem,
+} from '@/components/ui';
 import {
   Chronotype,
   GoalId,
@@ -72,6 +76,8 @@ interface ChronotypeOption {
   peakTime: string;
   description: string;
   icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  softBg: string;
 }
 
 const CHRONOTYPES: ChronotypeOption[] = [
@@ -81,6 +87,8 @@ const CHRONOTYPES: ChronotypeOption[] = [
     peakTime: 'Morning • 6 AM – 11 AM',
     description: 'Best for dawn clarity and early focus.',
     icon: 'sunny-outline',
+    iconColor: '#F59E0B',
+    softBg: 'rgba(245, 158, 11, 0.12)',
   },
   {
     id: 'balanced_pacer',
@@ -88,6 +96,8 @@ const CHRONOTYPES: ChronotypeOption[] = [
     peakTime: 'Midday • 9 AM – 3 PM',
     description: 'Balanced flow for consistent progress.',
     icon: 'partly-sunny-outline',
+    iconColor: '#7C3AED',
+    softBg: 'rgba(124, 58, 237, 0.12)',
   },
   {
     id: 'night_mind',
@@ -95,6 +105,8 @@ const CHRONOTYPES: ChronotypeOption[] = [
     peakTime: 'Evening • 6 PM – Midnight',
     description: 'Deep nocturnal focus and late creativity.',
     icon: 'moon-outline',
+    iconColor: '#4F46E5',
+    softBg: 'rgba(79, 70, 229, 0.12)',
   },
 ];
 
@@ -286,13 +298,16 @@ export default function OnboardingScreen() {
               exiting={FadeOutLeft.duration(200)}>
               {/* Header */}
               <View style={styles.headerBlock}>
-                <Text style={styles.stepTitle}>Build habits that stick</Text>
+                <Text style={styles.stepTitle}>Sync with Your Biology</Text>
                 <Text style={styles.stepSubtitle}>
-                  A calmer, natural way to flow through your day.
+                  Tune your daily habits to the earth&apos;s natural 24-hour cycle.
                 </Text>
               </View>
 
-              {/* Benefit Cards (Lightweight Row Layout) */}
+              {/* Signature Visual Hero: Interactive Circadian Clock */}
+              <CircadianRhythmDial size={210} />
+
+              {/* 3 Micro Biological Cycle Highlights */}
               <View style={styles.cardsStack}>
                 {BENEFITS.map((benefit, index) => (
                   <Animated.View
@@ -306,7 +321,7 @@ export default function OnboardingScreen() {
                       ]}>
                       <Ionicons
                         name={benefit.icon as any}
-                        size={22}
+                        size={20}
                         color={benefit.accentColor}
                       />
                     </View>
@@ -356,12 +371,13 @@ export default function OnboardingScreen() {
                         <View
                           style={[
                             styles.chronotypeIconBox,
+                            { backgroundColor: item.softBg },
                             isSelected && styles.chronotypeIconBoxActive,
                           ]}>
                           <Ionicons
                             name={item.icon}
                             size={22}
-                            color={isSelected ? '#7C3AED' : '#64748B'}
+                            color={item.iconColor}
                           />
                         </View>
                         <View style={styles.chronotypeTextCol}>
@@ -516,9 +532,9 @@ export default function OnboardingScreen() {
               style={styles.primaryButtonGradient}>
               <Text style={styles.primaryButtonText}>
                 {currentStep === 1
-                  ? 'Continue to Personalize'
+                  ? 'Personalize My Rhythm ➔'
                   : currentStep === 2
-                  ? 'Continue to Goals'
+                  ? 'Continue to Goals ➔'
                   : 'Begin Mindful Rhythm ✨'}
               </Text>
               <Ionicons

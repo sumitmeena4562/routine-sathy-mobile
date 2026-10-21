@@ -9,7 +9,8 @@ export type BadgeVariant =
   | 'success'
   | 'warning'
   | 'error'
-  | 'neutral';
+  | 'neutral'
+  | 'glass';
 
 export type BadgeSize = 'sm' | 'md';
 
@@ -64,6 +65,11 @@ export function Badge({
       textColor = theme.colors.error;
       borderColor = theme.colors.error;
       break;
+    case 'glass':
+      backgroundColor = theme.colors.glassSurface;
+      textColor = theme.colors.primary;
+      borderColor = theme.colors.glassBorder;
+      break;
     case 'neutral':
       backgroundColor = outline ? 'transparent' : theme.colors.backgroundElement;
       textColor = theme.colors.textSecondary;
@@ -84,7 +90,7 @@ export function Badge({
           paddingHorizontal,
           backgroundColor,
           borderColor,
-          borderWidth: outline ? theme.borderWidth.thin : 0,
+          borderWidth: outline || variant === 'glass' ? theme.borderWidth.thin : 0,
           borderRadius: theme.radius.full,
         },
         style,
@@ -117,5 +123,6 @@ const styles = StyleSheet.create({
   },
   text: {
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
 });

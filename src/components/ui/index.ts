@@ -12,3 +12,4 @@ export * from './ScreenContainer';
 export * from './ScreenHeader';
 export * from './FeedbackStates';
 export * from './collapsible';
+export * from './AmbientAtmosphere';

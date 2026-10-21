@@ -128,9 +128,17 @@ export const Colors = {
     borderSubtle: 'rgba(37, 35, 58, 0.08)',
     borderFocus: Palette.lavender500,
 
-    // Glassmorphism Tokens
-    glassSurface: 'rgba(255, 255, 255, 0.72)',
-    glassBorder: 'rgba(255, 255, 255, 0.65)',
+    // High-End Glassmorphism Tokens
+    glassSurface: 'rgba(255, 255, 255, 0.58)',
+    glassSurfaceHeavy: 'rgba(255, 255, 255, 0.82)',
+    glassSurfaceSubtle: 'rgba(255, 255, 255, 0.35)',
+    glassBorder: 'rgba(255, 255, 255, 0.85)',
+    glassBorderSubtle: 'rgba(139, 124, 246, 0.18)',
+
+    // Ambient Atmosphere Orbs
+    ambientOrb1: '#DDD5FE',
+    ambientOrb2: '#BAE6FD',
+    ambientOrb3: '#D1FAE5',
 
     // Interactive States
     disabled: 'rgba(119, 117, 139, 0.38)',
@@ -189,9 +197,17 @@ export const Colors = {
     borderSubtle: 'rgba(255, 255, 255, 0.08)',
     borderFocus: '#9D8FFA',
 
-    // Glassmorphism Tokens
-    glassSurface: 'rgba(21, 19, 34, 0.75)',
-    glassBorder: 'rgba(255, 255, 255, 0.12)',
+    // High-End Glassmorphism Tokens
+    glassSurface: 'rgba(24, 21, 40, 0.60)',
+    glassSurfaceHeavy: 'rgba(24, 21, 40, 0.84)',
+    glassSurfaceSubtle: 'rgba(24, 21, 40, 0.38)',
+    glassBorder: 'rgba(255, 255, 255, 0.20)',
+    glassBorderSubtle: 'rgba(157, 143, 250, 0.24)',
+
+    // Ambient Atmosphere Orbs
+    ambientOrb1: '#2D2054',
+    ambientOrb2: '#132847',
+    ambientOrb3: '#113328',
 
     // Interactive States
     disabled: 'rgba(155, 153, 173, 0.35)',
@@ -237,7 +253,13 @@ export interface ThemeColors {
   borderSubtle: string;
   borderFocus: string;
   glassSurface: string;
+  glassSurfaceHeavy: string;
+  glassSurfaceSubtle: string;
   glassBorder: string;
+  glassBorderSubtle: string;
+  ambientOrb1: string;
+  ambientOrb2: string;
+  ambientOrb3: string;
   disabled: string;
   disabledBackground: string;
   ripple: string;
@@ -447,6 +469,13 @@ export const Shadows = {
     shadowOpacity: 0.12,
     shadowRadius: 20,
     elevation: 6,
+  },
+  glass: {
+    shadowColor: '#8B7CF6',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 28,
+    elevation: 8,
   },
 } as const;
 

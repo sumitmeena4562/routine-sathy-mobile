@@ -11,11 +11,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { BottomTabInset, MaxContentWidth } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { AmbientAtmosphere } from './AmbientAtmosphere';
 
 export interface ScreenContainerProps {
   children: React.ReactNode;
   scrollable?: boolean;
   withTabInset?: boolean;
+  withAtmosphere?: boolean;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
   scrollViewProps?: Omit<ScrollViewProps, 'style' | 'contentContainerStyle'>;
@@ -25,6 +27,7 @@ export function ScreenContainer({
   children,
   scrollable = false,
   withTabInset = true,
+  withAtmosphere = true,
   style,
   contentContainerStyle,
   scrollViewProps,
@@ -46,6 +49,7 @@ export function ScreenContainer({
   if (scrollable) {
     return (
       <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+        {withAtmosphere && <AmbientAtmosphere />}
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeArea}>
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -65,8 +69,9 @@ export function ScreenContainer({
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
+      {withAtmosphere && <AmbientAtmosphere />}
       <SafeAreaView
-        edges={['top', 'left', 'right']}
+        edges={['top', 'left', 'right', 'bottom']}
         style={[
           styles.safeArea,
           baseContentStyle,
@@ -85,9 +90,12 @@ export function ScreenContainer({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    position: 'relative',
   },
   safeArea: {
     flex: 1,
+    position: 'relative',
+    zIndex: 1,
   },
   scrollView: {
     flex: 1,

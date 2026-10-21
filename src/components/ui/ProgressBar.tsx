@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -12,6 +13,7 @@ export interface ProgressBarProps {
   progress: number; // 0.0 to 1.0
   height?: number;
   color?: string;
+  gradientColors?: [string, string, ...string[]];
   trackColor?: string;
   animated?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -21,6 +23,7 @@ export function ProgressBar({
   progress,
   height,
   color,
+  gradientColors,
   trackColor,
   animated = true,
   style,
@@ -42,8 +45,14 @@ export function ProgressBar({
   }, [clampedProgress, animated, theme.animation.durationNormal, progressAnim]);
 
   const barHeight = height ?? theme.heights.progressBar;
-  const barColor = color ?? (clampedProgress >= 1 ? theme.colors.success : theme.colors.primary);
-  const barTrackColor = trackColor ?? theme.colors.backgroundElement;
+  const isComplete = clampedProgress >= 1;
+  const barTrackColor = trackColor ?? (theme.isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(139, 124, 246, 0.12)');
+
+  const effectiveGradients: [string, string, ...string[]] = gradientColors ?? (
+    isComplete
+      ? [theme.colors.success, '#6EE7B7']
+      : [theme.colors.primary, theme.colors.secondaryForeground]
+  );
 
   const animatedStyle = useAnimatedStyle(() => ({
     width: `${progressAnim.value * 100}%`,
@@ -66,11 +75,20 @@ export function ProgressBar({
           animatedStyle,
           {
             height: barHeight,
-            backgroundColor: barColor,
             borderRadius: theme.radius.full,
+            overflow: 'hidden',
           },
-        ]}
-      />
+          color ? { backgroundColor: color } : undefined,
+        ]}>
+        {!color && (
+          <LinearGradient
+            colors={effectiveGradients}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        )}
+      </Animated.View>
     </View>
   );
 }

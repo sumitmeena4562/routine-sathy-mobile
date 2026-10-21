@@ -11,6 +11,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -132,6 +133,8 @@ export function Button({
     borderColor = 'transparent';
   }
 
+  const isPrimary = variant === 'primary' && !disabled;
+
   return (
     <Pressable
       onPress={handlePress}
@@ -145,20 +148,69 @@ export function Button({
           height,
           paddingHorizontal,
           borderRadius,
-          backgroundColor,
+          backgroundColor: isPrimary ? 'transparent' : backgroundColor,
           borderColor,
           borderWidth,
-          alignSelf: fullWidth ? 'stretch' : 'flex-start',
-          opacity: pressed ? 0.8 : 1,
+          width: fullWidth ? '100%' : 'auto',
+          opacity: pressed ? 0.90 : 1,
+          transform: [{ scale: pressed ? 0.98 : 1 }],
+          overflow: 'hidden',
+          ...(variant === 'glass' && Platform.OS === 'web'
+            ? ({
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+              } as any)
+            : {}),
         },
-        variant === 'primary' && !disabled ? theme.shadows.sm : undefined,
+        isPrimary
+          ? {
+              shadowColor: theme.colors.primary,
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.28,
+              shadowRadius: 14,
+              elevation: 4,
+            }
+          : undefined,
         style,
       ]}>
+      {/* Primary Gradient Fill */}
+      {isPrimary && (
+        <LinearGradient
+          colors={
+            theme.isDark
+              ? ['#9D8FFA', '#7C3AED', '#6D28D9']
+              : ['#8B7CF6', '#7C3AED', '#6D28D9']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+
+      {/* Top Specular Rim Light for Glass Variant */}
+      {variant === 'glass' && !disabled && (
+        <LinearGradient
+          colors={[
+            theme.isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.85)',
+            theme.isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.1)',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.specularRim}
+        />
+      )}
+
       {loading ? (
-        <ActivityIndicator size="small" color={textColor} />
+        <ActivityIndicator
+          size="small"
+          color={textColor}
+          style={styles.spinner}
+        />
       ) : (
         <View style={styles.contentRow}>
-          {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
+          {icon && iconPosition === 'left' && (
+            <View style={styles.leftIcon}>{icon}</View>
+          )}
           <Text
             style={[
               styles.text,
@@ -170,7 +222,9 @@ export function Button({
             ]}>
             {title}
           </Text>
-          {icon && iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
+          {icon && iconPosition === 'right' && (
+            <View style={styles.rightIcon}>{icon}</View>
+          )}
         </View>
       )}
     </Pressable>
@@ -179,23 +233,36 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     flexDirection: 'row',
+    position: 'relative',
   },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
+  },
+  specularRim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    zIndex: 1,
   },
   text: {
     fontWeight: '600',
-    textAlign: 'center',
+    letterSpacing: -0.2,
   },
-  iconLeft: {
+  leftIcon: {
     marginRight: 8,
   },
-  iconRight: {
+  rightIcon: {
     marginLeft: 8,
+  },
+  spinner: {
+    zIndex: 2,
   },
 });

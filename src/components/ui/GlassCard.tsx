@@ -9,27 +9,36 @@ import {
   ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
 
+export type GlassCardVariant = 'default' | 'heavy' | 'subtle';
+
 export interface GlassCardProps {
   children: React.ReactNode;
+  variant?: GlassCardVariant;
   padding?: number;
   radius?: number;
   intensity?: number;
+  specularHighlight?: boolean;
   onPress?: (event: GestureResponderEvent) => void;
   style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 }
 
 export function GlassCard({
   children,
+  variant = 'default',
   padding,
   radius,
   intensity,
+  specularHighlight = true,
   onPress,
   style,
+  contentStyle,
   accessibilityLabel,
 }: GlassCardProps) {
   const theme = useTheme();
@@ -47,6 +56,13 @@ export function GlassCard({
   const cardRadius = radius ?? theme.radius.xl;
   const blurIntensity = intensity ?? theme.glass.intensity;
 
+  let backgroundColor = theme.colors.glassSurface;
+  if (variant === 'heavy') {
+    backgroundColor = theme.colors.glassSurfaceHeavy;
+  } else if (variant === 'subtle') {
+    backgroundColor = theme.colors.glassSurfaceSubtle;
+  }
+
   const content = (
     <View
       style={[
@@ -55,22 +71,42 @@ export function GlassCard({
           borderRadius: cardRadius,
           borderColor: theme.colors.glassBorder,
           borderWidth: theme.borderWidth.thin,
-          backgroundColor: theme.colors.glassSurface,
+          backgroundColor,
           ...(Platform.OS === 'web'
-            ? ({ backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' } as any)
+            ? ({
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              } as any)
             : {}),
         },
-        theme.shadows.sm,
+        theme.shadows.glass,
         style,
       ]}>
-      {Platform.OS !== 'web' ? (
+      {/* 1. Native Blur Layer */}
+      {Platform.OS !== 'web' && (
         <BlurView
           intensity={blurIntensity}
           tint={theme.isDark ? 'dark' : 'light'}
           style={StyleSheet.absoluteFill}
         />
-      ) : null}
-      <View style={{ padding: cardPadding }}>{children}</View>
+      )}
+
+      {/* 2. Specular Top Rim Highlight Line (Simulates Light Reflection on Glass edge) */}
+      {specularHighlight && (
+        <LinearGradient
+          colors={[
+            theme.isDark ? 'rgba(255, 255, 255, 0.28)' : 'rgba(255, 255, 255, 0.90)',
+            theme.isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.15)',
+            'transparent',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.specularRim}
+        />
+      )}
+
+      {/* 3. Card Content */}
+      <View style={[{ padding: cardPadding }, contentStyle]}>{children}</View>
     </View>
   );
 
@@ -93,5 +129,13 @@ const styles = StyleSheet.create({
   outerContainer: {
     overflow: 'hidden',
     position: 'relative',
+  },
+  specularRim: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1.5,
+    zIndex: 1,
   },
 });

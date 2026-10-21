@@ -1,11 +1,11 @@
-import { SymbolView } from 'expo-symbols';
-import { PropsWithChildren, useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import React, { PropsWithChildren, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function Collapsible({ children, title }: PropsWithChildren & { title: string }) {
@@ -13,53 +13,55 @@ export function Collapsible({ children, title }: PropsWithChildren & { title: st
   const theme = useTheme();
 
   return (
-    <ThemedView>
+    <View style={styles.container}>
       <Pressable
         style={({ pressed }) => [styles.heading, pressed && styles.pressedHeading]}
         onPress={() => setIsOpen((value) => !value)}>
         <ThemedView type="backgroundElement" style={styles.button}>
-          <SymbolView
-            name={{ ios: 'chevron.right', android: 'chevron_right', web: 'chevron_right' }}
+          <Ionicons
+            name={isOpen ? 'chevron-down' : 'chevron-forward'}
             size={14}
-            weight="bold"
-            tintColor={theme.text}
-            style={{ transform: [{ rotate: isOpen ? '-90deg' : '90deg' }] }}
+            color={theme.colors.text}
           />
         </ThemedView>
 
-        <ThemedText type="small">{title}</ThemedText>
+        <ThemedText type="bodyMedium">{title}</ThemedText>
       </Pressable>
       {isOpen && (
-        <Animated.View entering={FadeIn.duration(200)}>
+        <Animated.View entering={FadeIn.duration(theme.animation.durationFast)}>
           <ThemedView type="backgroundElement" style={styles.content}>
             {children}
           </ThemedView>
         </Animated.View>
       )}
-    </ThemedView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    marginVertical: Spacing.xs,
+  },
   heading: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.two,
+    gap: Spacing.sm,
   },
   pressedHeading: {
     opacity: 0.7,
   },
   button: {
-    width: Spacing.four,
-    height: Spacing.four,
-    borderRadius: 12,
+    width: Spacing['2xl'],
+    height: Spacing['2xl'],
+    borderRadius: Radius.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
   content: {
-    marginTop: Spacing.three,
-    borderRadius: Spacing.three,
-    marginLeft: Spacing.four,
-    padding: Spacing.four,
+    marginTop: Spacing.sm,
+    borderRadius: Radius.lg,
+    marginLeft: Spacing.lg,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
   },
 });

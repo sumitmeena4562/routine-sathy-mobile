@@ -1,28 +1,46 @@
+import React from 'react';
+import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
-import { useColorScheme, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-import { Colors } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const theme = useTheme();
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.text,
+        headerShown: false,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: theme.colors.surface,
+          borderTopColor: theme.colors.border,
+          borderTopWidth: theme.borderWidth.thin,
+          elevation: 4,
+          shadowColor: theme.colors.text,
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          height: Platform.OS === 'ios' ? 84 : 64,
+          paddingBottom: Platform.OS === 'ios' ? 24 : 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
         },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={require('@/assets/images/tabIcons/home.png')}
-              style={{ width: 24, height: 24, tintColor: color }}
+          title: 'Routine',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'calendar' : 'calendar-outline'}
+              size={22}
+              color={color}
             />
           ),
         }}
@@ -30,11 +48,12 @@ export default function AppTabs() {
       <Tabs.Screen
         name="explore"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => (
-            <Image
-              source={require('@/assets/images/tabIcons/explore.png')}
-              style={{ width: 24, height: 24, tintColor: color }}
+          title: 'Design System',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'color-palette' : 'color-palette-outline'}
+              size={22}
+              color={color}
             />
           ),
         }}

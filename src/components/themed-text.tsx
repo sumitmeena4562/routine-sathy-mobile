@@ -1,57 +1,78 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { ThemeColor, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+export type ThemedTextType =
+  | 'default'
+  | 'display'
+  | 'title'
+  | 'subtitle'
+  | 'heading'
+  | 'body'
+  | 'bodyMedium'
+  | 'bodyBold'
+  | 'caption'
+  | 'captionMedium'
+  | 'captionBold'
+  | 'label'
+  | 'small'
+  | 'smallBold'
+  | 'link'
+  | 'linkPrimary'
+  | 'code';
+
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: ThemedTextType;
   themeColor?: ThemeColor;
 };
 
-export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
+export function ThemedText({
+  style,
+  type = 'default',
+  themeColor,
+  ...rest
+}: ThemedTextProps) {
   const theme = useTheme();
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  // Determine text color
+  let color = theme.colors[themeColor ?? 'text'];
+  if (type === 'linkPrimary') {
+    color = theme.colors.primary;
+  }
+
+  // Get typographic style from tokens
+  const typographyStyle = styles[type] || styles.default;
+
+  return (
+    <Text
+      style={[
+        { color },
+        typographyStyle,
+        style,
+      ]}
+      {...rest}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
-  small: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 500,
-  },
-  smallBold: {
-    fontSize: 14,
-    lineHeight: 20,
-    fontWeight: 700,
-  },
-  default: {
-    fontSize: 16,
-    lineHeight: 24,
-    fontWeight: 500,
-  },
-  title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
-  },
-  subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
-  },
-  link: {
-    lineHeight: 30,
-    fontSize: 14,
-  },
-  linkPrimary: {
-    lineHeight: 30,
-    fontSize: 14,
-    color: '#3c87f7',
-  },
-  code: {
-    fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
-    fontSize: 12,
-  },
+  display: Typography.display,
+  title: Typography.title,
+  subtitle: Typography.subtitle,
+  heading: Typography.heading,
+  body: Typography.body,
+  bodyMedium: Typography.bodyMedium,
+  bodyBold: Typography.bodyBold,
+  caption: Typography.caption,
+  captionMedium: Typography.captionMedium,
+  captionBold: Typography.captionBold,
+  label: Typography.label,
+  small: Typography.small,
+  smallBold: Typography.smallBold,
+  code: Typography.code,
+  default: Typography.bodyMedium,
+  link: Typography.link,
+  linkPrimary: Typography.link,
 });

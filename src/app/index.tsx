@@ -1,293 +1,175 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Platform,
-  ScrollView,
   StyleSheet,
+  Text,
   View,
-  useWindowDimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
-import { ThemedText } from '@/components/themed-text';
-import {
-  AmbientAtmosphere,
-  Badge,
-  Button,
-  GlassCard,
-  IconButton,
-  ProgressBar,
-  StatusIndicator,
-} from '@/components/ui';
-import { Radius, Spacing } from '@/constants/theme';
+import { AmbientAtmosphere, GlassCard } from '@/components/ui';
+import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function SplashScreen() {
   const theme = useTheme();
-  const router = useRouter();
-  const { width, height } = useWindowDimensions();
 
-  // Launch Simulation State
-  const [launching, setLaunching] = useState(false);
-  const [launchProgress, setLaunchProgress] = useState(0.35);
-  const [statusMessage, setStatusMessage] = useState('Encrypted Storage • Ready');
+  // Subtle breathing animation for brand emblem
+  const scale = useSharedValue(1);
+  const auraOpacity = useSharedValue(0.4);
+  const loaderTranslateX = useSharedValue(-60);
 
-  const isCompactHeight = height < 740;
-  const contentMaxWidth = Math.min(width * 0.92, 460);
+  useEffect(() => {
+    // 1. Gentle emblem breathing pulse
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.04, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.98, { duration: 2200, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
+    );
 
-  const handleLaunch = () => {
-    if (launching) return;
+    // 2. Soft ambient aura glow pulse
+    auraOpacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 2200, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.35, { duration: 2200, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
+    );
 
-    if (Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
+    // 3. Subtle horizontal loading glide
+    loaderTranslateX.value = withRepeat(
+      withSequence(
+        withTiming(60, { duration: 1600, easing: Easing.inOut(Easing.cubic) }),
+        withTiming(-60, { duration: 1600, easing: Easing.inOut(Easing.cubic) })
+      ),
+      -1,
+      true
+    );
+  }, [scale, auraOpacity, loaderTranslateX]);
 
-    setLaunching(true);
-    setLaunchProgress(0.65);
-    setStatusMessage('Synchronizing Sacred Habits...');
+  const animatedEmblemStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
-    setTimeout(() => {
-      setLaunchProgress(0.90);
-      setStatusMessage('Preparing Mindful Sanctuary...');
-    }, 700);
+  const animatedAuraStyle = useAnimatedStyle(() => ({
+    opacity: auraOpacity.value,
+  }));
 
-    setTimeout(() => {
-      setLaunchProgress(1.0);
-      setStatusMessage('Welcome to Routine Sathy ✨');
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      }
-    }, 1400);
-
-    setTimeout(() => {
-      setLaunching(false);
-    }, 2400);
-  };
-
-  const handleExplore = () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    router.push('/explore');
-  };
+  const animatedLoaderStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: loaderTranslateX.value }],
+  }));
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      {/* 1. Optical Gradient Mesh Atmosphere for authentic glass refraction */}
+      {/* 1. Soft Lavender & Icy Blue Glassmorphism Background */}
       <AmbientAtmosphere />
 
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            minHeight: height,
-            justifyContent: isCompactHeight ? 'flex-start' : 'space-between',
-            paddingVertical: Platform.OS === 'ios' ? 56 : 40,
-          },
-        ]}
-        showsVerticalScrollIndicator={false}>
-        <View style={[styles.container, { maxWidth: contentMaxWidth }]}>
-          {/* 2. Top Header Status Bar */}
-          <View style={styles.topBar}>
-            <GlassCard
-              variant="subtle"
-              padding={Spacing.xs + 2}
-              radius={Radius.full}
-              specularHighlight
-              style={styles.osBadge}>
-              <View style={styles.statusRow}>
-                <StatusIndicator status="online" size={8} />
-                <ThemedText
-                  type="label"
-                  style={[styles.osText, { color: theme.colors.textSecondary }]}>
-                  ROUTINE SATHY OS
-                </ThemedText>
-              </View>
-            </GlassCard>
+      {/* 2. Abstract Floating Glass Rings (Depth Geometry) */}
+      <View pointerEvents="none" style={styles.abstractRingsContainer}>
+        <View
+          style={[
+            styles.abstractRing,
+            styles.ringOuter,
+            { borderColor: theme.colors.glassBorderSubtle },
+          ]}
+        />
+        <View
+          style={[
+            styles.abstractRing,
+            styles.ringMiddle,
+            { borderColor: theme.colors.glassBorderSubtle },
+          ]}
+        />
+      </View>
 
-            <IconButton
-              variant="glass"
-              shape="circle"
-              size="md"
-              onPress={theme.toggleTheme}
-              accessibilityLabel="Toggle Day/Night Mode"
-              icon={
-                <Ionicons
-                  name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
-                  size={18}
-                  color={theme.colors.primary}
-                />
+      {/* 3. Center Brand Visual & Typography */}
+      <View style={styles.centerContainer}>
+        {/* Animated Brand Emblem */}
+        <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
+          {/* Radiant Soft Lavender Aura behind glass */}
+          <Animated.View
+            style={[
+              styles.emblemAura,
+              animatedAuraStyle,
+              {
+                backgroundColor: theme.isDark
+                  ? 'rgba(157, 143, 250, 0.28)'
+                  : 'rgba(139, 124, 246, 0.22)',
+              },
+            ]}
+          />
+
+          {/* Frosted Glass Emblem Box with Specular Rim Highlight */}
+          <GlassCard
+            variant="heavy"
+            padding={0}
+            radius={32}
+            specularHighlight
+            style={styles.glassEmblemBox}>
+            <LinearGradient
+              colors={
+                theme.isDark
+                  ? ['#9D8FFA', '#7C3AED', '#4F46E5']
+                  : ['#8B7CF6', '#7C3AED', '#6D28D9']
               }
-            />
-          </View>
-
-          {/* 3. Center Brand Identity & Emblem */}
-          <View style={[styles.brandHero, isCompactHeight && { marginVertical: Spacing.lg }]}>
-            {/* Outer Radiant Glowing Glass Emblem */}
-            <View
-              style={[
-                styles.emblemAura,
-                {
-                  shadowColor: theme.colors.primary,
-                  backgroundColor: theme.isDark
-                    ? 'rgba(157, 143, 250, 0.15)'
-                    : 'rgba(139, 124, 246, 0.15)',
-                },
-              ]}>
-              <GlassCard
-                variant="heavy"
-                padding={Spacing.lg}
-                radius={36}
-                specularHighlight
-                style={styles.emblemGlassContainer}>
-                {/* Core Gradient Glyph */}
-                <LinearGradient
-                  colors={
-                    theme.isDark
-                      ? ['#9D8FFA', '#7C3AED', '#4F46E5']
-                      : ['#8B7CF6', '#6D28D9', '#4F46E5']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.glyphCircle}>
-                  <Ionicons name="sparkles" size={44} color="#FFFFFF" />
-                </LinearGradient>
-              </GlassCard>
-            </View>
-
-            {/* Brand Typography */}
-            <ThemedText type="display" style={styles.brandTitle}>
-              Routine Sathy
-            </ThemedText>
-
-            {/* Tagline Pill */}
-            <GlassCard
-              variant="subtle"
-              padding={Spacing.xs + 2}
-              radius={Radius.full}
-              style={styles.taglinePill}>
-              <ThemedText
-                type="label"
-                style={[styles.taglineText, { color: theme.colors.primary }]}>
-                SACRED DAILY RHYTHM & HABIT FLOW
-              </ThemedText>
-            </GlassCard>
-
-            {/* Value Proposition */}
-            <ThemedText
-              type="body"
-              style={[styles.brandSubtitle, { color: theme.colors.textSecondary }]}>
-              Your mindful sanctuary for unbroken focus, stress-free micro-habits, and sacred daily momentum.
-            </ThemedText>
-          </View>
-
-          {/* 4. Brand Value Pillars (Frosted Glass Chips) */}
-          <View style={styles.pillarsGrid}>
-            <GlassCard variant="default" padding={Spacing.sm + 2} radius={Radius.lg} style={styles.pillarCard}>
-              <Ionicons name="leaf-outline" size={18} color={theme.colors.success} />
-              <ThemedText type="smallBold" style={{ marginTop: 4, fontSize: 13 }}>
-                Mindful Presence
-              </ThemedText>
-              <ThemedText type="caption" style={{ color: theme.colors.textMuted, fontSize: 11, marginTop: 1 }}>
-                Pranayama & focus
-              </ThemedText>
-            </GlassCard>
-
-            <GlassCard variant="default" padding={Spacing.sm + 2} radius={Radius.lg} style={styles.pillarCard}>
-              <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.primary} />
-              <ThemedText type="smallBold" style={{ marginTop: 4, fontSize: 13 }}>
-                Streak Shield
-              </ThemedText>
-              <ThemedText type="caption" style={{ color: theme.colors.textMuted, fontSize: 11, marginTop: 1 }}>
-                Offline resilience
-              </ThemedText>
-            </GlassCard>
-
-            <GlassCard variant="default" padding={Spacing.sm + 2} radius={Radius.lg} style={styles.pillarCard}>
-              <Ionicons name="flash-outline" size={18} color={theme.colors.warning} />
-              <ThemedText type="smallBold" style={{ marginTop: 4, fontSize: 13 }}>
-                Energy Rhythm
-              </ThemedText>
-              <ThemedText type="caption" style={{ color: theme.colors.textMuted, fontSize: 11, marginTop: 1 }}>
-                Zero anxiety flow
-              </ThemedText>
-            </GlassCard>
-          </View>
-
-          {/* 5. App Launch Engine (Glassmorphic Launch Console) */}
-          <GlassCard variant="default" specularHighlight padding={Spacing.lg} radius={Radius['2xl']} style={styles.launchCard}>
-            <View style={styles.launchHeader}>
-              <ThemedText type="smallBold" style={{ letterSpacing: -0.2 }}>
-                App Launch Console
-              </ThemedText>
-              <Badge
-                label={launching ? 'Initializing...' : 'Engine Ready'}
-                variant={launching ? 'primary' : 'success'}
-                size="sm"
-              />
-            </View>
-
-            {/* Launch Progress & Telemetry */}
-            <View style={styles.progressSection}>
-              <View style={styles.telemetryRow}>
-                <ThemedText type="caption" style={{ color: theme.colors.textSecondary, fontSize: 12 }}>
-                  {statusMessage}
-                </ThemedText>
-                <ThemedText type="code" style={{ color: theme.colors.primary, fontSize: 11 }}>
-                  {Math.round(launchProgress * 100)}%
-                </ThemedText>
-              </View>
-
-              <ProgressBar
-                progress={launchProgress}
-                height={8}
-                animated
-                style={{ marginTop: 6 }}
-              />
-            </View>
-
-            {/* Primary Launch Action */}
-            <Button
-              title={launching ? 'Entering Sanctuary...' : 'Launch Routine Sathy'}
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={launching}
-              onPress={handleLaunch}
-              icon={
-                <Ionicons
-                  name={launching ? 'sparkles' : 'arrow-forward'}
-                  size={18}
-                  color={theme.colors.primaryForeground}
-                />
-              }
-              iconPosition="right"
-              style={{ marginTop: Spacing.md }}
-            />
-
-            {/* Design System Reference Link */}
-            <Button
-              title="Explore Design System Tokens"
-              variant="glass"
-              size="sm"
-              fullWidth
-              onPress={handleExplore}
-              icon={<Ionicons name="color-palette-outline" size={14} color={theme.colors.textSecondary} />}
-              style={{ marginTop: Spacing.sm }}
-            />
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.innerGlyphGradient}>
+              <Ionicons name="sparkles" size={42} color="#FFFFFF" />
+            </LinearGradient>
           </GlassCard>
+        </Animated.View>
 
-          {/* 6. Brand Trust & Privacy Footer */}
-          <View style={styles.footerRow}>
-            <Ionicons name="lock-closed-outline" size={12} color={theme.colors.textMuted} />
-            <ThemedText type="caption" style={[styles.footerText, { color: theme.colors.textMuted }]}>
-              100% On-Device Privacy • Offline-First • Routine Sathy 2026
-            </ThemedText>
-          </View>
+        {/* Routine Sathy App Name */}
+        <Text style={[styles.brandTitle, { color: theme.colors.text }]}>
+          Routine Sathy
+        </Text>
+
+        {/* Small Elegant Tagline */}
+        <Text style={[styles.brandTagline, { color: theme.colors.textSecondary }]}>
+          Your Mindful Daily Rhythm
+        </Text>
+      </View>
+
+      {/* 4. Subtle Minimal Loading Animation */}
+      <View style={styles.bottomLoaderContainer}>
+        <View
+          style={[
+            styles.loaderTrack,
+            {
+              backgroundColor: theme.isDark
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'rgba(139, 124, 246, 0.12)',
+            },
+          ]}>
+          <Animated.View style={[styles.loaderPill, animatedLoaderStyle]}>
+            <LinearGradient
+              colors={[
+                'transparent',
+                theme.colors.primary,
+                theme.colors.secondaryForeground,
+                'transparent',
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+          </Animated.View>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -295,124 +177,106 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    position: 'relative',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-  },
-  container: {
-    width: '100%',
-    flex: 1,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  topBar: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  osBadge: {
-    paddingHorizontal: Spacing.md,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  osText: {
-    fontSize: 11,
-    letterSpacing: 0.8,
-    fontWeight: '700',
-  },
-  brandHero: {
-    alignItems: 'center',
-    width: '100%',
-    marginVertical: Spacing.xl,
-  },
-  emblemAura: {
-    borderRadius: 44,
-    padding: 6,
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.35,
-    shadowRadius: 36,
-    elevation: 12,
-  },
-  emblemGlassContainer: {
-    width: 104,
-    height: 104,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  glyphCircle: {
-    width: 74,
-    height: 74,
+  abstractRingsContainer: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  abstractRing: {
+    position: 'absolute',
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  ringOuter: {
+    width: 320,
+    height: 320,
+    opacity: 0.6,
+  },
+  ringMiddle: {
+    width: 220,
+    height: 220,
+    opacity: 0.8,
+  },
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+    paddingHorizontal: 24,
+  },
+  emblemWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emblemAura: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: Radius.full,
+    ...(Platform.OS === 'web'
+      ? ({
+          filter: 'blur(30px)',
+          WebkitFilter: 'blur(30px)',
+        } as any)
+      : {}),
+  },
+  glassEmblemBox: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#8B7CF6',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.28,
+    shadowRadius: 28,
+    elevation: 10,
+  },
+  innerGlyphGradient: {
+    width: 72,
+    height: 72,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   brandTitle: {
-    fontSize: 34,
-    fontWeight: '800',
-    letterSpacing: -0.8,
-    marginTop: Spacing.lg,
-    textAlign: 'center',
-  },
-  taglinePill: {
-    marginTop: Spacing.xs + 2,
-    paddingHorizontal: Spacing.md,
-  },
-  taglineText: {
-    fontSize: 11,
-    letterSpacing: 1.1,
+    fontSize: 32,
     fontWeight: '700',
-  },
-  brandSubtitle: {
+    letterSpacing: -0.6,
     textAlign: 'center',
-    marginTop: Spacing.sm + 2,
-    lineHeight: 22,
+  },
+  brandTagline: {
     fontSize: 14,
-    paddingHorizontal: Spacing.sm,
-  },
-  pillarsGrid: {
-    flexDirection: 'row',
-    gap: 10,
-    width: '100%',
-    marginBottom: Spacing.lg,
-  },
-  pillarCard: {
-    flex: 1,
-    alignItems: 'center',
+    fontWeight: '400',
+    letterSpacing: 0.3,
+    marginTop: 8,
     textAlign: 'center',
   },
-  launchCard: {
-    width: '100%',
-  },
-  launchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressSection: {
-    marginTop: Spacing.md,
-  },
-  telemetryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  footerRow: {
-    flexDirection: 'row',
+  bottomLoaderContainer: {
+    position: 'absolute',
+    bottom: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: Spacing.lg,
-    paddingBottom: Spacing.xs,
+    zIndex: 2,
   },
-  footerText: {
-    fontSize: 11,
-    letterSpacing: 0.1,
+  loaderTrack: {
+    width: 64,
+    height: 3,
+    borderRadius: Radius.full,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  loaderPill: {
+    width: 40,
+    height: 3,
+    position: 'absolute',
+    top: 0,
+    left: 12,
   },
 });

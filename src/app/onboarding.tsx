@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -188,10 +188,6 @@ export default function OnboardingScreen() {
 
   const insets = useSafeAreaInsets();
 
-  const progressPercent = useMemo(() => {
-    return (currentStep / 3) * 100;
-  }, [currentStep]);
-
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
@@ -218,50 +214,64 @@ export default function OnboardingScreen() {
             paddingRight: insets.right,
           },
         ]}>
-        {/* Top Navigation & Step Indicator */}
+        {/* Top Navigation Bar (Symmetrical & Proper) */}
         <View style={styles.topBar}>
-          {currentStep > 1 ? (
-            <Pressable
-              onPress={handleBack}
-              accessibilityRole="button"
-              accessibilityLabel="Go back"
-              style={({ pressed }) => [
-                styles.navIconButton,
-                pressed && styles.buttonPressed,
-              ]}>
-              <Ionicons name="arrow-back" size={20} color="#374151" />
-            </Pressable>
-          ) : (
-            <View style={styles.logoPill}>
-              <RoutineSathyEmblem size={22} />
-              <Text style={styles.logoPillText}>Routine Sathy</Text>
-            </View>
-          )}
-
-          {/* Progress Segment Indicator */}
-          <View style={styles.progressContainer}>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  { width: `${progressPercent}%` },
-                ]}
-              />
-            </View>
-            <Text style={styles.stepCounterText}>Step {currentStep} of 3</Text>
+          {/* Left Slot: Back Button if Step > 1, else Subtle Logo Mark */}
+          <View style={styles.topBarSideSlot}>
+            {currentStep > 1 ? (
+              <Pressable
+                onPress={handleBack}
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                style={({ pressed }) => [
+                  styles.navIconButton,
+                  pressed && styles.buttonPressed,
+                ]}>
+                <Ionicons name="chevron-back" size={20} color="#1E1B4B" />
+              </Pressable>
+            ) : (
+              <View style={styles.topBarLogoMark}>
+                <RoutineSathyEmblem size={24} />
+              </View>
+            )}
           </View>
 
-          {/* Skip Action */}
-          <Pressable
-            onPress={handleSkip}
-            accessibilityRole="button"
-            accessibilityLabel="Skip onboarding"
-            style={({ pressed }) => [
-              styles.skipButton,
-              pressed && styles.buttonPressed,
-            ]}>
-            <Text style={styles.skipButtonText}>Skip</Text>
-          </Pressable>
+          {/* Center Slot: 3-Segment Progress Dash Indicator */}
+          <View style={styles.segmentTrack}>
+            <View
+              style={[
+                styles.segmentBar,
+                currentStep >= 1 ? styles.segmentBarActive : styles.segmentBarInactive,
+              ]}
+            />
+            <View
+              style={[
+                styles.segmentBar,
+                currentStep >= 2 ? styles.segmentBarActive : styles.segmentBarInactive,
+              ]}
+            />
+            <View
+              style={[
+                styles.segmentBar,
+                currentStep >= 3 ? styles.segmentBarActive : styles.segmentBarInactive,
+              ]}
+            />
+          </View>
+
+          {/* Right Slot: Skip Button */}
+          <View style={[styles.topBarSideSlot, styles.topBarRightSlot]}>
+            <Pressable
+              onPress={handleSkip}
+              accessibilityRole="button"
+              accessibilityLabel="Skip onboarding"
+              hitSlop={12}
+              style={({ pressed }) => [
+                styles.skipButton,
+                pressed && styles.buttonPressed,
+              ]}>
+              <Text style={styles.skipButtonText}>Skip</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Dynamic Step Content */}
@@ -537,9 +547,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    height: 52,
     zIndex: 10,
+  },
+  topBarSideSlot: {
+    width: 44,
+    height: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+  },
+  topBarRightSlot: {
+    alignItems: 'flex-end',
   },
   navIconButton: {
     width: 36,
@@ -550,66 +570,59 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(238, 242, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 2,
   },
-  logoPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  topBarLogoMark: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: 'rgba(238, 242, 255, 0.95)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 18,
-    gap: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 2,
   },
-  logoPillText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#0F172A',
-    letterSpacing: -0.2,
-  },
-  progressContainer: {
+  segmentTrack: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    paddingHorizontal: 14,
+    gap: 6,
   },
-  progressTrack: {
-    width: 80,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(139, 124, 246, 0.18)',
-    overflow: 'hidden',
+  segmentBar: {
+    flex: 1,
+    height: 4.5,
+    borderRadius: 3,
   },
-  progressFill: {
-    height: '100%',
+  segmentBarActive: {
     backgroundColor: '#7C3AED',
-    borderRadius: 2,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.30,
+    shadowRadius: 3,
   },
-  stepCounterText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#475569',
-    letterSpacing: 0.2,
+  segmentBarInactive: {
+    backgroundColor: 'rgba(139, 124, 246, 0.16)',
   },
   skipButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   skipButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: '#64748B',
+    letterSpacing: -0.1,
   },
   scrollArea: {
     flex: 1,
@@ -620,7 +633,8 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   headerBlock: {
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 20,
   },
   badgePill: {
     alignSelf: 'flex-start',
@@ -639,16 +653,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   stepTitle: {
-    fontSize: 26,
+    fontSize: 27,
     fontWeight: '800',
     color: '#0F172A',
-    letterSpacing: -0.5,
+    letterSpacing: -0.6,
     marginBottom: 6,
   },
   stepSubtitle: {
-    fontSize: 13.5,
-    lineHeight: 19.5,
-    color: '#334155',
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#475569',
     letterSpacing: -0.1,
   },
   cardsStack: {

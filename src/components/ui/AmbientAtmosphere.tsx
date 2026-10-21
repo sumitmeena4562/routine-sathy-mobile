@@ -1,8 +1,6 @@
 import React from 'react';
-import { Dimensions, Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export interface AmbientAtmosphereProps {
   style?: any;
@@ -11,14 +9,25 @@ export interface AmbientAtmosphereProps {
 
 /**
  * AmbientAtmosphere renders soft, organic lavender and icy blue blurred orbs.
- * Designed with translucent multi-stop gradient falloffs so it looks rich
- * and optical on native Android, iOS, and Web.
+ * Fully responsive: uses dynamic window dimensions to adapt seamlessly
+ * across small mobile screens, large foldables, tablets, and web desktop.
  */
 export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps) {
+  const { width: windowWidth } = useWindowDimensions();
+
+  const orbLavenderSize = Math.min(windowWidth * 0.95, 380);
+  const orbIcyBlueSize = Math.min(windowWidth * 0.88, 340);
+  const orbMintLilacSize = Math.min(windowWidth * 0.92, 350);
+
   return (
     <View pointerEvents="none" style={[styles.container, { opacity }, style]}>
       {/* 1. Luminous Soft Lavender Orb (Top-Right / Header) */}
-      <View style={[styles.orb, styles.orbLavender]}>
+      <View
+        style={[
+          styles.orb,
+          styles.orbLavender,
+          { width: orbLavenderSize, height: orbLavenderSize },
+        ]}>
         <LinearGradient
           colors={[
             'rgba(196, 181, 253, 0.70)',
@@ -33,7 +42,12 @@ export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps
       </View>
 
       {/* 2. Calming Icy Blue Orb (Center-Left / Midground) */}
-      <View style={[styles.orb, styles.orbIcyBlue]}>
+      <View
+        style={[
+          styles.orb,
+          styles.orbIcyBlue,
+          { width: orbIcyBlueSize, height: orbIcyBlueSize },
+        ]}>
         <LinearGradient
           colors={[
             'rgba(125, 211, 252, 0.60)',
@@ -48,7 +62,12 @@ export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps
       </View>
 
       {/* 3. Whispering Pale Mint / Lilac Depth Orb (Bottom-Center) */}
-      <View style={[styles.orb, styles.orbMintLilac]}>
+      <View
+        style={[
+          styles.orb,
+          styles.orbMintLilac,
+          { width: orbMintLilacSize, height: orbMintLilacSize },
+        ]}>
         <LinearGradient
           colors={[
             'rgba(167, 243, 208, 0.45)',
@@ -83,20 +102,14 @@ const styles = StyleSheet.create({
       : {}),
   },
   orbLavender: {
-    width: Math.min(SCREEN_WIDTH * 0.95, 380),
-    height: Math.min(SCREEN_WIDTH * 0.95, 380),
     top: -60,
     right: -50,
   },
   orbIcyBlue: {
-    width: Math.min(SCREEN_WIDTH * 0.88, 340),
-    height: Math.min(SCREEN_WIDTH * 0.88, 340),
     top: '32%',
     left: -60,
   },
   orbMintLilac: {
-    width: Math.min(SCREEN_WIDTH * 0.92, 350),
-    height: Math.min(SCREEN_WIDTH * 0.92, 350),
     bottom: -60,
     right: '10%',
   },

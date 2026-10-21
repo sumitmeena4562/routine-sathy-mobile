@@ -4,8 +4,10 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -20,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
+import { useOnboarding } from '@/context/OnboardingContext';
 
 /**
  * Three subtle, minimal breathing dots in a gentle continuous wave: • • •
@@ -79,21 +82,32 @@ function MinimalPulsingDots({ color }: { color: string }) {
 
 export default function SplashScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const { hasCompletedOnboarding, isLoading } = useOnboarding();
+
+  const isCompact = windowHeight < 700 || windowWidth < 380;
 
   // Gentle breathing motion for emblem and ambient purple glow
   const scale = useSharedValue(1);
   const glowOpacity = useSharedValue(0.35);
 
   const handleProceed = useCallback(() => {
-    router.replace('/onboarding');
-  }, [router]);
+    if (isLoading) return;
+    if (hasCompletedOnboarding) {
+      router.replace('/explore');
+    } else {
+      router.replace('/onboarding');
+    }
+  }, [hasCompletedOnboarding, isLoading, router]);
 
   useEffect(() => {
+    if (isLoading) return;
     const timer = setTimeout(() => {
       handleProceed();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [handleProceed]);
+  }, [handleProceed, isLoading]);
 
   useEffect(() => {
     scale.value = withRepeat(
@@ -123,6 +137,10 @@ export default function SplashScreen() {
     opacity: glowOpacity.value,
   }));
 
+  const iconTileSize = isCompact ? 72 : 84;
+  const emblemSize = isCompact ? 44 : 52;
+  const glowAuraSize = isCompact ? 120 : 144;
+
   return (
     <Pressable onPress={handleProceed} style={styles.root}>
       {/* Native Dark Status Bar icons over bright canvas */}
@@ -139,22 +157,39 @@ export default function SplashScreen() {
       {/* 2. Soft Lavender + Icy Blue Organic Blurred Glass Orbs */}
       <AmbientAtmosphere />
 
-      {/* 3. Center Brand Identity */}
+      {/* 3. Center Brand Identity (Max Width Responsive Container) */}
       <View style={styles.centerContainer}>
         {/* Animated Brand Emblem & Purple Glow */}
         <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
           {/* Soft Feathered Purple Radiant Glow behind the hero icon */}
-          <Animated.View style={[styles.purpleGlowAura, animatedGlowStyle]}>
+          <Animated.View
+            style={[
+              styles.purpleGlowAura,
+              { width: glowAuraSize, height: glowAuraSize },
+              animatedGlowStyle,
+            ]}>
             <LinearGradient
-              colors={['rgba(139, 124, 246, 0.50)', 'rgba(167, 139, 250, 0.20)', 'transparent']}
+              colors={[
+                'rgba(139, 124, 246, 0.50)',
+                'rgba(167, 139, 250, 0.20)',
+                'transparent',
+              ]}
               start={{ x: 0.5, y: 0.5 }}
               end={{ x: 1, y: 1 }}
               style={StyleSheet.absoluteFill}
             />
           </Animated.View>
 
-          {/* Unified Brand Hero App Icon (Clean, Luminous Purple Glass Jewel - No Double Box) */}
-          <View style={styles.heroAppIconTile}>
+          {/* Unified Brand Hero App Icon (Clean, Luminous Purple Glass Jewel) */}
+          <View
+            style={[
+              styles.heroAppIconTile,
+              {
+                width: iconTileSize,
+                height: iconTileSize,
+                borderRadius: isCompact ? 20 : 24,
+              },
+            ]}>
             {/* Rich Royal Violet Gradient Base */}
             <LinearGradient
               colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
@@ -165,26 +200,39 @@ export default function SplashScreen() {
 
             {/* Specular Top Rim Highlight Line for Glass Realism */}
             <LinearGradient
-              colors={['rgba(255, 255, 255, 0.65)', 'rgba(255, 255, 255, 0.15)', 'transparent']}
+              colors={[
+                'rgba(255, 255, 255, 0.65)',
+                'rgba(255, 255, 255, 0.15)',
+                'transparent',
+              ]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.specularRim}
             />
 
             {/* Official Brand Insignia: Circadian Rhythm Arcs + Sathy Dawn Lotus */}
-            <RoutineSathyEmblem size={52} />
+            <RoutineSathyEmblem size={emblemSize} />
           </View>
         </Animated.View>
 
         {/* Routine Sathy App Name */}
-        <Text style={styles.brandTitle}>Routine Sathy</Text>
+        <Text style={[styles.brandTitle, isCompact && styles.brandTitleCompact]}>
+          Routine Sathy
+        </Text>
 
         {/* Small Elegant Tagline */}
-        <Text style={styles.brandTagline}>Your Mindful Daily Rhythm</Text>
+        <Text
+          style={[styles.brandTagline, isCompact && styles.brandTaglineCompact]}>
+          Your Mindful Daily Rhythm
+        </Text>
       </View>
 
-      {/* 4. Minimal Loading Wave Dots (• • •) */}
-      <View style={styles.bottomLoaderContainer}>
+      {/* 4. Minimal Loading Wave Dots (• • •) Docked Above Bottom Inset */}
+      <View
+        style={[
+          styles.bottomLoaderContainer,
+          { bottom: Math.max(insets.bottom + 28, 48) },
+        ]}>
         <MinimalPulsingDots color="#8B7CF6" />
       </View>
     </Pressable>
@@ -204,17 +252,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
     paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 480,
   },
   emblemWrapper: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 22,
+    marginBottom: 20,
   },
   purpleGlowAura: {
     position: 'absolute',
-    width: 144,
-    height: 144,
     borderRadius: 9999,
     overflow: 'hidden',
     ...(Platform.OS === 'web'
@@ -225,9 +273,6 @@ const styles = StyleSheet.create({
       : {}),
   },
   heroAppIconTile: {
-    width: 84,
-    height: 84,
-    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -255,6 +300,10 @@ const styles = StyleSheet.create({
     color: '#222034',
     textAlign: 'center',
   },
+  brandTitleCompact: {
+    fontSize: 26,
+    letterSpacing: -0.4,
+  },
   brandTagline: {
     fontSize: 14,
     fontWeight: '400',
@@ -263,9 +312,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  brandTaglineCompact: {
+    fontSize: 13,
+    marginTop: 6,
+  },
   bottomLoaderContainer: {
     position: 'absolute',
-    bottom: 56,
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,

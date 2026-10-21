@@ -1,10 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  BackHandler,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -109,10 +111,18 @@ const CHRONOTYPES: ChronotypeOption[] = [
   },
 ];
 
-const WAKE_TIMES = ['06:00 AM', '06:30 AM', '07:00 AM', '07:30 AM', '08:00 AM'];
+const WAKE_TIMES = [
+  '06:00 AM',
+  '06:30 AM',
+  '07:00 AM',
+  '07:30 AM',
+  '08:00 AM',
+  '08:30 AM',
+  '09:00 AM',
+];
 
 // ----------------------------------------------------------------------------
-// Step 3: Goals Data
+// Step 3: Goals Data (Paired into Rows for 100% Robust 2-Column Responsiveness)
 // ----------------------------------------------------------------------------
 interface GoalOption {
   id: GoalId;
@@ -121,47 +131,58 @@ interface GoalOption {
   icon: keyof typeof Ionicons.glyphMap;
 }
 
-const GOALS_LIST: GoalOption[] = [
-  {
-    id: 'morning_grounding',
-    title: 'Morning Calm',
-    subtitle: 'Screen-free dawn',
-    icon: 'sunny',
-  },
-  {
-    id: 'deep_work',
-    title: 'Deep Focus',
-    subtitle: 'Flow without fatigue',
-    icon: 'flash',
-  },
-  {
-    id: 'mindful_movement',
-    title: 'Movement',
-    subtitle: 'Walk & daily stretch',
-    icon: 'walk',
-  },
-  {
-    id: 'stress_relief',
-    title: 'Stress Reset',
-    subtitle: '2-min breath pause',
-    icon: 'leaf',
-  },
-  {
-    id: 'digital_sunset',
-    title: 'Digital Sunset',
-    subtitle: 'Screen-off unwind',
-    icon: 'bulb-outline',
-  },
-  {
-    id: 'deep_sleep',
-    title: 'Deep Sleep',
-    subtitle: '8 hrs recovery',
-    icon: 'moon',
-  },
+const GOALS_PAIRS: [GoalOption, GoalOption][] = [
+  [
+    {
+      id: 'morning_grounding',
+      title: 'Morning Calm',
+      subtitle: 'Screen-free dawn',
+      icon: 'sunny',
+    },
+    {
+      id: 'deep_work',
+      title: 'Deep Focus',
+      subtitle: 'Flow without fatigue',
+      icon: 'flash',
+    },
+  ],
+  [
+    {
+      id: 'mindful_movement',
+      title: 'Movement',
+      subtitle: 'Walk & daily stretch',
+      icon: 'walk',
+    },
+    {
+      id: 'stress_relief',
+      title: 'Stress Reset',
+      subtitle: '2-min breath pause',
+      icon: 'leaf',
+    },
+  ],
+  [
+    {
+      id: 'digital_sunset',
+      title: 'Digital Sunset',
+      subtitle: 'Screen-off unwind',
+      icon: 'bulb-outline',
+    },
+    {
+      id: 'deep_sleep',
+      title: 'Deep Sleep',
+      subtitle: '8 hrs recovery',
+      icon: 'moon',
+    },
+  ],
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  const isCompact = windowHeight < 720 || windowWidth < 380;
+
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const {
@@ -197,334 +218,437 @@ export default function OnboardingScreen() {
     router.replace('/explore');
   }, [completeOnboarding, router]);
 
-  const insets = useSafeAreaInsets();
+  // Android Hardware Back Button Handling
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      const onBackPress = () => {
+        if (currentStep > 1) {
+          handleBack();
+          return true; // Consume event
+        }
+        return false; // Exit app or default behavior
+      };
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+      return () => subscription.remove();
+    }
+  }, [currentStep, handleBack]);
+
+  const emblemSize = isCompact ? 28 : 32;
+  const emblemContainerSize = isCompact ? 50 : 58;
 
   return (
     <View style={styles.root}>
       <StatusBar style="dark" />
 
-      {/* Safe Screen Frame */}
+      {/* Screen Frame with Top Inset */}
       <View
         style={[
-          styles.safeArea,
+          styles.screenFrame,
           {
             paddingTop: insets.top + (Platform.OS === 'android' ? 6 : 2),
-            paddingBottom: Math.max(insets.bottom, 12),
             paddingLeft: insets.left,
             paddingRight: insets.right,
           },
         ]}>
-        {/* Symmetrical Top Navigation Bar */}
-        <View style={styles.topBar}>
-          <View style={styles.topBarSideSlot}>
-            {currentStep > 1 ? (
+        {/* Responsive Centered Column Wrapper */}
+        <View style={styles.responsiveWrapper}>
+          {/* Symmetrical Top Navigation Bar */}
+          <View style={styles.topBar}>
+            <View style={styles.topBarSideSlot}>
+              {currentStep > 1 ? (
+                <Pressable
+                  onPress={handleBack}
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                  hitSlop={12}
+                  style={({ pressed }) => [
+                    styles.navIconButton,
+                    pressed && styles.buttonPressed,
+                  ]}>
+                  <Ionicons name="chevron-back" size={20} color="#0F172A" />
+                </Pressable>
+              ) : (
+                <View style={styles.topBarLogoMark}>
+                  <RoutineSathyEmblem size={22} />
+                </View>
+              )}
+            </View>
+
+            {/* 3-Segment Progress Dashes */}
+            <View style={styles.segmentTrack}>
+              <View
+                style={[
+                  styles.segmentBar,
+                  currentStep >= 1
+                    ? styles.segmentBarActive
+                    : styles.segmentBarInactive,
+                ]}
+              />
+              <View
+                style={[
+                  styles.segmentBar,
+                  currentStep >= 2
+                    ? styles.segmentBarActive
+                    : styles.segmentBarInactive,
+                ]}
+              />
+              <View
+                style={[
+                  styles.segmentBar,
+                  currentStep >= 3
+                    ? styles.segmentBarActive
+                    : styles.segmentBarInactive,
+                ]}
+              />
+            </View>
+
+            {/* Skip Button */}
+            <View style={[styles.topBarSideSlot, styles.topBarRightSlot]}>
               <Pressable
-                onPress={handleBack}
+                onPress={handleSkip}
                 accessibilityRole="button"
-                accessibilityLabel="Go back"
+                accessibilityLabel="Skip onboarding"
+                hitSlop={12}
                 style={({ pressed }) => [
-                  styles.navIconButton,
+                  styles.skipButton,
                   pressed && styles.buttonPressed,
                 ]}>
-                <Ionicons name="chevron-back" size={20} color="#0F172A" />
+                <Text style={styles.skipButtonText}>Skip</Text>
               </Pressable>
-            ) : (
-              <View style={styles.topBarLogoMark}>
-                <RoutineSathyEmblem size={22} />
-              </View>
-            )}
+            </View>
           </View>
 
-          {/* 3-Segment Progress Dashes */}
-          <View style={styles.segmentTrack}>
-            <View
-              style={[
-                styles.segmentBar,
-                currentStep >= 1 ? styles.segmentBarActive : styles.segmentBarInactive,
-              ]}
-            />
-            <View
-              style={[
-                styles.segmentBar,
-                currentStep >= 2 ? styles.segmentBarActive : styles.segmentBarInactive,
-              ]}
-            />
-            <View
-              style={[
-                styles.segmentBar,
-                currentStep >= 3 ? styles.segmentBarActive : styles.segmentBarInactive,
-              ]}
-            />
-          </View>
+          {/* Dynamic Scroll Content */}
+          <ScrollView
+            style={styles.scrollArea}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: 110 },
+            ]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled">
+            {/* STEP 1: WELCOME & EDITORIAL BENEFITS (Pure Apple Native Feel) */}
+            {currentStep === 1 && (
+              <Animated.View
+                key="step-1"
+                entering={FadeInRight.duration(320)}
+                exiting={FadeOutLeft.duration(200)}>
+                {/* Top Hero Brand Insignia */}
+                <View
+                  style={[
+                    styles.heroBrandCenter,
+                    isCompact && styles.heroBrandCenterCompact,
+                  ]}>
+                  <View
+                    style={[
+                      styles.heroEmblemContainer,
+                      {
+                        width: emblemContainerSize,
+                        height: emblemContainerSize,
+                        borderRadius: isCompact ? 15 : 18,
+                        marginBottom: isCompact ? 12 : 16,
+                      },
+                    ]}>
+                    <LinearGradient
+                      colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFill}
+                    />
+                    <View style={styles.heroGlassRim} />
+                    <RoutineSathyEmblem size={emblemSize} />
+                  </View>
 
-          {/* Skip Button */}
-          <View style={[styles.topBarSideSlot, styles.topBarRightSlot]}>
-            <Pressable
-              onPress={handleSkip}
-              accessibilityRole="button"
-              accessibilityLabel="Skip onboarding"
-              hitSlop={12}
-              style={({ pressed }) => [
-                styles.skipButton,
-                pressed && styles.buttonPressed,
-              ]}>
-              <Text style={styles.skipButtonText}>Skip</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Dynamic Scroll Content */}
-        <ScrollView
-          style={styles.scrollArea}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-          {/* STEP 1: WELCOME & EDITORIAL BENEFITS (Pure Apple Native Feel) */}
-          {currentStep === 1 && (
-            <Animated.View
-              key="step-1"
-              entering={FadeInRight.duration(320)}
-              exiting={FadeOutLeft.duration(200)}>
-              {/* Top Hero Brand Insignia */}
-              <View style={styles.heroBrandCenter}>
-                <View style={styles.heroEmblemContainer}>
-                  <LinearGradient
-                    colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                  />
-                  <View style={styles.heroGlassRim} />
-                  <RoutineSathyEmblem size={32} />
+                  <Text
+                    style={[
+                      styles.heroTitle,
+                      isCompact && styles.heroTitleCompact,
+                    ]}>
+                    Welcome to Routine Sathy
+                  </Text>
+                  <Text
+                    style={[
+                      styles.heroSubtitle,
+                      isCompact && styles.heroSubtitleCompact,
+                    ]}>
+                    A mindful circadian rhythm for daily habits that actually stick.
+                  </Text>
                 </View>
 
-                <Text style={styles.heroTitle}>Welcome to Routine Sathy</Text>
-                <Text style={styles.heroSubtitle}>
-                  A mindful circadian rhythm for daily habits that actually stick.
-                </Text>
-              </View>
-
-              {/* Frameless Editorial Feature Rows (Zero Box Clutter) */}
-              <View style={styles.editorialList}>
-                {EDITORIAL_FEATURES.map((feature, index) => (
-                  <Animated.View
-                    key={feature.id}
-                    entering={FadeInDown.delay(index * 90).duration(320)}
-                    style={styles.editorialRow}>
-                    <View
-                      style={[
-                        styles.editorialIconBox,
-                        { backgroundColor: feature.iconBg },
-                      ]}>
-                      <Ionicons
-                        name={feature.icon as any}
-                        size={22}
-                        color={feature.iconColor}
-                      />
-                    </View>
-                    <View style={styles.editorialTextCol}>
-                      <Text style={styles.editorialRowTitle}>
-                        {feature.title}
-                      </Text>
-                      <Text style={styles.editorialRowDescription}>
-                        {feature.description}
-                      </Text>
-                    </View>
-                  </Animated.View>
-                ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* STEP 2: CHRONOTYPE PERSONALIZATION */}
-          {currentStep === 2 && (
-            <Animated.View
-              key="step-2"
-              entering={FadeInRight.duration(320)}
-              exiting={FadeOutLeft.duration(200)}>
-              <View style={styles.headerBlock}>
-                <Text style={styles.stepTitle}>When is your energy highest?</Text>
-                <Text style={styles.stepSubtitle}>
-                  We&apos;ll tailor your daily routine around your biological rhythm.
-                </Text>
-              </View>
-
-              {/* Chronotype Selection Cards */}
-              <View style={styles.cardsStack}>
-                {CHRONOTYPES.map((item, index) => {
-                  const isSelected = chronotype === item.id;
-                  return (
+                {/* Frameless Editorial Feature Rows */}
+                <View
+                  style={[
+                    styles.editorialList,
+                    isCompact && styles.editorialListCompact,
+                  ]}>
+                  {EDITORIAL_FEATURES.map((feature, index) => (
                     <Animated.View
-                      key={item.id}
-                      entering={FadeInDown.delay(index * 70).duration(300)}>
-                      <Pressable
-                        onPress={() => {
-                          triggerHaptic();
-                          setChronotype(item.id);
-                        }}
-                        style={({ pressed }) => [
-                          styles.chronotypeCard,
-                          isSelected && styles.chronotypeCardActive,
-                          pressed && styles.buttonPressed,
+                      key={feature.id}
+                      entering={FadeInDown.delay(index * 80).duration(300)}
+                      style={styles.editorialRow}>
+                      <View
+                        style={[
+                          styles.editorialIconBox,
+                          { backgroundColor: feature.iconBg },
                         ]}>
-                        <View
-                          style={[
-                            styles.chronotypeIconBox,
-                            { backgroundColor: item.softBg },
+                        <Ionicons
+                          name={feature.icon as any}
+                          size={22}
+                          color={feature.iconColor}
+                        />
+                      </View>
+                      <View style={styles.editorialTextCol}>
+                        <Text style={styles.editorialRowTitle}>
+                          {feature.title}
+                        </Text>
+                        <Text style={styles.editorialRowDescription}>
+                          {feature.description}
+                        </Text>
+                      </View>
+                    </Animated.View>
+                  ))}
+                </View>
+              </Animated.View>
+            )}
+
+            {/* STEP 2: CHRONOTYPE PERSONALIZATION */}
+            {currentStep === 2 && (
+              <Animated.View
+                key="step-2"
+                entering={FadeInRight.duration(320)}
+                exiting={FadeOutLeft.duration(200)}>
+                <View
+                  style={[
+                    styles.headerBlock,
+                    isCompact && styles.headerBlockCompact,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.stepTitle,
+                      isCompact && styles.stepTitleCompact,
+                    ]}>
+                    When is your energy highest?
+                  </Text>
+                  <Text style={styles.stepSubtitle}>
+                    We&apos;ll tailor your daily routine around your biological rhythm.
+                  </Text>
+                </View>
+
+                {/* Chronotype Selection Cards */}
+                <View style={styles.cardsStack}>
+                  {CHRONOTYPES.map((item, index) => {
+                    const isSelected = chronotype === item.id;
+                    return (
+                      <Animated.View
+                        key={item.id}
+                        entering={FadeInDown.delay(index * 60).duration(280)}>
+                        <Pressable
+                          onPress={() => {
+                            triggerHaptic();
+                            setChronotype(item.id);
+                          }}
+                          style={({ pressed }) => [
+                            styles.chronotypeCard,
+                            isCompact && styles.chronotypeCardCompact,
+                            isSelected && styles.chronotypeCardActive,
+                            pressed && styles.buttonPressed,
                           ]}>
-                          <Ionicons
-                            name={item.icon}
-                            size={22}
-                            color={item.iconColor}
-                          />
-                        </View>
-                        <View style={styles.chronotypeTextCol}>
-                          <View style={styles.chronotypeTitleRow}>
-                            <Text style={styles.chronotypeTitle}>
-                              {item.title}
-                            </Text>
-                            <Text style={styles.chronotypePeakTime}>
-                              {item.peakTime}
+                          <View
+                            style={[
+                              styles.chronotypeIconBox,
+                              { backgroundColor: item.softBg },
+                            ]}>
+                            <Ionicons
+                              name={item.icon}
+                              size={22}
+                              color={item.iconColor}
+                            />
+                          </View>
+                          <View style={styles.chronotypeTextCol}>
+                            <View style={styles.chronotypeTitleRow}>
+                              <Text style={styles.chronotypeTitle}>
+                                {item.title}
+                              </Text>
+                              <Text style={styles.chronotypePeakTime}>
+                                {item.peakTime}
+                              </Text>
+                            </View>
+                            <Text style={styles.chronotypeDescription}>
+                              {item.description}
                             </Text>
                           </View>
-                          <Text style={styles.chronotypeDescription}>
-                            {item.description}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.radioCircle,
-                            isSelected && styles.radioCircleActive,
-                          ]}>
-                          {isSelected && <View style={styles.radioInnerDot} />}
-                        </View>
-                      </Pressable>
-                    </Animated.View>
-                  );
-                })}
-              </View>
-
-              {/* Target Wake-Up Time */}
-              <View style={styles.wakeSection}>
-                <Text style={styles.sectionHeaderTitle}>
-                  Target Morning Wake-Up
-                </Text>
-                <View style={styles.chipsRow}>
-                  {WAKE_TIMES.map((time) => {
-                    const isActive = wakeTime === time;
-                    return (
-                      <Pressable
-                        key={time}
-                        onPress={() => {
-                          triggerHaptic();
-                          setWakeTime(time);
-                        }}
-                        style={[
-                          styles.timeChip,
-                          isActive && styles.timeChipActive,
-                        ]}>
-                        <Text
-                          style={[
-                            styles.timeChipText,
-                            isActive && styles.timeChipTextActive,
-                          ]}>
-                          {time}
-                        </Text>
-                      </Pressable>
+                          <View
+                            style={[
+                              styles.radioCircle,
+                              isSelected && styles.radioCircleActive,
+                            ]}>
+                            {isSelected && <View style={styles.radioInnerDot} />}
+                          </View>
+                        </Pressable>
+                      </Animated.View>
                     );
                   })}
                 </View>
-              </View>
-            </Animated.View>
-          )}
 
-          {/* STEP 3: GOALS & INTENTIONS */}
-          {currentStep === 3 && (
-            <Animated.View
-              key="step-3"
-              entering={FadeInRight.duration(320)}
-              exiting={FadeOutLeft.duration(200)}>
-              <View style={styles.headerBlock}>
-                <Text style={styles.stepTitle}>What&apos;s your focus?</Text>
-                <Text style={styles.stepSubtitle}>
-                  Choose a few daily intentions to start with.
-                </Text>
-              </View>
-
-              {/* 2-Column Compact Goals Grid */}
-              <View style={styles.goalsGridTwoCol}>
-                {GOALS_LIST.map((goal, index) => {
-                  const isSelected = goals.includes(goal.id);
-                  return (
-                    <Animated.View
-                      key={goal.id}
-                      entering={FadeInDown.delay(index * 50).duration(280)}
-                      style={styles.goalGridItem}>
-                      <Pressable
-                        onPress={() => {
-                          triggerHaptic();
-                          toggleGoal(goal.id);
-                        }}
-                        style={({ pressed }) => [
-                          styles.goalTile,
-                          isSelected && styles.goalTileActive,
-                          pressed && styles.buttonPressed,
-                        ]}>
-                        <View style={styles.goalTileTop}>
-                          <View
+                {/* Target Wake-Up Time */}
+                <View
+                  style={[
+                    styles.wakeSection,
+                    isCompact && styles.wakeSectionCompact,
+                  ]}>
+                  <Text style={styles.sectionHeaderTitle}>
+                    Target Morning Wake-Up
+                  </Text>
+                  <View style={styles.chipsRow}>
+                    {WAKE_TIMES.map((time) => {
+                      const isActive = wakeTime === time;
+                      return (
+                        <Pressable
+                          key={time}
+                          onPress={() => {
+                            triggerHaptic();
+                            setWakeTime(time);
+                          }}
+                          style={[
+                            styles.timeChip,
+                            isActive && styles.timeChipActive,
+                          ]}>
+                          <Text
                             style={[
-                              styles.goalTileIconBox,
-                              isSelected && styles.goalTileIconBoxActive,
+                              styles.timeChipText,
+                              isActive && styles.timeChipTextActive,
                             ]}>
-                            <Ionicons
-                              name={goal.icon}
-                              size={18}
-                              color={isSelected ? '#7C3AED' : '#64748B'}
-                            />
-                          </View>
-                          <View
-                            style={[
-                              styles.checkboxSmall,
-                              isSelected && styles.checkboxSmallActive,
-                            ]}>
-                            {isSelected && (
-                              <Ionicons
-                                name="checkmark"
-                                size={12}
-                                color="#FFFFFF"
-                              />
-                            )}
-                          </View>
-                        </View>
-                        <Text style={styles.goalTileTitle}>{goal.title}</Text>
-                        <Text style={styles.goalTileSubtitle}>
-                          {goal.subtitle}
-                        </Text>
-                      </Pressable>
-                    </Animated.View>
-                  );
-                })}
-              </View>
-
-              {/* Summary Pill */}
-              <Animated.View
-                entering={FadeIn.delay(200).duration(300)}
-                style={styles.summaryMinimalPill}>
-                <RoutineSathyEmblem size={22} />
-                <Text style={styles.summaryMinimalText}>
-                  {chronotype === 'sunrise_riser'
-                    ? 'Early Bird'
-                    : chronotype === 'night_mind'
-                    ? 'Night Owl'
-                    : 'Steady Pacer'}{' '}
-                  • {wakeTime} • {goals.length} Intentions selected
-                </Text>
+                            {time}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
               </Animated.View>
-            </Animated.View>
-          )}
-        </ScrollView>
+            )}
 
-        {/* Bottom Pinned Primary CTA Button */}
-        <View style={styles.bottomBar}>
+            {/* STEP 3: GOALS & INTENTIONS */}
+            {currentStep === 3 && (
+              <Animated.View
+                key="step-3"
+                entering={FadeInRight.duration(320)}
+                exiting={FadeOutLeft.duration(200)}>
+                <View
+                  style={[
+                    styles.headerBlock,
+                    isCompact && styles.headerBlockCompact,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.stepTitle,
+                      isCompact && styles.stepTitleCompact,
+                    ]}>
+                    What&apos;s your focus?
+                  </Text>
+                  <Text style={styles.stepSubtitle}>
+                    Choose a few daily intentions to start with.
+                  </Text>
+                </View>
+
+                {/* 100% Mathematically Responsive 2-Column Pairs */}
+                <View style={styles.goalsContainer}>
+                  {GOALS_PAIRS.map((pair, rowIndex) => (
+                    <View key={`row-${rowIndex}`} style={styles.goalsRow}>
+                      {pair.map((goal, colIndex) => {
+                        const isSelected = goals.includes(goal.id);
+                        return (
+                          <Animated.View
+                            key={goal.id}
+                            entering={FadeInDown.delay(
+                              (rowIndex * 2 + colIndex) * 45
+                            ).duration(260)}
+                            style={styles.goalTileWrapper}>
+                            <Pressable
+                              onPress={() => {
+                                triggerHaptic();
+                                toggleGoal(goal.id);
+                              }}
+                              style={({ pressed }) => [
+                                styles.goalTile,
+                                isCompact && styles.goalTileCompact,
+                                isSelected && styles.goalTileActive,
+                                pressed && styles.buttonPressed,
+                              ]}>
+                              <View style={styles.goalTileTop}>
+                                <View
+                                  style={[
+                                    styles.goalTileIconBox,
+                                    isSelected && styles.goalTileIconBoxActive,
+                                  ]}>
+                                  <Ionicons
+                                    name={goal.icon}
+                                    size={18}
+                                    color={isSelected ? '#7C3AED' : '#64748B'}
+                                  />
+                                </View>
+                                <View
+                                  style={[
+                                    styles.checkboxSmall,
+                                    isSelected && styles.checkboxSmallActive,
+                                  ]}>
+                                  {isSelected && (
+                                    <Ionicons
+                                      name="checkmark"
+                                      size={12}
+                                      color="#FFFFFF"
+                                    />
+                                  )}
+                                </View>
+                              </View>
+                              <Text
+                                style={styles.goalTileTitle}
+                                numberOfLines={1}>
+                                {goal.title}
+                              </Text>
+                              <Text
+                                style={styles.goalTileSubtitle}
+                                numberOfLines={1}>
+                                {goal.subtitle}
+                              </Text>
+                            </Pressable>
+                          </Animated.View>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Minimal Summary Pill */}
+                <Animated.View
+                  entering={FadeIn.delay(180).duration(280)}
+                  style={styles.summaryMinimalPill}>
+                  <RoutineSathyEmblem size={20} />
+                  <Text style={styles.summaryMinimalText}>
+                    {chronotype === 'sunrise_riser'
+                      ? 'Early Bird'
+                      : chronotype === 'night_mind'
+                      ? 'Night Owl'
+                      : 'Steady Pacer'}{' '}
+                    • {wakeTime} • {goals.length} Intentions selected
+                  </Text>
+                </Animated.View>
+              </Animated.View>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+
+      {/* Bottom Pinned Primary CTA Bar - Docked to Physical Bottom */}
+      <View style={styles.bottomBarWrapper}>
+        <View
+          style={[
+            styles.bottomBarContent,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}>
           <Pressable
             onPress={handleNext}
             style={({ pressed }) => [
@@ -555,8 +679,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  safeArea: {
+  screenFrame: {
     flex: 1,
+  },
+  responsiveWrapper: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
   },
   topBar: {
     flexDirection: 'row',
@@ -567,8 +697,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   topBarSideSlot: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     alignItems: 'flex-start',
     justifyContent: 'center',
   },
@@ -612,7 +742,7 @@ const styles = StyleSheet.create({
   },
   skipButton: {
     paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: 6,
   },
   skipButtonText: {
     fontSize: 14,
@@ -626,25 +756,24 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    paddingBottom: 24,
   },
 
   // Step 1: Hero Editorial Layout
   heroBrandCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
-    marginBottom: 28,
+    marginTop: 6,
+    marginBottom: 26,
+  },
+  heroBrandCenterCompact: {
+    marginTop: 2,
+    marginBottom: 16,
   },
   heroEmblemContainer: {
-    width: 58,
-    height: 58,
-    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     position: 'relative',
-    marginBottom: 16,
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
@@ -666,6 +795,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
     textAlign: 'center',
   },
+  heroTitleCompact: {
+    fontSize: 24,
+    letterSpacing: -0.5,
+  },
   heroSubtitle: {
     fontSize: 14.5,
     lineHeight: 21,
@@ -674,11 +807,20 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 12,
   },
+  heroSubtitleCompact: {
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 6,
+  },
 
-  // Editorial Feature Rows (Apple Style)
+  // Editorial Feature Rows
   editorialList: {
     gap: 20,
     marginTop: 6,
+  },
+  editorialListCompact: {
+    gap: 14,
+    marginTop: 4,
   },
   editorialRow: {
     flexDirection: 'row',
@@ -712,7 +854,11 @@ const styles = StyleSheet.create({
   // Header Block for Steps 2 & 3
   headerBlock: {
     marginTop: 8,
-    marginBottom: 22,
+    marginBottom: 20,
+  },
+  headerBlockCompact: {
+    marginTop: 4,
+    marginBottom: 14,
   },
   stepTitle: {
     fontSize: 26,
@@ -720,6 +866,11 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     letterSpacing: -0.6,
     marginBottom: 6,
+  },
+  stepTitleCompact: {
+    fontSize: 22,
+    letterSpacing: -0.4,
+    marginBottom: 4,
   },
   stepSubtitle: {
     fontSize: 14,
@@ -741,6 +892,11 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     gap: 14,
+  },
+  chronotypeCardCompact: {
+    padding: 11,
+    gap: 11,
+    borderRadius: 16,
   },
   chronotypeCardActive: {
     borderColor: '#7C3AED',
@@ -803,6 +959,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
+  wakeSectionCompact: {
+    marginTop: 16,
+    paddingTop: 14,
+  },
   sectionHeaderTitle: {
     fontSize: 14,
     fontWeight: '700',
@@ -815,8 +975,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timeChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 8.5,
     borderRadius: 12,
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
@@ -836,14 +996,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // 2-Column Goals Grid
-  goalsGridTwoCol: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  // 100% Responsive 2-Column Pairs
+  goalsContainer: {
     gap: 10,
   },
-  goalGridItem: {
-    width: '48.4%',
+  goalsRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  goalTileWrapper: {
+    flex: 1,
   },
   goalTile: {
     backgroundColor: '#FFFFFF',
@@ -851,6 +1013,10 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 16,
     padding: 13,
+  },
+  goalTileCompact: {
+    padding: 11,
+    borderRadius: 14,
   },
   goalTileActive: {
     borderColor: '#7C3AED',
@@ -913,16 +1079,22 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
     color: '#7C3AED',
+    flexShrink: 1,
   },
 
-  // Bottom Pinned Primary CTA Button
-  bottomBar: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 12,
+  // Bottom Pinned Primary CTA Bar
+  bottomBarWrapper: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
+  },
+  bottomBarContent: {
+    width: '100%',
+    maxWidth: 520,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
   primaryButton: {
     backgroundColor: '#7C3AED',

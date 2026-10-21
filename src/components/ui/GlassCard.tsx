@@ -56,6 +56,9 @@ export function GlassCard({
           borderColor: theme.colors.glassBorder,
           borderWidth: theme.borderWidth.thin,
           backgroundColor: theme.colors.glassSurface,
+          ...(Platform.OS === 'web'
+            ? ({ backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)' } as any)
+            : {}),
         },
         theme.shadows.sm,
         style,

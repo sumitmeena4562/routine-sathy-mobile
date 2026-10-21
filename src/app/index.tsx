@@ -13,6 +13,7 @@ import {
   ScreenHeader,
 } from '@/components/ui';
 import { ThemedText } from '@/components/themed-text';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 interface RoutineHabit {
@@ -125,7 +126,7 @@ export default function HomeScreen() {
           style={{ marginTop: theme.spacing.md }}
         />
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { borderTopColor: theme.colors.border }]}>
           <View style={styles.statItem}>
             <Ionicons name="flame" size={18} color={theme.colors.warning} />
             <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
@@ -236,7 +237,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   overviewCard: {
-    marginTop: 16,
+    marginTop: Spacing.lg,
   },
   overviewHeader: {
     flexDirection: 'row',
@@ -247,10 +248,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 16,
-    paddingTop: 12,
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(139, 124, 246, 0.15)',
   },
   statItem: {
     flexDirection: 'row',
@@ -260,15 +260,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 12,
+    marginTop: Spacing['2xl'],
+    marginBottom: Spacing.md,
   },
   habitsList: {
-    gap: 12,
+    gap: Spacing.md,
   },
   habitCard: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
   habitContent: {
     flexDirection: 'row',
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   },
   habitInfo: {
     flex: 1,
-    marginLeft: 14,
+    marginLeft: Spacing.md,
   },
   habitTitle: {
     fontWeight: '600',
@@ -285,11 +285,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
+    marginTop: Spacing.xs,
   },
   actionBanner: {
-    marginTop: 24,
-    marginBottom: 16,
+    marginTop: Spacing['2xl'],
+    marginBottom: Spacing.lg,
   },
   bannerRow: {
     flexDirection: 'row',

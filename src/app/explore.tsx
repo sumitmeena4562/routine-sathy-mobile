@@ -18,6 +18,7 @@ import {
   TextField,
 } from '@/components/ui';
 import { ThemedText } from '@/components/themed-text';
+import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ExploreScreen() {
@@ -82,7 +83,12 @@ export default function ExploreScreen() {
         <View style={styles.tokenGrid}>
           {colorTokens.map((item) => (
             <Card key={item.name} variant="surface" style={styles.tokenCard}>
-              <View style={[styles.colorSwatch, { backgroundColor: item.color }]} />
+              <View
+                style={[
+                  styles.colorSwatch,
+                  { backgroundColor: item.color, borderColor: theme.colors.borderSubtle },
+                ]}
+              />
               <View style={styles.tokenMeta}>
                 <ThemedText type="smallBold">{item.name}</ThemedText>
                 <ThemedText type="code" style={{ color: theme.colors.textSecondary }}>
@@ -335,39 +341,38 @@ export default function ExploreScreen() {
 
 const styles = StyleSheet.create({
   section: {
-    marginTop: 24,
+    marginTop: Spacing['2xl'],
   },
   tokenGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 12,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
   },
   tokenCard: {
     flexBasis: '48%',
     flexGrow: 1,
-    padding: 12,
+    padding: Spacing.md,
   },
   colorSwatch: {
     height: 38,
-    borderRadius: 8,
+    borderRadius: Radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'rgba(0,0,0,0.1)',
   },
   tokenMeta: {
-    marginTop: 8,
+    marginTop: Spacing.sm,
   },
   typeCard: {
-    marginTop: 12,
-    gap: 12,
+    marginTop: Spacing.md,
+    gap: Spacing.md,
   },
   cardContent: {
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   rowWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: Spacing.sm,
     alignItems: 'center',
   },
   habitDemoRow: {
@@ -375,11 +380,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   glassDemo: {
-    marginTop: 12,
+    marginTop: Spacing.md,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: Spacing.lg,
   },
 });

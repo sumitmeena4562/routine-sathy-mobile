@@ -13,3 +13,4 @@ export * from './ScreenHeader';
 export * from './FeedbackStates';
 export * from './collapsible';
 export * from './AmbientAtmosphere';
+export * from './RoutineSathyEmblem';

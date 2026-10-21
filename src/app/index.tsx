@@ -6,7 +6,6 @@ import {
   View,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
@@ -19,7 +18,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { AmbientAtmosphere } from '@/components/ui';
+import { AmbientAtmosphere, RoutineSathyEmblem } from '@/components/ui';
 
 /**
  * Three subtle, minimal breathing dots in a gentle continuous wave: • • •
@@ -155,13 +154,13 @@ export default function SplashScreen() {
               style={styles.specularRim}
             />
 
-            {/* Inner Vibrant Purple Gradient Glyph */}
+            {/* Inner Vibrant Purple Gradient Glyph with Custom Brand Insignia */}
             <LinearGradient
               colors={['#8B7CF6', '#7C3AED', '#6D28D9']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.innerPurpleGlyph}>
-              <Ionicons name="sparkles" size={34} color="#FFFFFF" />
+              <RoutineSathyEmblem size={44} />
             </LinearGradient>
           </View>
         </Animated.View>

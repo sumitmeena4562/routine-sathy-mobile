@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { useColorScheme as useDeviceColorScheme } from 'react-native';
 
 import {
   AnimationTokens,
@@ -33,18 +32,17 @@ interface RoutineThemeProviderProps {
 
 export function RoutineThemeProvider({
   children,
-  initialPreference = 'system',
+  initialPreference = 'light',
 }: RoutineThemeProviderProps) {
-  const deviceColorScheme = useDeviceColorScheme();
   const [preference, setPreference] = useState<UserThemePreference>(initialPreference);
 
-  // Compute resolved mode based on user preference or device scheme
+  // Default theme is pure white ('light') per user requirements
   const resolvedMode: ThemeMode = useMemo(() => {
     if (preference === 'system') {
-      return deviceColorScheme === 'dark' ? 'dark' : 'light';
+      return 'light';
     }
     return preference;
-  }, [preference, deviceColorScheme]);
+  }, [preference]);
 
   const isDark = resolvedMode === 'dark';
   const activeColors: ThemeColors = Colors[resolvedMode];

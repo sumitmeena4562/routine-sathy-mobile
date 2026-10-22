@@ -1,6 +1,8 @@
 import React from 'react';
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+
+import { useTheme } from '@/hooks/use-theme';
 
 export interface AmbientAtmosphereProps {
   style?: any;
@@ -8,77 +10,28 @@ export interface AmbientAtmosphereProps {
 }
 
 /**
- * AmbientAtmosphere renders soft, organic lavender and icy blue blurred orbs.
- * Fully responsive: uses dynamic window dimensions to adapt seamlessly
- * across small mobile screens, large foldables, tablets, and web desktop.
+ * AmbientAtmosphere - Clean, Warm Sunrise Ambient Aura
+ * A whisper-soft warm glow at the very top of the screen that adds organic depth without visual noise.
  */
 export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps) {
-  const { width: windowWidth } = useWindowDimensions();
+  const theme = useTheme();
 
-  const orbLavenderSize = Math.min(windowWidth * 0.95, 380);
-  const orbIcyBlueSize = Math.min(windowWidth * 0.88, 340);
-  const orbMintLilacSize = Math.min(windowWidth * 0.92, 350);
+  const glowColor = theme.isDark ? '#1E1B4B' : '#FED7AA';
+  const effectiveOpacity = theme.isDark ? 0.08 : 0.18;
 
   return (
-    <View pointerEvents="none" style={[styles.container, { opacity }, style]}>
-      {/* 1. Luminous Soft Lavender Orb (Top-Right / Header) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbLavender,
-          { width: orbLavenderSize, height: orbLavenderSize },
-        ]}>
-        <LinearGradient
-          colors={[
-            'rgba(196, 181, 253, 0.70)',
-            'rgba(221, 214, 254, 0.45)',
-            'rgba(237, 233, 254, 0.15)',
-            'transparent',
-          ]}
-          start={{ x: 0.2, y: 0.2 }}
-          end={{ x: 0.9, y: 0.9 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-
-      {/* 2. Calming Icy Blue Orb (Center-Left / Midground) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbIcyBlue,
-          { width: orbIcyBlueSize, height: orbIcyBlueSize },
-        ]}>
-        <LinearGradient
-          colors={[
-            'rgba(125, 211, 252, 0.60)',
-            'rgba(186, 230, 253, 0.35)',
-            'rgba(224, 242, 254, 0.10)',
-            'transparent',
-          ]}
-          start={{ x: 0.2, y: 0.2 }}
-          end={{ x: 0.9, y: 0.9 }}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-
-      {/* 3. Whispering Pale Mint / Lilac Depth Orb (Bottom-Center) */}
-      <View
-        style={[
-          styles.orb,
-          styles.orbMintLilac,
-          { width: orbMintLilacSize, height: orbMintLilacSize },
-        ]}>
-        <LinearGradient
-          colors={[
-            'rgba(167, 243, 208, 0.45)',
-            'rgba(209, 250, 229, 0.25)',
-            'rgba(236, 253, 245, 0.05)',
-            'transparent',
-          ]}
-          start={{ x: 0.3, y: 0.3 }}
-          end={{ x: 0.9, y: 0.9 }}
-          style={StyleSheet.absoluteFill}
-        />
+    <View pointerEvents="none" style={[styles.container, { opacity: opacity * effectiveOpacity }, style]}>
+      <View style={styles.topGlow}>
+        <Svg width="100%" height="240" viewBox="0 0 400 240">
+          <Defs>
+            <RadialGradient id="cleanTopGlow" cx="50%" cy="0%" rx="60%" ry="100%">
+              <Stop offset="0%" stopColor={glowColor} stopOpacity="1" />
+              <Stop offset="70%" stopColor={glowColor} stopOpacity="0.2" />
+              <Stop offset="100%" stopColor={glowColor} stopOpacity="0" />
+            </RadialGradient>
+          </Defs>
+          <Circle cx="200" cy="0" r="240" fill="url(#cleanTopGlow)" />
+        </Svg>
       </View>
     </View>
   );
@@ -90,27 +43,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 0,
   },
-  orb: {
+  topGlow: {
     position: 'absolute',
-    borderRadius: 9999,
-    overflow: 'hidden',
-    ...(Platform.OS === 'web'
-      ? ({
-          filter: 'blur(55px)',
-          WebkitFilter: 'blur(55px)',
-        } as any)
-      : {}),
-  },
-  orbLavender: {
-    top: -60,
-    right: -50,
-  },
-  orbIcyBlue: {
-    top: '32%',
-    left: -60,
-  },
-  orbMintLilac: {
-    bottom: -60,
-    right: '10%',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 240,
   },
 });

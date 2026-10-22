@@ -11,7 +11,6 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
@@ -37,6 +36,7 @@ export interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
+  pill?: boolean;
   haptic?: boolean;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
@@ -53,6 +53,7 @@ export function Button({
   loading = false,
   disabled = false,
   fullWidth = false,
+  pill = true,
   haptic = true,
   style,
   textStyle,
@@ -81,10 +82,10 @@ export function Button({
       ? theme.spacing.md
       : size === 'lg'
       ? theme.spacing['2xl']
-      : theme.spacing.lg;
+      : theme.spacing.xl;
 
-  const fontSize = size === 'sm' ? 14 : size === 'lg' ? 17 : 15;
-  const borderRadius = size === 'sm' ? theme.radius.md : theme.radius.lg;
+  const fontSize = size === 'sm' ? 14 : size === 'lg' ? 16.5 : 15;
+  const borderRadius = pill ? theme.radius.full : theme.radius.xl;
 
   // Variant styling
   let backgroundColor: string = theme.colors.primary;
@@ -98,13 +99,15 @@ export function Button({
       textColor = theme.colors.primaryForeground;
       break;
     case 'secondary':
-      backgroundColor = theme.colors.secondaryMuted;
-      textColor = theme.colors.primary;
+      backgroundColor = theme.colors.backgroundElement;
+      textColor = theme.colors.text;
+      borderColor = theme.colors.border;
+      borderWidth = theme.borderWidth.thin;
       break;
     case 'outline':
       backgroundColor = 'transparent';
-      textColor = theme.colors.primary;
-      borderColor = theme.colors.primaryBorder;
+      textColor = theme.colors.text;
+      borderColor = theme.colors.border;
       borderWidth = theme.borderWidth.thin;
       break;
     case 'glass':
@@ -148,12 +151,12 @@ export function Button({
           height,
           paddingHorizontal,
           borderRadius,
-          backgroundColor: isPrimary ? 'transparent' : backgroundColor,
+          backgroundColor,
           borderColor,
           borderWidth,
           width: fullWidth ? '100%' : 'auto',
-          opacity: pressed ? 0.90 : 1,
-          transform: [{ scale: pressed ? 0.98 : 1 }],
+          opacity: pressed ? 0.88 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
           overflow: 'hidden',
           ...(variant === 'glass' && Platform.OS === 'web'
             ? ({
@@ -164,42 +167,15 @@ export function Button({
         },
         isPrimary
           ? {
-              shadowColor: theme.colors.primary,
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.28,
-              shadowRadius: 14,
-              elevation: 4,
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: theme.isDark ? 0.3 : 0.12,
+              shadowRadius: 10,
+              elevation: 3,
             }
           : undefined,
         style,
       ]}>
-      {/* Primary Gradient Fill */}
-      {isPrimary && (
-        <LinearGradient
-          colors={
-            theme.isDark
-              ? ['#9D8FFA', '#7C3AED', '#6D28D9']
-              : ['#8B7CF6', '#7C3AED', '#6D28D9']
-          }
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-      )}
-
-      {/* Top Specular Rim Light for Glass Variant */}
-      {variant === 'glass' && !disabled && (
-        <LinearGradient
-          colors={[
-            theme.isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.85)',
-            theme.isDark ? 'rgba(255, 255, 255, 0.03)' : 'rgba(255, 255, 255, 0.1)',
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.specularRim}
-        />
-      )}
-
       {loading ? (
         <ActivityIndicator
           size="small"
@@ -244,16 +220,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  specularRim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 1.5,
-    zIndex: 1,
-  },
   text: {
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.2,
   },
   leftIcon: {

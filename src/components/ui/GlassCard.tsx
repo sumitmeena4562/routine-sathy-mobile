@@ -63,25 +63,21 @@ export function GlassCard({
     backgroundColor = theme.colors.glassSurfaceSubtle;
   }
 
-  const content = (
-    <View
-      style={[
-        styles.outerContainer,
-        {
-          borderRadius: cardRadius,
-          borderColor: theme.colors.glassBorder,
-          borderWidth: theme.borderWidth.thin,
-          backgroundColor,
-          ...(Platform.OS === 'web'
-            ? ({
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-              } as any)
-            : {}),
-        },
-        theme.shadows.glass,
-        style,
-      ]}>
+  const cardStyles: ViewStyle = {
+    borderRadius: cardRadius,
+    borderColor: theme.colors.glassBorder,
+    borderWidth: theme.borderWidth.thin,
+    backgroundColor,
+    ...(Platform.OS === 'web'
+      ? ({
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+        } as any)
+      : {}),
+  };
+
+  const innerContent = (
+    <>
       {/* 1. Native Blur Layer */}
       {Platform.OS !== 'web' && (
         <BlurView
@@ -107,7 +103,7 @@ export function GlassCard({
 
       {/* 3. Card Content */}
       <View style={[{ padding: cardPadding }, contentStyle]}>{children}</View>
-    </View>
+    </>
   );
 
   if (onPress) {
@@ -116,13 +112,29 @@ export function GlassCard({
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        style={({ pressed }) => [{ opacity: pressed ? 0.92 : 1 }]}>
-        {content}
+        style={({ pressed }) => [
+          styles.outerContainer,
+          cardStyles,
+          theme.shadows.glass,
+          style,
+          { opacity: pressed ? 0.92 : 1 },
+        ]}>
+        {innerContent}
       </Pressable>
     );
   }
 
-  return content;
+  return (
+    <View
+      style={[
+        styles.outerContainer,
+        cardStyles,
+        theme.shadows.glass,
+        style,
+      ]}>
+      {innerContent}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

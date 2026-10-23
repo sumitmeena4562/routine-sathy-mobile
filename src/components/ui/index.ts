@@ -11,7 +11,7 @@ export * from './StatusIndicator';
 export * from './ScreenContainer';
 export * from './ScreenHeader';
 export * from './FeedbackStates';
-export * from './collapsible';
+export * from './Collapsible';
 export * from './AmbientAtmosphere';
 export * from './RoutineSathyEmblem';
 export * from './CircadianRhythmDial';

@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,15 @@ export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  // Responsive device breakpoints
+  const isCompact = windowHeight < 720 || windowWidth < 380;
+  const isTablet = windowWidth >= 768;
+
+  const containerMaxWidth = isTablet ? 480 : 420;
+  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
+  const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,33 +102,33 @@ export default function LoginScreen() {
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
 
-      {/* Top Header Bar */}
+      {/* Top Header Bar with Consistent Horizontal Alignment */}
       <View
         style={[
           styles.topBar,
           {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 12 : 8),
-            paddingLeft: insets.left + 20,
-            paddingRight: insets.right + 20,
+            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
+            paddingLeft: insets.left + horizontalPadding,
+            paddingRight: insets.right + horizontalPadding,
           },
         ]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={({ pressed }) => [
-            styles.backButton,
-            {
-              backgroundColor: theme.colors.backgroundElement,
-              borderColor: theme.colors.borderSubtle,
-            },
-            pressed && styles.pressed,
-          ]}>
-          <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-        </Pressable>
-
-        <View style={styles.topBarPlaceholder} />
+        <View style={styles.topBarInner}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={({ pressed }) => [
+              styles.backButton,
+              {
+                backgroundColor: theme.colors.backgroundElement,
+                borderColor: theme.colors.borderSubtle,
+              },
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -127,25 +137,38 @@ export default function LoginScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={[
             styles.scrollContent,
             {
+              maxWidth: containerMaxWidth,
               paddingBottom: Math.max(insets.bottom + 24, 36),
-              paddingLeft: insets.left + 24,
-              paddingRight: insets.right + 24,
+              paddingLeft: insets.left + horizontalPadding,
+              paddingRight: insets.right + horizontalPadding,
             },
           ]}>
-          {/* Brand Header */}
-          <View style={styles.headerContainer}>
+          {/* Symmetrical Brand Header */}
+          <View style={[styles.headerContainer, isCompact && styles.headerContainerCompact]}>
             <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={48} />
+              <RoutineSathyEmblem size={emblemSize} />
             </View>
 
-            <Text style={[styles.title, { color: theme.colors.text }]}>
+            <Text
+              style={[
+                styles.title,
+                { color: theme.colors.text },
+                isCompact && styles.titleCompact,
+                isTablet && styles.titleTablet,
+              ]}>
               Welcome Back
             </Text>
 
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.subtitle,
+                { color: theme.colors.textSecondary },
+                isCompact && styles.subtitleCompact,
+              ]}>
               Sign in to continue your mindful circadian rhythm and habits.
             </Text>
           </View>
@@ -172,8 +195,8 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* Form Fields */}
-          <View style={styles.formContainer}>
+          {/* Form Fields with Adaptive Gap */}
+          <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
             <TextField
               label="Email Address"
               placeholder="name@example.com"
@@ -233,7 +256,7 @@ export default function LoginScreen() {
             onPress={handleLogin}
             loading={loading}
             variant="primary"
-            size="lg"
+            size={isCompact ? 'md' : 'lg'}
             pill
             fullWidth
             style={styles.submitButton}
@@ -246,7 +269,7 @@ export default function LoginScreen() {
             </Text>
             <Pressable
               onPress={() => router.push('/signup')}
-              hitSlop={8}
+              hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Go to Sign Up">
               <Text style={[styles.footerLink, { color: theme.colors.text }]}>
@@ -265,11 +288,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     zIndex: 10,
     height: 48,
+    justifyContent: 'center',
+  },
+  topBarInner: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
     width: 40,
@@ -278,9 +306,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topBarPlaceholder: {
-    width: 40,
   },
   pressed: {
     opacity: 0.75,
@@ -291,28 +316,48 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     width: '100%',
-    maxWidth: 440,
     alignSelf: 'center',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   headerContainer: {
-    marginBottom: 28,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerContainerCompact: {
+    marginBottom: 16,
   },
   emblemWrapper: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
   title: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: '800',
     letterSpacing: -0.6,
-    lineHeight: 36,
+    lineHeight: 34,
+    textAlign: 'center',
+  },
+  titleCompact: {
+    fontSize: 23,
+    lineHeight: 29,
+  },
+  titleTablet: {
+    fontSize: 31,
+    lineHeight: 38,
   },
   subtitle: {
-    fontSize: 14.5,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
     marginTop: 8,
     letterSpacing: -0.1,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  subtitleCompact: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
   },
   successBanner: {
     flexDirection: 'row',
@@ -321,26 +366,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   successIcon: {
     marginRight: 10,
   },
   successText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   formContainer: {
-    gap: 16,
+    width: '100%',
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginTop: 12,
-    marginBottom: 20,
+    marginTop: 10,
+    marginBottom: 18,
   },
   forgotPasswordText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '600',
   },
   submitButton: {
@@ -350,13 +395,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 28,
+    marginTop: 24,
   },
   footerText: {
-    fontSize: 14.5,
+    fontSize: 14,
   },
   footerLink: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },

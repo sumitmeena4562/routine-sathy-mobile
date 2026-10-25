@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,15 @@ export default function SignUpScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+
+  // Responsive device breakpoints
+  const isCompact = windowHeight < 720 || windowWidth < 380;
+  const isTablet = windowWidth >= 768;
+
+  const containerMaxWidth = isTablet ? 480 : 420;
+  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
+  const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -110,33 +120,33 @@ export default function SignUpScreen() {
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
 
-      {/* Top Header Bar */}
+      {/* Top Header Bar with Consistent Horizontal Alignment */}
       <View
         style={[
           styles.topBar,
           {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 12 : 8),
-            paddingLeft: insets.left + 20,
-            paddingRight: insets.right + 20,
+            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
+            paddingLeft: insets.left + horizontalPadding,
+            paddingRight: insets.right + horizontalPadding,
           },
         ]}>
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          style={({ pressed }) => [
-            styles.backButton,
-            {
-              backgroundColor: theme.colors.backgroundElement,
-              borderColor: theme.colors.borderSubtle,
-            },
-            pressed && styles.pressed,
-          ]}>
-          <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-        </Pressable>
-
-        <View style={styles.topBarPlaceholder} />
+        <View style={styles.topBarInner}>
+          <Pressable
+            onPress={() => router.back()}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            style={({ pressed }) => [
+              styles.backButton,
+              {
+                backgroundColor: theme.colors.backgroundElement,
+                borderColor: theme.colors.borderSubtle,
+              },
+              pressed && styles.pressed,
+            ]}>
+            <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
+          </Pressable>
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -145,25 +155,38 @@ export default function SignUpScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={[
             styles.scrollContent,
             {
+              maxWidth: containerMaxWidth,
               paddingBottom: Math.max(insets.bottom + 24, 36),
-              paddingLeft: insets.left + 24,
-              paddingRight: insets.right + 24,
+              paddingLeft: insets.left + horizontalPadding,
+              paddingRight: insets.right + horizontalPadding,
             },
           ]}>
-          {/* Brand Header */}
-          <View style={styles.headerContainer}>
+          {/* Symmetrical Brand Header */}
+          <View style={[styles.headerContainer, isCompact && styles.headerContainerCompact]}>
             <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={48} />
+              <RoutineSathyEmblem size={emblemSize} />
             </View>
 
-            <Text style={[styles.title, { color: theme.colors.text }]}>
+            <Text
+              style={[
+                styles.title,
+                { color: theme.colors.text },
+                isCompact && styles.titleCompact,
+                isTablet && styles.titleTablet,
+              ]}>
               Create an Account
             </Text>
 
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.subtitle,
+                { color: theme.colors.textSecondary },
+                isCompact && styles.subtitleCompact,
+              ]}>
               Begin your mindful daily rhythm and build lasting daily habits with Routine Sathy.
             </Text>
           </View>
@@ -190,8 +213,8 @@ export default function SignUpScreen() {
             </View>
           )}
 
-          {/* Form Fields */}
-          <View style={styles.formContainer}>
+          {/* Form Fields with Adaptive Gap */}
+          <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
             <TextField
               label="Full Name"
               placeholder="e.g. Sumit Meena"
@@ -294,7 +317,7 @@ export default function SignUpScreen() {
             onPress={handleSignUp}
             loading={loading}
             variant="primary"
-            size="lg"
+            size={isCompact ? 'md' : 'lg'}
             pill
             fullWidth
             style={styles.submitButton}
@@ -307,7 +330,7 @@ export default function SignUpScreen() {
             </Text>
             <Pressable
               onPress={() => router.push('/login')}
-              hitSlop={8}
+              hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Go to Login">
               <Text style={[styles.footerLink, { color: theme.colors.text }]}>
@@ -326,11 +349,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     zIndex: 10,
     height: 48,
+    justifyContent: 'center',
+  },
+  topBarInner: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   backButton: {
     width: 40,
@@ -339,9 +367,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  topBarPlaceholder: {
-    width: 40,
   },
   pressed: {
     opacity: 0.75,
@@ -352,28 +377,48 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     width: '100%',
-    maxWidth: 440,
     alignSelf: 'center',
     paddingTop: 8,
   },
   headerContainer: {
-    marginBottom: 26,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  headerContainerCompact: {
+    marginBottom: 16,
   },
   emblemWrapper: {
-    marginBottom: 16,
-    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
   },
   title: {
-    fontSize: 28,
+    fontSize: 27,
     fontWeight: '800',
     letterSpacing: -0.6,
-    lineHeight: 36,
+    lineHeight: 34,
+    textAlign: 'center',
+  },
+  titleCompact: {
+    fontSize: 23,
+    lineHeight: 29,
+  },
+  titleTablet: {
+    fontSize: 31,
+    lineHeight: 38,
   },
   subtitle: {
-    fontSize: 14.5,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
     marginTop: 8,
     letterSpacing: -0.1,
+    textAlign: 'center',
+    maxWidth: 340,
+  },
+  subtitleCompact: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 6,
   },
   successBanner: {
     flexDirection: 'row',
@@ -382,44 +427,44 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: 18,
   },
   successIcon: {
     marginRight: 10,
   },
   successText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '600',
   },
   formContainer: {
-    gap: 16,
+    width: '100%',
   },
   termsText: {
-    fontSize: 12.5,
+    fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
-    marginTop: 22,
-    marginBottom: 16,
+    marginTop: 18,
+    marginBottom: 14,
     paddingHorizontal: 12,
   },
   termsLink: {
     fontWeight: '600',
   },
   submitButton: {
-    marginTop: 6,
+    marginTop: 4,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 22,
   },
   footerText: {
-    fontSize: 14.5,
+    fontSize: 14,
   },
   footerLink: {
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: '700',
     textDecorationLine: 'underline',
   },

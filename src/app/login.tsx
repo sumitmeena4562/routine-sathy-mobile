@@ -20,6 +20,7 @@ import {
   Button,
   RoutineSathyEmblem,
   TextField,
+  Toast,
 } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -48,14 +49,15 @@ export default function LoginScreen() {
   }>({});
 
   const [loading, setLoading] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{
+    visible: boolean;
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
-  const triggerHaptic = useCallback((type: 'light' | 'success' | 'warning') => {
+  const triggerHaptic = useCallback((type: 'light' | 'warning') => {
     if (Platform.OS !== 'web') {
-      if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } else if (type === 'warning') {
+      if (type === 'warning') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -90,8 +92,7 @@ export default function LoginScreen() {
     }
 
     setLoading(true);
-    setSuccessMessage(null);
-    setServerError(null);
+    setToast(null);
 
     try {
       const response = await login({
@@ -99,12 +100,18 @@ export default function LoginScreen() {
         password,
       });
 
-      triggerHaptic('success');
-      setSuccessMessage(response.message || 'Logged in successfully! Welcome back.');
+      setToast({
+        visible: true,
+        type: 'success',
+        message: response.message || 'Logged in successfully! Welcome back.',
+      });
     } catch (err: unknown) {
-      triggerHaptic('warning');
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
-      setServerError(msg);
+      setToast({
+        visible: true,
+        type: 'error',
+        message: msg,
+      });
     } finally {
       setLoading(false);
     }
@@ -114,6 +121,16 @@ export default function LoginScreen() {
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
+
+      {/* Floating Animated Toast Notification */}
+      {toast && (
+        <Toast
+          visible={toast.visible}
+          type={toast.type}
+          message={toast.message}
+          onDismiss={() => setToast(null)}
+        />
+      )}
 
       {/* Top Header Bar with Consistent Horizontal Alignment */}
       <View
@@ -185,50 +202,6 @@ export default function LoginScreen() {
               Sign in to continue your mindful circadian rhythm and habits.
             </Text>
           </View>
-
-          {/* Server Error Banner */}
-          {serverError && (
-            <View
-              style={[
-                styles.banner,
-                {
-                  backgroundColor: theme.colors.errorMuted,
-                  borderColor: theme.colors.error,
-                },
-              ]}>
-              <Ionicons
-                name="alert-circle"
-                size={20}
-                color={theme.colors.error}
-                style={styles.bannerIcon}
-              />
-              <Text style={[styles.bannerText, { color: theme.colors.error }]}>
-                {serverError}
-              </Text>
-            </View>
-          )}
-
-          {/* Success Banner */}
-          {successMessage && (
-            <View
-              style={[
-                styles.banner,
-                {
-                  backgroundColor: theme.colors.successMuted,
-                  borderColor: theme.colors.successBorder,
-                },
-              ]}>
-              <Ionicons
-                name="checkmark-circle"
-                size={20}
-                color={theme.colors.success}
-                style={styles.bannerIcon}
-              />
-              <Text style={[styles.bannerText, { color: theme.colors.success }]}>
-                {successMessage}
-              </Text>
-            </View>
-          )}
 
           {/* Form Fields with Adaptive Gap */}
           <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
@@ -393,23 +366,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginTop: 6,
-  },
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    marginBottom: 18,
-  },
-  bannerIcon: {
-    marginRight: 10,
-  },
-  bannerText: {
-    flex: 1,
-    fontSize: 13.5,
-    fontWeight: '600',
   },
   formContainer: {
     width: '100%',

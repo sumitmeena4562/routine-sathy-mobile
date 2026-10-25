@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { RoutineThemeProvider } from '@/context/ThemeContext';
 import { OnboardingProvider } from '@/context/OnboardingContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -50,7 +51,9 @@ export default function RootLayout() {
   return (
     <RoutineThemeProvider>
       <OnboardingProvider>
-        <RootNavigator />
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
       </OnboardingProvider>
     </RoutineThemeProvider>
   );

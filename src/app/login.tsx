@@ -21,12 +21,14 @@ import {
   RoutineSathyEmblem,
   TextField,
 } from '@/components/ui';
+import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function LoginScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { login } = useAuth();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   // Responsive device breakpoints
@@ -46,6 +48,7 @@ export default function LoginScreen() {
   }>({});
 
   const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const triggerHaptic = useCallback((type: 'light' | 'success' | 'warning') => {
@@ -88,13 +91,23 @@ export default function LoginScreen() {
 
     setLoading(true);
     setSuccessMessage(null);
+    setServerError(null);
 
-    // Simulated network authentication flow
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const response = await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
       triggerHaptic('success');
-      setSuccessMessage('Logged in successfully! Welcome back.');
-    }, 1000);
+      setSuccessMessage(response.message || 'Logged in successfully! Welcome back.');
+    } catch (err: unknown) {
+      triggerHaptic('warning');
+      const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
+      setServerError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -173,11 +186,33 @@ export default function LoginScreen() {
             </Text>
           </View>
 
+          {/* Server Error Banner */}
+          {serverError && (
+            <View
+              style={[
+                styles.banner,
+                {
+                  backgroundColor: theme.colors.errorMuted,
+                  borderColor: theme.colors.error,
+                },
+              ]}>
+              <Ionicons
+                name="alert-circle"
+                size={20}
+                color={theme.colors.error}
+                style={styles.bannerIcon}
+              />
+              <Text style={[styles.bannerText, { color: theme.colors.error }]}>
+                {serverError}
+              </Text>
+            </View>
+          )}
+
           {/* Success Banner */}
           {successMessage && (
             <View
               style={[
-                styles.successBanner,
+                styles.banner,
                 {
                   backgroundColor: theme.colors.successMuted,
                   borderColor: theme.colors.successBorder,
@@ -187,9 +222,9 @@ export default function LoginScreen() {
                 name="checkmark-circle"
                 size={20}
                 color={theme.colors.success}
-                style={styles.successIcon}
+                style={styles.bannerIcon}
               />
-              <Text style={[styles.successText, { color: theme.colors.success }]}>
+              <Text style={[styles.bannerText, { color: theme.colors.success }]}>
                 {successMessage}
               </Text>
             </View>
@@ -359,7 +394,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 6,
   },
-  successBanner: {
+  banner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
@@ -368,10 +403,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 18,
   },
-  successIcon: {
+  bannerIcon: {
     marginRight: 10,
   },
-  successText: {
+  bannerText: {
     flex: 1,
     fontSize: 13.5,
     fontWeight: '600',

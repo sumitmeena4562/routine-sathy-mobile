@@ -15,9 +15,9 @@ function getApiBaseUrl(): string {
     return process.env.EXPO_PUBLIC_API_URL;
   }
   if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5000/api';
+    return 'http://10.0.2.2:5001/api';
   }
-  return 'http://localhost:5000/api';
+  return 'http://localhost:5001/api';
 }
 
 // eslint-disable-next-line import/no-named-as-default-member

@@ -9,6 +9,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useOnboarding } from '@/context/OnboardingContext';
 import Svg, {
   Circle,
   Defs,
@@ -89,19 +90,27 @@ export default function SplashScreen() {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isCompact = windowHeight < 700 || windowWidth < 380;
 
+  const { hasCompletedOnboarding, isLoading } = useOnboarding();
+
   // Gentle breathing motion
   const scale = useSharedValue(1);
 
   const handleProceed = useCallback(() => {
-    router.replace('/onboarding');
-  }, [router]);
+    if (isLoading) return;
+    if (hasCompletedOnboarding) {
+      router.replace('/welcome');
+    } else {
+      router.replace('/onboarding');
+    }
+  }, [hasCompletedOnboarding, isLoading, router]);
 
   useEffect(() => {
+    if (isLoading) return;
     const timer = setTimeout(() => {
       handleProceed();
     }, 1200);
     return () => clearTimeout(timer);
-  }, [handleProceed]);
+  }, [isLoading, handleProceed]);
 
   useEffect(() => {
     scale.value = withRepeat(

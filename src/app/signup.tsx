@@ -130,7 +130,7 @@ export default function SignUpScreen() {
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
-        <View style={styles.topBarInner}>
+        <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
           <Pressable
             onPress={() => router.back()}
             hitSlop={12}
@@ -329,7 +329,7 @@ export default function SignUpScreen() {
               Already have an account?{' '}
             </Text>
             <Pressable
-              onPress={() => router.push('/login')}
+              onPress={() => router.replace('/login')}
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Go to Login">

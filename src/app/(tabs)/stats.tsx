@@ -24,7 +24,7 @@ export default function StatsScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const isTablet = windowWidth >= 768;
-  const containerMaxWidth = isTablet ? 540 : 440;
+  const containerMaxWidth = isTablet ? 520 : 440;
   const horizontalPadding = isTablet ? 32 : 22;
 
   const [stats, setStats] = useState<RoutineStats | null>(null);
@@ -59,7 +59,7 @@ export default function StatsScreen() {
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
 
-      {/* Top Header */}
+      {/* Clean Top Header */}
       <View
         style={[
           styles.headerBar,
@@ -71,10 +71,10 @@ export default function StatsScreen() {
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Consistency &amp; Stats
+            Consistency
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Your daily rhythm habits, ongoing streaks, and circadian performance.
+            Your habit streaks and daily rhythm score over time.
           </Text>
         </View>
       </View>
@@ -99,84 +99,73 @@ export default function StatsScreen() {
         ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Calculating your streaks...
+              Loading statistics...
             </Text>
           </View>
         ) : (
           <View style={styles.content}>
-            {/* Highlighted Current Streak Hero Card */}
-            <Card style={styles.heroStreakCard}>
-              <View style={[styles.flameCircle, { backgroundColor: 'rgba(249, 115, 22, 0.12)' }]}>
-                <Ionicons name="flame" size={38} color="#F97316" />
+            {/* Minimal Clean Streak Card */}
+            <Card style={styles.streakCard}>
+              <View style={[styles.flameIconBox, { backgroundColor: theme.colors.backgroundElement }]}>
+                <Ionicons name="flame" size={32} color="#F97316" />
               </View>
 
-              <Text style={[styles.heroStreakCount, { color: theme.colors.text }]}>
+              <Text style={[styles.streakCount, { color: theme.colors.text }]}>
                 {stats?.currentStreak || 0}
               </Text>
-              <Text style={[styles.heroStreakLabel, { color: theme.colors.textSecondary }]}>
-                Day Streak in Flow
+              <Text style={[styles.streakLabel, { color: theme.colors.textSecondary }]}>
+                DAYS CURRENT STREAK
               </Text>
-              <Text style={[styles.heroStreakMotivation, { color: theme.colors.secondary }]}>
+              <Text style={[styles.streakNote, { color: theme.colors.secondary }]}>
                 {(stats?.currentStreak || 0) > 0
-                  ? 'Keep showing up every day to build lasting rhythm.'
-                  : 'Log today&apos;s routine to start your daily streak!'}
+                  ? 'Great momentum! Keep logging daily.'
+                  : 'Log today&apos;s routine to begin your streak.'}
               </Text>
             </Card>
 
-            {/* 3 Metric Cards Grid */}
-            <View style={styles.gridRow}>
-              {/* Max Streak */}
-              <Card style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: 'rgba(245, 158, 11, 0.12)' }]}>
-                  <Ionicons name="trophy-outline" size={20} color="#F59E0B" />
-                </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+            {/* Unified 3-Stat Clean Row Card */}
+            <Card style={styles.metricsGroupCard}>
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>BEST STREAK</Text>
+                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
                   {stats?.maxStreak || 0}
+                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Longest Streak
-                </Text>
-              </Card>
+              </View>
 
-              {/* Avg Score */}
-              <Card style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-                  <Ionicons name="sparkles-outline" size={20} color="#10B981" />
-                </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                  {stats?.avgScore ? Math.round(stats.avgScore) : 0}%
-                </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Average Score
-                </Text>
-              </Card>
+              <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderSubtle }]} />
 
-              {/* Total Days */}
-              <Card style={styles.statCard}>
-                <View style={[styles.statIconBox, { backgroundColor: 'rgba(2, 132, 199, 0.12)' }]}>
-                  <Ionicons name="calendar-outline" size={20} color="#0284C7" />
-                </View>
-                <Text style={[styles.statValue, { color: theme.colors.text }]}>
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>AVG SCORE</Text>
+                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                  {stats?.avgScore ? Math.round(stats.avgScore) : 0}
+                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
+                </Text>
+              </View>
+
+              <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderSubtle }]} />
+
+              <View style={styles.metricItem}>
+                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>LOGGED</Text>
+                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
                   {stats?.totalDays || 0}
+                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
                 </Text>
-                <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>
-                  Total Logged
-                </Text>
-              </Card>
-            </View>
+              </View>
+            </Card>
 
-            {/* Circadian Tip Card */}
+            {/* Minimal Circadian Rhythm Tip */}
             <Card style={styles.tipCard}>
               <View style={styles.tipHeader}>
-                <Ionicons name="bulb-outline" size={20} color={theme.colors.secondary} />
+                <Ionicons name="bulb-outline" size={17} color={theme.colors.secondary} />
                 <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
-                  Circadian Rhythm Tip
+                  Morning Circadian Tip
                 </Text>
               </View>
               <Text style={[styles.tipBody, { color: theme.colors.textSecondary }]}>
-                Getting natural sunlight within 30 minutes of waking sets your internal biological clock, boosting daytime alertness and ensuring deeper sleep at night.
+                Natural morning sunlight sets your internal clock, lifting daytime energy and ensuring deeper recovery sleep at night.
               </Text>
             </Card>
           </View>
@@ -192,14 +181,14 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     zIndex: 10,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   headerBarInner: {
     width: '100%',
     alignSelf: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 25,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
@@ -211,7 +200,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 10,
+    paddingTop: 8,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -220,85 +209,88 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '500',
   },
   content: {
     width: '100%',
     gap: 14,
   },
-  heroStreakCard: {
+  streakCard: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: 26,
     paddingHorizontal: 20,
+    borderRadius: 20,
   },
-  flameCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+  flameIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  heroStreakCount: {
-    fontSize: 48,
+  streakCount: {
+    fontSize: 44,
     fontWeight: '900',
     letterSpacing: -1,
   },
-  heroStreakLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+  streakLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
     marginTop: 2,
   },
-  heroStreakMotivation: {
+  streakNote: {
     fontSize: 12.5,
     fontWeight: '600',
-    textAlign: 'center',
     marginTop: 8,
   },
-  gridRow: {
+  metricsGroupCard: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingVertical: 18,
+    borderRadius: 18,
   },
-  statCard: {
+  metricItem: {
+    alignItems: 'center',
     flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 8,
   },
-  statIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
+  metricHeader: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  statValue: {
-    fontSize: 18,
+  metricNumber: {
+    fontSize: 20,
     fontWeight: '800',
+    marginTop: 4,
   },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 2,
+  metricUnit: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  metricDivider: {
+    width: 1,
+    height: 28,
   },
   tipCard: {
-    padding: 18,
-    gap: 8,
+    padding: 16,
+    borderRadius: 18,
+    gap: 6,
   },
   tipHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   tipTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   tipBody: {
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 18,
   },
 });

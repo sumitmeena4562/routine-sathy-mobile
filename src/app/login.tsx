@@ -24,6 +24,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
+import { getTodayDateString, routineService } from '@/services/routine';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -106,8 +107,18 @@ export default function LoginScreen() {
         message: response.message || 'Logged in successfully! Welcome back.',
       });
 
+      let nextRoute: '/(tabs)' | '/add-routine' = '/(tabs)';
+      try {
+        const todayRoutine = await routineService.getTodayRoutine(getTodayDateString());
+        if (!todayRoutine) {
+          nextRoute = '/add-routine';
+        }
+      } catch {
+        nextRoute = '/(tabs)';
+      }
+
       setTimeout(() => {
-        router.replace('/(tabs)');
+        router.replace(nextRoute);
       }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';

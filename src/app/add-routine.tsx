@@ -19,20 +19,15 @@ import {
   AmbientAtmosphere,
   Button,
   Card,
-  RoutineSathyEmblem,
   Toast,
 } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
 import { HabitItem, RoutineActivity } from '@/types/routine';
 
-const WAKE_PRESETS = ['05:30', '06:00', '06:30', '07:00', '07:30', '08:00'];
-const WATER_PRESETS = [1.5, 2.0, 2.5, 3.0, 3.5, 4.0];
-const STUDY_PRESETS = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-
 const DEFAULT_HABITS: HabitItem[] = [
   { id: 'workout', name: 'Workout / Exercise', type: 'boolean', icon: 'barbell-outline', enabled: true },
-  { id: 'meditation', name: 'Mindfulness / Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
+  { id: 'meditation', name: 'Mindfulness & Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
   { id: 'reading', name: 'Reading Book (20 mins)', type: 'boolean', icon: 'book-outline', enabled: true },
 ];
 
@@ -44,10 +39,12 @@ export default function AddRoutineScreen() {
 
   const isCompact = windowHeight < 720 || windowWidth < 380;
   const isTablet = windowWidth >= 768;
-  const containerMaxWidth = isTablet ? 520 : 440;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
+  const containerMaxWidth = isTablet ? 500 : 440;
+  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 22;
 
-  const [wakeUpTime, setWakeUpTime] = useState('06:30');
+  // Simple state with practical defaults
+  const [wakeHour, setWakeHour] = useState(6);
+  const [wakeMin, setWakeMin] = useState(30);
   const [waterIntake, setWaterIntake] = useState(3.0);
   const [studyHours, setStudyHours] = useState(4.0);
   const [habits, setHabits] = useState<HabitItem[]>(DEFAULT_HABITS);
@@ -62,7 +59,7 @@ export default function AddRoutineScreen() {
     message: string;
   } | null>(null);
 
-  // Load user default habits & goals on mount
+  // Load user goals on mount
   useEffect(() => {
     async function loadDefaults() {
       try {
@@ -80,7 +77,13 @@ export default function AddRoutineScreen() {
         }
 
         if (serverGoals.status === 'fulfilled' && serverGoals.value) {
-          if (serverGoals.value.targetWakeUp) setWakeUpTime(serverGoals.value.targetWakeUp);
+          if (serverGoals.value.targetWakeUp) {
+            const [h, m] = serverGoals.value.targetWakeUp.split(':').map(Number);
+            if (!isNaN(h) && !isNaN(m)) {
+              setWakeHour(h);
+              setWakeMin(m);
+            }
+          }
           if (serverGoals.value.targetWater) setWaterIntake(serverGoals.value.targetWater);
           if (serverGoals.value.targetStudy) setStudyHours(serverGoals.value.targetStudy);
         }
@@ -103,7 +106,26 @@ export default function AddRoutineScreen() {
     }
   }, []);
 
-  const toggleHabitSelection = (id: string) => {
+  const adjustWakeTime = (deltaMinutes: number) => {
+    triggerHaptic('light');
+    let totalMins = wakeHour * 60 + wakeMin + deltaMinutes;
+    // Bound between 04:00 AM (240 mins) and 10:00 AM (600 mins)
+    totalMins = Math.max(240, Math.min(600, totalMins));
+    setWakeHour(Math.floor(totalMins / 60));
+    setWakeMin(totalMins % 60);
+  };
+
+  const adjustWater = (delta: number) => {
+    triggerHaptic('light');
+    setWaterIntake((prev) => Math.max(1.0, Math.min(6.0, Math.round((prev + delta) * 10) / 10)));
+  };
+
+  const adjustStudy = (delta: number) => {
+    triggerHaptic('light');
+    setStudyHours((prev) => Math.max(0.5, Math.min(12.0, Math.round((prev + delta) * 10) / 10)));
+  };
+
+  const toggleHabit = (id: string) => {
     triggerHaptic('light');
     setSelectedHabitIds((prev) => {
       const next = new Set(prev);
@@ -116,7 +138,9 @@ export default function AddRoutineScreen() {
     });
   };
 
-  const handleSaveRoutine = async () => {
+  const formattedWakeTime = `${String(wakeHour).padStart(2, '0')}:${String(wakeMin).padStart(2, '0')}`;
+
+  const handleSave = async () => {
     triggerHaptic('light');
     setLoading(true);
     setToast(null);
@@ -126,36 +150,23 @@ export default function AddRoutineScreen() {
       .map((h) => ({
         activityId: h.id,
         name: h.name,
-        value: false, // Initially uncompleted for today
+        value: false,
       }));
 
     try {
       await routineService.saveRoutine({
         date: getTodayDateString(),
-        wakeUpTime,
+        wakeUpTime: formattedWakeTime,
         waterIntake,
         studyHours,
         activities,
       });
 
       triggerHaptic('success');
-      setToast({
-        visible: true,
-        type: 'success',
-        message: 'Today&apos;s routine planned successfully!',
-      });
-
-      // Redirect to main Tabs dashboard
-      setTimeout(() => {
-        router.replace('/(tabs)');
-      }, 700);
+      router.replace('/(tabs)');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to save routine. Please try again.';
-      setToast({
-        visible: true,
-        type: 'error',
-        message: msg,
-      });
+      const msg = err instanceof Error ? err.message : 'Could not save routine. Please try again.';
+      setToast({ visible: true, type: 'error', message: msg });
       triggerHaptic('warning');
     } finally {
       setLoading(false);
@@ -182,7 +193,7 @@ export default function AddRoutineScreen() {
         />
       )}
 
-      {/* Top Bar */}
+      {/* Clean Top Bar */}
       <View
         style={[
           styles.topBar,
@@ -197,9 +208,9 @@ export default function AddRoutineScreen() {
             onPress={() => router.replace('/(tabs)')}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Cancel"
+            accessibilityLabel="Close"
             style={({ pressed }) => [
-              styles.backButton,
+              styles.closeButton,
               {
                 backgroundColor: theme.colors.backgroundElement,
                 borderColor: theme.colors.borderSubtle,
@@ -209,12 +220,9 @@ export default function AddRoutineScreen() {
             <Ionicons name="close" size={20} color={theme.colors.text} />
           </Pressable>
 
-          <View style={styles.dateBadge}>
-            <Ionicons name="calendar-outline" size={13} color={theme.colors.secondary} />
-            <Text style={[styles.dateText, { color: theme.colors.textSecondary }]}>
-              {formattedDate}
-            </Text>
-          </View>
+          <Text style={[styles.dateBadgeText, { color: theme.colors.textSecondary }]}>
+            {formattedDate}
+          </Text>
         </View>
       </View>
 
@@ -232,222 +240,170 @@ export default function AddRoutineScreen() {
               paddingRight: insets.right + horizontalPadding,
             },
           ]}>
-          {/* Header */}
+          {/* Minimal Clean Title */}
           <View style={styles.header}>
-            <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={isCompact ? 44 : 52} />
-            </View>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              Plan Today&apos;s Rhythm
+              Plan Today&apos;s Routine
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Set your morning wake-up, daily water, focus hours, and choose your active habits for today.
+              Set simple daily targets and choose your focus habits.
             </Text>
           </View>
 
-          {/* Section 1: Wake-up Target */}
-          <Card style={styles.cardSection}>
-            <View style={styles.sectionTitleRow}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(249, 115, 22, 0.12)' }]}>
-                <Ionicons name="alarm-outline" size={18} color="#F97316" />
-              </View>
-              <View style={styles.sectionTitleText}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Wake-up Time</Text>
-                <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                  Natural morning rise anchor
+          {/* Section 1: Unified Grouped Daily Targets */}
+          <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
+            DAILY TARGETS
+          </Text>
+
+          <Card style={styles.groupedCard}>
+            {/* Row 1: Wake-up Time Stepper */}
+            <View style={styles.targetRow}>
+              <View style={styles.targetInfo}>
+                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Wake-up</Text>
+                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                  Morning rise anchor
                 </Text>
               </View>
-              <Text style={[styles.selectedValueText, { color: theme.colors.primary }]}>
-                {wakeUpTime}
-              </Text>
+
+              <View style={styles.stepperContainer}>
+                <Pressable
+                  onPress={() => adjustWakeTime(-15)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                </Pressable>
+
+                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                  {formattedWakeTime}
+                </Text>
+
+                <Pressable
+                  onPress={() => adjustWakeTime(15)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                </Pressable>
+              </View>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-              {WAKE_PRESETS.map((time) => {
-                const selected = wakeUpTime === time;
-                return (
-                  <Pressable
-                    key={time}
-                    onPress={() => {
-                      triggerHaptic('light');
-                      setWakeUpTime(time);
-                    }}
-                    style={[
-                      styles.pillButton,
-                      {
-                        backgroundColor: selected ? theme.colors.primary : theme.colors.backgroundElement,
-                        borderColor: selected ? theme.colors.primary : theme.colors.borderSubtle,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: selected ? theme.colors.primaryForeground : theme.colors.text },
-                      ]}>
-                      {time}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+            <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+
+            {/* Row 2: Hydration Stepper */}
+            <View style={styles.targetRow}>
+              <View style={styles.targetInfo}>
+                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Water</Text>
+                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                  Daily hydration goal
+                </Text>
+              </View>
+
+              <View style={styles.stepperContainer}>
+                <Pressable
+                  onPress={() => adjustWater(-0.5)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                </Pressable>
+
+                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                  {waterIntake.toFixed(1)} L
+                </Text>
+
+                <Pressable
+                  onPress={() => adjustWater(0.5)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+
+            {/* Row 3: Deep Focus Stepper */}
+            <View style={styles.targetRow}>
+              <View style={styles.targetInfo}>
+                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Focus</Text>
+                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                  Study &amp; deep work hours
+                </Text>
+              </View>
+
+              <View style={styles.stepperContainer}>
+                <Pressable
+                  onPress={() => adjustStudy(-0.5)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                </Pressable>
+
+                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                  {studyHours.toFixed(1)} h
+                </Text>
+
+                <Pressable
+                  onPress={() => adjustStudy(0.5)}
+                  hitSlop={8}
+                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                </Pressable>
+              </View>
+            </View>
           </Card>
 
-          {/* Section 2: Water Target */}
-          <Card style={styles.cardSection}>
-            <View style={styles.sectionTitleRow}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(2, 132, 199, 0.12)' }]}>
-                <Ionicons name="water-outline" size={18} color="#0284C7" />
-              </View>
-              <View style={styles.sectionTitleText}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Daily Hydration</Text>
-                <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                  Cellular energy and focus
-                </Text>
-              </View>
-              <Text style={[styles.selectedValueText, { color: '#0284C7' }]}>
-                {waterIntake.toFixed(1)} L
-              </Text>
-            </View>
+          {/* Section 2: Habits Selection */}
+          <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginTop: 22 }]}>
+            TODAY&apos;S HABITS ({selectedHabitIds.size} ACTIVE)
+          </Text>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-              {WATER_PRESETS.map((vol) => {
-                const selected = waterIntake === vol;
-                return (
+          <Card style={styles.groupedCard}>
+            {habits.map((habit, index) => {
+              const isSelected = selectedHabitIds.has(habit.id);
+              const isLast = index === habits.length - 1;
+              return (
+                <React.Fragment key={habit.id}>
                   <Pressable
-                    key={vol}
-                    onPress={() => {
-                      triggerHaptic('light');
-                      setWaterIntake(vol);
-                    }}
-                    style={[
-                      styles.pillButton,
-                      {
-                        backgroundColor: selected ? '#0284C7' : theme.colors.backgroundElement,
-                        borderColor: selected ? '#0284C7' : theme.colors.borderSubtle,
-                      },
+                    onPress={() => toggleHabit(habit.id)}
+                    style={({ pressed }) => [
+                      styles.habitRow,
+                      pressed && { opacity: 0.7 },
                     ]}>
                     <Text
                       style={[
-                        styles.pillText,
-                        { color: selected ? '#FFFFFF' : theme.colors.text },
-                      ]}>
-                      {vol.toFixed(1)} L
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Card>
-
-          {/* Section 3: Deep Focus Hours */}
-          <Card style={styles.cardSection}>
-            <View style={styles.sectionTitleRow}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(16, 185, 129, 0.12)' }]}>
-                <Ionicons name="book-outline" size={18} color="#10B981" />
-              </View>
-              <View style={styles.sectionTitleText}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Deep Focus Target</Text>
-                <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                  Productivity and learning hours
-                </Text>
-              </View>
-              <Text style={[styles.selectedValueText, { color: '#10B981' }]}>
-                {studyHours.toFixed(1)} hrs
-              </Text>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-              {STUDY_PRESETS.map((hrs) => {
-                const selected = studyHours === hrs;
-                return (
-                  <Pressable
-                    key={hrs}
-                    onPress={() => {
-                      triggerHaptic('light');
-                      setStudyHours(hrs);
-                    }}
-                    style={[
-                      styles.pillButton,
-                      {
-                        backgroundColor: selected ? '#10B981' : theme.colors.backgroundElement,
-                        borderColor: selected ? '#10B981' : theme.colors.borderSubtle,
-                      },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: selected ? '#FFFFFF' : theme.colors.text },
-                      ]}>
-                      {hrs.toFixed(1)} h
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Card>
-
-          {/* Section 4: Daily Habits Selection */}
-          <Card style={styles.cardSection}>
-            <View style={styles.sectionTitleRow}>
-              <View style={[styles.iconBox, { backgroundColor: 'rgba(15, 23, 42, 0.08)' }]}>
-                <Ionicons name="checkbox-outline" size={18} color={theme.colors.text} />
-              </View>
-              <View style={styles.sectionTitleText}>
-                <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Today&apos;s Habits</Text>
-                <Text style={[styles.sectionCaption, { color: theme.colors.textSecondary }]}>
-                  Select habits you will complete today
-                </Text>
-              </View>
-              <Text style={[styles.selectedValueText, { color: theme.colors.secondary }]}>
-                {selectedHabitIds.size} Active
-              </Text>
-            </View>
-
-            <View style={styles.habitsList}>
-              {habits.map((habit) => {
-                const active = selectedHabitIds.has(habit.id);
-                return (
-                  <Pressable
-                    key={habit.id}
-                    onPress={() => toggleHabitSelection(habit.id)}
-                    style={[
-                      styles.habitItem,
-                      {
-                        backgroundColor: active ? theme.colors.backgroundSelected : theme.colors.surface,
-                        borderColor: active ? theme.colors.primary : theme.colors.borderSubtle,
-                      },
-                    ]}>
-                    <Ionicons
-                      name={active ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
-                      color={active ? theme.colors.primary : theme.colors.textMuted}
-                    />
-                    <Text
-                      style={[
-                        styles.habitName,
+                        styles.habitRowName,
                         {
-                          color: active ? theme.colors.text : theme.colors.textSecondary,
-                          fontWeight: active ? '700' : '500',
+                          color: isSelected ? theme.colors.text : theme.colors.textMuted,
+                          fontWeight: isSelected ? '700' : '500',
                         },
                       ]}>
                       {habit.name}
                     </Text>
+
+                    <Ionicons
+                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={22}
+                      color={isSelected ? theme.colors.primary : theme.colors.textMuted}
+                    />
                   </Pressable>
-                );
-              })}
-            </View>
+
+                  {!isLast && (
+                    <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+                  )}
+                </React.Fragment>
+              );
+            })}
           </Card>
 
-          {/* Submit Button */}
+          {/* Clean CTA Button */}
           <Button
-            title="Save Today's Routine"
-            onPress={handleSaveRoutine}
+            title="Save Routine"
+            onPress={handleSave}
             loading={loading}
             variant="primary"
-            size={isCompact ? 'md' : 'lg'}
+            size="lg"
             pill
             fullWidth
-            style={styles.saveButton}
+            style={styles.saveBtn}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -471,7 +427,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  backButton: {
+  closeButton: {
     width: 38,
     height: 38,
     borderRadius: 19,
@@ -479,21 +435,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 6,
-  },
-  dateText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
   pressed: {
     opacity: 0.75,
     transform: [{ scale: 0.96 }],
+  },
+  dateBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   keyboardView: {
     flex: 1,
@@ -501,92 +449,83 @@ const styles = StyleSheet.create({
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 10,
+    paddingTop: 12,
   },
   header: {
-    alignItems: 'center',
     marginBottom: 20,
   },
-  emblemWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
   title: {
-    fontSize: 26,
+    fontSize: 27,
     fontWeight: '800',
-    letterSpacing: -0.5,
-    textAlign: 'center',
+    letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    textAlign: 'center',
-    marginTop: 6,
-    maxWidth: 340,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 4,
   },
-  cardSection: {
-    marginBottom: 14,
-    padding: 16,
+  groupLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
   },
-  sectionTitleRow: {
+  groupedCard: {
+    padding: 4,
+    borderRadius: 16,
+  },
+  targetRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  iconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  sectionTitleText: {
+  targetInfo: {
     flex: 1,
   },
-  sectionTitle: {
+  targetTitle: {
     fontSize: 15,
     fontWeight: '700',
   },
-  sectionCaption: {
+  targetSubtitle: {
     fontSize: 12,
     marginTop: 2,
   },
-  selectedValueText: {
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  pillRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  pillButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  pillText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  habitsList: {
-    gap: 8,
-  },
-  habitItem: {
+  stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 12,
+    gap: 8,
   },
-  habitName: {
-    fontSize: 14,
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  saveButton: {
-    marginTop: 10,
+  stepperValueText: {
+    fontSize: 14.5,
+    fontWeight: '700',
+    minWidth: 54,
+    textAlign: 'center',
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 14,
+  },
+  habitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  habitRowName: {
+    fontSize: 14.5,
+  },
+  saveBtn: {
+    marginTop: 24,
   },
 });

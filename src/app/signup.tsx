@@ -126,7 +126,7 @@ export default function SignUpScreen() {
       });
 
       setTimeout(() => {
-        router.replace('/(tabs)');
+        router.replace('/add-routine');
       }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create account. Please try again.';

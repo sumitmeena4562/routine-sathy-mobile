@@ -20,7 +20,6 @@ import {
   AmbientAtmosphere,
   Button,
   Card,
-  CircadianRhythmDial,
   HabitCheckControl,
   ProgressBar,
   Toast,
@@ -46,7 +45,7 @@ export default function TodayScreen() {
 
   const isCompact = windowHeight < 720 || windowWidth < 380;
   const isTablet = windowWidth >= 768;
-  const containerMaxWidth = isTablet ? 540 : 440;
+  const containerMaxWidth = isTablet ? 520 : 440;
   const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 22;
 
   const [routine, setRoutine] = useState<RoutineData | null>(null);
@@ -70,7 +69,6 @@ export default function TodayScreen() {
     }
   }, []);
 
-  // Reload routine whenever this screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchRoutine();
@@ -92,7 +90,6 @@ export default function TodayScreen() {
     }
   }, []);
 
-  // Toggle habit completion live
   const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
     if (!routine) return;
 
@@ -105,7 +102,6 @@ export default function TodayScreen() {
       return act;
     });
 
-    // Optimistic UI update
     setRoutine({
       ...routine,
       activities: updatedActivities,
@@ -121,7 +117,6 @@ export default function TodayScreen() {
       });
       setRoutine(updated);
     } catch {
-      // Revert if API fails
       setToast({
         visible: true,
         type: 'error',
@@ -144,6 +139,7 @@ export default function TodayScreen() {
   const completedHabits =
     routine?.activities?.filter((a) => Boolean(a.value)).length || 0;
   const progressRatio = totalHabits > 0 ? completedHabits / totalHabits : 0;
+  const score = Math.round(routine?.score || 0);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -159,7 +155,7 @@ export default function TodayScreen() {
         />
       )}
 
-      {/* Top Header Bar */}
+      {/* Clean Header Bar */}
       <View
         style={[
           styles.headerBar,
@@ -171,11 +167,11 @@ export default function TodayScreen() {
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
           <View>
-            <Text style={[styles.greetingText, { color: theme.colors.textSecondary }]}>
-              {greeting}, {firstName} 👋
-            </Text>
-            <Text style={[styles.dateText, { color: theme.colors.text }]}>
+            <Text style={[styles.dateSub, { color: theme.colors.textSecondary }]}>
               {formattedDate}
+            </Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              {greeting}, {firstName}
             </Text>
           </View>
 
@@ -185,14 +181,15 @@ export default function TodayScreen() {
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Edit Routine"
-              style={[
-                styles.editPill,
+              style={({ pressed }) => [
+                styles.editBtn,
                 {
                   backgroundColor: theme.colors.backgroundElement,
                   borderColor: theme.colors.borderSubtle,
                 },
+                pressed && { opacity: 0.7 },
               ]}>
-              <Ionicons name="pencil" size={14} color={theme.colors.text} />
+              <Ionicons name="options-outline" size={15} color={theme.colors.text} />
               <Text style={[styles.editText, { color: theme.colors.text }]}>Edit</Text>
             </Pressable>
           )}
@@ -219,189 +216,137 @@ export default function TodayScreen() {
         ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
               Loading today&apos;s rhythm...
             </Text>
           </View>
         ) : !routine ? (
           /* ========================================================
-             CASE A: NO ROUTINE LOGGED YET FOR TODAY
+             CASE A: NO ROUTINE LOGGED YET FOR TODAY (CLEAN CARD)
              ======================================================== */
           <Card style={styles.emptyCard}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: '#FFF7ED', borderColor: '#FED7AA' }]}>
-              <Ionicons name="sunny" size={40} color="#F97316" />
+            <View style={[styles.emptyIconCircle, { backgroundColor: theme.colors.backgroundElement }]}>
+              <Ionicons name="sunny-outline" size={32} color={theme.colors.secondary} />
             </View>
 
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-              Plan Today&apos;s Rhythm
+              No routine set for today
             </Text>
 
             <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              You haven&apos;t set your targets for today yet. Choose your morning wake-up, water goal, and daily habits to stay in flow.
+              Plan your morning wake-up, daily water, and active habits to keep your streak alive.
             </Text>
 
             <Button
-              title="Add Today's Routine"
+              title="Plan Today's Routine"
               onPress={() => router.push('/add-routine')}
               variant="primary"
-              size={isCompact ? 'md' : 'lg'}
+              size="lg"
               pill
               fullWidth
-              icon={<Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />}
               style={styles.emptyButton}
             />
           </Card>
         ) : (
           /* ========================================================
-             CASE B: ROUTINE LOGGED — SHOW TODAY'S DASHBOARD
+             CASE B: ROUTINE LOGGED — ULTRA CLEAN MINIMAL DASHBOARD
              ======================================================== */
-          <View style={styles.dashboardContainer}>
-            {/* Hero Circadian Dial */}
-            <Card style={styles.heroDialCard}>
-              <View style={styles.dialWrapper}>
-                <CircadianRhythmDial size={isCompact ? 130 : 154} />
-              </View>
+          <View style={styles.dashboard}>
+            {/* Single Unified Clean Summary Card */}
+            <Card style={styles.summaryCard}>
+              <View style={styles.summaryTopRow}>
+                <View>
+                  <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
+                    DAILY RHYTHM
+                  </Text>
+                  <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>
+                    {score}
+                    <Text style={[styles.scoreTotal, { color: theme.colors.textMuted }]}> / 100</Text>
+                  </Text>
+                </View>
 
-              <View style={styles.scoreRow}>
                 <View
                   style={[
-                    styles.scorePill,
+                    styles.streakPill,
                     {
-                      backgroundColor:
-                        routine.score >= 70
-                          ? 'rgba(16, 185, 129, 0.12)'
-                          : 'rgba(249, 115, 22, 0.12)',
-                      borderColor:
-                        routine.score >= 70
-                          ? 'rgba(16, 185, 129, 0.25)'
-                          : 'rgba(249, 115, 22, 0.25)',
+                      backgroundColor: theme.colors.backgroundElement,
+                      borderColor: theme.colors.borderSubtle,
                     },
                   ]}>
-                  <Ionicons
-                    name="sparkles"
-                    size={14}
-                    color={routine.score >= 70 ? '#10B981' : '#F97316'}
-                  />
-                  <Text
-                    style={[
-                      styles.scorePillText,
-                      { color: routine.score >= 70 ? '#10B981' : '#F97316' },
-                    ]}>
-                    Rhythm Score: {Math.round(routine.score)} / 100
+                  <Ionicons name="flame" size={14} color="#F97316" />
+                  <Text style={[styles.streakPillText, { color: theme.colors.text }]}>
+                    {completedHabits}/{totalHabits} Done
+                  </Text>
+                </View>
+              </View>
+
+              {/* Progress bar */}
+              <ProgressBar
+                progress={progressRatio}
+                height={5}
+                color={theme.colors.primary}
+                trackColor={theme.colors.backgroundElement}
+                style={styles.progressBar}
+              />
+
+              {/* Minimal metrics strip */}
+              <View style={[styles.metricsStrip, { borderTopColor: theme.colors.borderSubtle }]}>
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Wake-up</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.text }]}>
+                    {routine.wakeUpTime || '—'}
+                  </Text>
+                </View>
+
+                <View style={[styles.metricSep, { backgroundColor: theme.colors.borderSubtle }]} />
+
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Water</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.text }]}>
+                    {routine.waterIntake !== undefined ? `${routine.waterIntake}L` : '—'}
+                  </Text>
+                </View>
+
+                <View style={[styles.metricSep, { backgroundColor: theme.colors.borderSubtle }]} />
+
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>Focus</Text>
+                  <Text style={[styles.metricVal, { color: theme.colors.text }]}>
+                    {routine.studyHours !== undefined ? `${routine.studyHours}h` : '—'}
                   </Text>
                 </View>
               </View>
             </Card>
 
-            {/* Metrics Triad Cards */}
-            <View style={styles.metricsRow}>
-              {/* Wake-up */}
-              <View
-                style={[
-                  styles.metricCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.borderSubtle,
-                  },
-                ]}>
-                <Ionicons name="alarm-outline" size={20} color="#F97316" />
-                <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  {routine.wakeUpTime || '—'}
-                </Text>
-                <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Wake-up
-                </Text>
-              </View>
+            {/* Today's Habits List Header */}
+            <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
+              TODAY&apos;S HABITS
+            </Text>
 
-              {/* Water */}
-              <View
-                style={[
-                  styles.metricCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.borderSubtle,
-                  },
-                ]}>
-                <Ionicons name="water-outline" size={20} color="#0284C7" />
-                <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  {routine.waterIntake !== undefined ? `${routine.waterIntake}L` : '—'}
-                </Text>
-                <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Water
-                </Text>
-              </View>
+            {/* Clean Grouped Habits List Card */}
+            <Card style={styles.habitsGroupCard}>
+              {routine.activities && routine.activities.length > 0 ? (
+                routine.activities.map((act, index) => {
+                  const isDone = Boolean(act.value);
+                  const isLast = index === routine.activities.length - 1;
 
-              {/* Focus Hours */}
-              <View
-                style={[
-                  styles.metricCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.borderSubtle,
-                  },
-                ]}>
-                <Ionicons name="book-outline" size={20} color="#10B981" />
-                <Text style={[styles.metricValue, { color: theme.colors.text }]}>
-                  {routine.studyHours !== undefined ? `${routine.studyHours}h` : '—'}
-                </Text>
-                <Text style={[styles.metricLabel, { color: theme.colors.textSecondary }]}>
-                  Focus
-                </Text>
-              </View>
-            </View>
-
-            {/* Today's Habits Section */}
-            <Card style={styles.habitsCard}>
-              <View style={styles.habitsHeader}>
-                <View>
-                  <Text style={[styles.habitsTitle, { color: theme.colors.text }]}>
-                    Today&apos;s Habits
-                  </Text>
-                  <Text style={[styles.habitsSubtitle, { color: theme.colors.textSecondary }]}>
-                    {completedHabits} of {totalHabits} completed
-                  </Text>
-                </View>
-
-                <View style={styles.percentageBadge}>
-                  <Text style={[styles.percentageText, { color: theme.colors.primary }]}>
-                    {Math.round(progressRatio * 100)}%
-                  </Text>
-                </View>
-              </View>
-
-              <ProgressBar
-                progress={progressRatio}
-                height={6}
-                color={theme.colors.success}
-                trackColor={theme.colors.backgroundElement}
-                style={styles.progressBar}
-              />
-
-              {/* Habits List with Interactive Check Controls */}
-              <View style={styles.habitsList}>
-                {routine.activities && routine.activities.length > 0 ? (
-                  routine.activities.map((act) => {
-                    const isDone = Boolean(act.value);
-                    return (
-                      <View
-                        key={act.activityId}
-                        style={[
+                  return (
+                    <React.Fragment key={act.activityId}>
+                      <Pressable
+                        onPress={() => handleToggleHabit(act.activityId, isDone)}
+                        style={({ pressed }) => [
                           styles.habitRow,
-                          {
-                            backgroundColor: isDone
-                              ? theme.colors.backgroundElement
-                              : theme.colors.surface,
-                            borderColor: theme.colors.borderSubtle,
-                          },
+                          pressed && { opacity: 0.7 },
                         ]}>
-                        <View style={styles.habitInfo}>
+                        <View style={styles.habitLeft}>
                           <Text
                             style={[
                               styles.habitName,
                               {
                                 color: isDone ? theme.colors.textMuted : theme.colors.text,
                                 textDecorationLine: isDone ? 'line-through' : 'none',
+                                fontWeight: isDone ? '500' : '600',
                               },
                             ]}>
                             {act.name}
@@ -411,17 +356,23 @@ export default function TodayScreen() {
                         <HabitCheckControl
                           completed={isDone}
                           onToggle={() => handleToggleHabit(act.activityId, isDone)}
-                          size={38}
+                          size={34}
                         />
-                      </View>
-                    );
-                  })
-                ) : (
+                      </Pressable>
+
+                      {!isLast && (
+                        <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              ) : (
+                <View style={styles.noHabitsBox}>
                   <Text style={[styles.noHabitsText, { color: theme.colors.textSecondary }]}>
-                    No specific habits selected for today. Tap Edit above to add some!
+                    No habits planned for today. Tap Edit to add some!
                   </Text>
-                )}
-              </View>
+                </View>
+              )}
             </Card>
           </View>
         )}
@@ -436,26 +387,28 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     zIndex: 10,
-    paddingBottom: 10,
+    paddingBottom: 8,
   },
   headerBarInner: {
     width: '100%',
     alignSelf: 'center',
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
-  greetingText: {
-    fontSize: 13.5,
+  dateSub: {
+    fontSize: 12.5,
     fontWeight: '600',
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
-  dateText: {
-    fontSize: 22,
+  title: {
+    fontSize: 25,
     fontWeight: '800',
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
     marginTop: 2,
   },
-  editPill: {
+  editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
@@ -463,9 +416,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     gap: 4,
+    marginBottom: 2,
   },
   editText: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '700',
   },
   scrollContent: {
@@ -480,143 +434,145 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: '500',
   },
   emptyCard: {
     alignItems: 'center',
     padding: 24,
-    marginTop: 16,
+    marginTop: 20,
+    borderRadius: 20,
   },
   emptyIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1.5,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     letterSpacing: -0.4,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: 13.5,
+    lineHeight: 19,
     textAlign: 'center',
-    marginTop: 8,
+    marginTop: 6,
     marginBottom: 20,
-    maxWidth: 320,
+    maxWidth: 290,
   },
   emptyButton: {
     width: '100%',
   },
-  dashboardContainer: {
+  dashboard: {
     width: '100%',
-    gap: 14,
   },
-  heroDialCard: {
-    alignItems: 'center',
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-  },
-  dialWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scoreRow: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  scorePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+  summaryCard: {
+    padding: 18,
     borderRadius: 20,
-    borderWidth: 1,
-    gap: 6,
+    marginBottom: 20,
   },
-  scorePillText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  metricsRow: {
+  summaryTopRow: {
     flexDirection: 'row',
-    gap: 10,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
-  metricCard: {
-    flex: 1,
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  scoreNumber: {
+    fontSize: 32,
+    fontWeight: '900',
+    letterSpacing: -1,
+    marginTop: 2,
+  },
+  scoreTotal: {
+    fontSize: 18,
+    fontWeight: '600',
+    letterSpacing: 0,
+  },
+  streakPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 4,
   },
-  metricValue: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  metricLabel: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  habitsCard: {
-    padding: 16,
-  },
-  habitsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  habitsTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  habitsSubtitle: {
-    fontSize: 12.5,
-    marginTop: 2,
-  },
-  percentageBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  percentageText: {
-    fontSize: 16,
-    fontWeight: '800',
+  streakPillText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   progressBar: {
     marginBottom: 16,
   },
-  habitsList: {
-    gap: 8,
+  metricsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingTop: 14,
+    borderTopWidth: 1,
+  },
+  metricItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  metricVal: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  metricSep: {
+    width: 1,
+    height: 24,
+  },
+  sectionHeading: {
+    fontSize: 11.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  habitsGroupCard: {
+    padding: 2,
+    borderRadius: 18,
   },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  habitInfo: {
+  habitLeft: {
     flex: 1,
-    paddingRight: 10,
+    paddingRight: 12,
   },
   habitName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 16,
+  },
+  noHabitsBox: {
+    padding: 20,
+    alignItems: 'center',
   },
   noHabitsText: {
     fontSize: 13,
     textAlign: 'center',
-    paddingVertical: 16,
   },
 });

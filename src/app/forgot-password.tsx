@@ -84,12 +84,15 @@ export default function ForgotPasswordScreen() {
     setToast(null);
 
     try {
-      await authService.sendPasswordResetOtp(email.trim().toLowerCase());
+      const res = await authService.sendPasswordResetOtp(email.trim().toLowerCase());
 
-      // Navigate to OTP verification & password reset screen
+      // Navigate to OTP verification & password reset screen (include devOtp if in dev mode)
       router.replace({
         pathname: '/reset-password-otp',
-        params: { email: email.trim().toLowerCase() },
+        params: {
+          email: email.trim().toLowerCase(),
+          ...(res.otp ? { devOtp: res.otp } : {}),
+        },
       });
     } catch (err: unknown) {
       const msg =

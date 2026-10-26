@@ -86,8 +86,8 @@ export const authService = {
   /**
    * Request a 6-digit password reset OTP sent to the user's email.
    */
-  async sendPasswordResetOtp(email: string): Promise<{ success: boolean; message: string }> {
-    const response = await api.post<{ success: boolean; message: string }>(
+  async sendPasswordResetOtp(email: string): Promise<{ success: boolean; message: string; otp?: string }> {
+    const response = await api.post<{ success: boolean; message: string; otp?: string }>(
       '/auth/forgot-password-otp',
       { email }
     );

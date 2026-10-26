@@ -30,7 +30,7 @@ export default function ResetPasswordOtpScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const { email } = useLocalSearchParams<{ email?: string }>();
+  const { email, devOtp } = useLocalSearchParams<{ email?: string; devOtp?: string }>();
 
   // Responsive device breakpoints
   const isCompact = windowHeight < 720 || windowWidth < 380;
@@ -40,7 +40,7 @@ export default function ResetPasswordOtpScreen() {
   const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
   const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState(devOtp || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
@@ -56,9 +56,17 @@ export default function ResetPasswordOtpScreen() {
 
   const [toast, setToast] = useState<{
     visible: boolean;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
     message: string;
-  } | null>(null);
+  } | null>(
+    devOtp
+      ? {
+          visible: true,
+          type: 'info',
+          message: `Dev Mode OTP: ${devOtp}`,
+        }
+      : null
+  );
 
   // Resend countdown timer
   useEffect(() => {
@@ -167,12 +175,17 @@ export default function ResetPasswordOtpScreen() {
     setToast(null);
 
     try {
-      await authService.sendPasswordResetOtp(email.trim().toLowerCase());
+      const res = await authService.sendPasswordResetOtp(email.trim().toLowerCase());
       setCountdown(45);
+      if (res.otp) {
+        setOtp(res.otp);
+      }
       setToast({
         visible: true,
         type: 'success',
-        message: 'A fresh 6-digit code has been sent to your email.',
+        message: res.otp
+          ? `Code resent! (Dev OTP: ${res.otp})`
+          : 'A fresh 6-digit code has been sent to your email.',
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not resend code. Please try again.';

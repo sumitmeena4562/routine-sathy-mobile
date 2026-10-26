@@ -311,81 +311,132 @@ export default function TodayScreen() {
              CASE B: BESPOKE CIRCADIAN DASHBOARD
              ======================================================== */
           <View style={styles.dashboard}>
-            {/* 1. Signature Circadian Hero Card (Midnight Navy & Sunrise Amber) */}
-            <View style={styles.heroCard}>
+            {/* 1. Light Signature Circadian Hero Card */}
+            <View
+              style={[
+                styles.heroCard,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+                },
+              ]}>
               <View style={styles.heroTopRow}>
                 <View>
                   <View style={styles.heroLabelRow}>
-                    <Ionicons name="sparkles" size={12} color="#FBBF24" />
+                    <Ionicons name="sparkles" size={13} color="#D97706" />
                     <Text style={styles.heroLabel}>
                       CIRCADIAN RHYTHM SCORE
                     </Text>
                   </View>
                   <View style={styles.scoreRow}>
-                    <Text style={styles.scoreNumber}>{score}</Text>
-                    <Text style={styles.scoreTotal}> / 100</Text>
+                    <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>{score}</Text>
+                    <Text style={[styles.scoreTotal, { color: theme.colors.textSecondary }]}> / 100</Text>
                   </View>
                 </View>
 
                 {/* Status Badge */}
-                <View style={styles.heroStreakPill}>
+                <View
+                  style={[
+                    styles.heroStreakPill,
+                    {
+                      backgroundColor:
+                        completedHabits === totalHabits && totalHabits > 0
+                          ? theme.isDark
+                            ? 'rgba(16, 185, 129, 0.15)'
+                            : '#ECFDF5'
+                          : theme.isDark
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : '#FFFBEB',
+                      borderColor:
+                        completedHabits === totalHabits && totalHabits > 0
+                          ? '#A7F3D0'
+                          : '#FDE68A',
+                    },
+                  ]}>
                   <Ionicons
                     name={completedHabits === totalHabits && totalHabits > 0 ? 'checkmark-circle' : 'flame'}
                     size={14}
-                    color={completedHabits === totalHabits && totalHabits > 0 ? '#34D399' : '#FBBF24'}
+                    color={completedHabits === totalHabits && totalHabits > 0 ? '#059669' : '#D97706'}
                   />
-                  <Text style={styles.heroStreakPillText}>
+                  <Text
+                    style={[
+                      styles.heroStreakPillText,
+                      {
+                        color:
+                          completedHabits === totalHabits && totalHabits > 0
+                            ? '#059669'
+                            : '#D97706',
+                      },
+                    ]}>
                     {completedHabits}/{totalHabits} Done
                   </Text>
                 </View>
               </View>
 
-              {/* Sunrise Horizon Progress Line */}
-              <View style={styles.heroProgressTrack}>
+              {/* Progress Line */}
+              <View
+                style={[
+                  styles.heroProgressTrack,
+                  { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                ]}>
                 <View
                   style={[
                     styles.heroProgressFill,
                     {
                       width: `${scoreProgress * 100}%`,
                       backgroundColor:
-                        score >= 80 ? '#34D399' : score >= 50 ? '#FBBF24' : '#F87171',
+                        score >= 80 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444',
                     },
                   ]}
                 />
               </View>
 
               {/* 3 Biological Targets Strip */}
-              <View style={styles.heroMetricsStrip}>
+              <View
+                style={[
+                  styles.heroMetricsStrip,
+                  { borderTopColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                ]}>
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="sunny" size={13} color="#FBBF24" />
-                    <Text style={styles.heroMetricLabel}>Wake-up</Text>
+                    <Ionicons name="sunny" size={13} color="#D97706" />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Wake-up</Text>
                   </View>
-                  <Text style={styles.heroMetricVal}>
+                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.wakeUpTime || '—'}
                   </Text>
                 </View>
 
-                <View style={styles.heroMetricSep} />
+                <View
+                  style={[
+                    styles.heroMetricSep,
+                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                  ]}
+                />
 
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="water" size={13} color="#38BDF8" />
-                    <Text style={styles.heroMetricLabel}>Water</Text>
+                    <Ionicons name="water" size={13} color="#0284C7" />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Water</Text>
                   </View>
-                  <Text style={styles.heroMetricVal}>
+                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.waterIntake !== undefined ? `${routine.waterIntake}L` : '—'}
                   </Text>
                 </View>
 
-                <View style={styles.heroMetricSep} />
+                <View
+                  style={[
+                    styles.heroMetricSep,
+                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                  ]}
+                />
 
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="hourglass" size={13} color="#A78BFA" />
-                    <Text style={styles.heroMetricLabel}>Focus</Text>
+                    <Ionicons name="hourglass" size={13} color="#7C3AED" />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Focus</Text>
                   </View>
-                  <Text style={styles.heroMetricVal}>
+                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.studyHours !== undefined ? `${routine.studyHours}h` : '—'}
                   </Text>
                 </View>
@@ -612,19 +663,17 @@ const styles = StyleSheet.create({
   dashboard: {
     width: '100%',
   },
-  /* Midnight Navy & Sunrise Amber Signature Hero Card */
+  /* Signature Light Circadian Hero Card */
   heroCard: {
-    backgroundColor: '#0F172A', // Deep Midnight Navy
     borderRadius: 22,
     padding: 20,
     marginBottom: 20,
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
     borderWidth: 1,
-    borderColor: '#1E293B',
   },
   heroTopRow: {
     flexDirection: 'row',
@@ -636,13 +685,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 3,
+    marginBottom: 4,
   },
   heroLabel: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    color: '#FBBF24', // Warm Sunrise Gold
+    color: '#D97706', // Warm Amber Sunrise
   },
   scoreRow: {
     flexDirection: 'row',
@@ -652,32 +701,26 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: '900',
     letterSpacing: -1,
-    color: '#FFFFFF',
   },
   scoreTotal: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#94A3B8',
   },
   heroStreakPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 11,
     paddingVertical: 6,
     borderRadius: 14,
     gap: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
   heroStreakPillText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFFFFF',
   },
   heroProgressTrack: {
     height: 7,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 18,
@@ -692,7 +735,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
   },
   heroMetricItem: {
     alignItems: 'center',
@@ -706,18 +748,15 @@ const styles = StyleSheet.create({
   heroMetricLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#94A3B8',
   },
   heroMetricVal: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#FFFFFF',
     marginTop: 3,
   },
   heroMetricSep: {
     width: 1,
     height: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   sectionHeadingRow: {
     flexDirection: 'row',

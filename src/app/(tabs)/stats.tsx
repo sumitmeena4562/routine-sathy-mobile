@@ -18,6 +18,50 @@ import { useTheme } from '@/hooks/use-theme';
 import { routineService } from '@/services/routine';
 import { RoutineStats } from '@/types/routine';
 
+function getCircadianTip(): {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  tileBg: string;
+  body: string;
+} {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) {
+    return {
+      title: 'Morning Sunlight & Circadian Anchor',
+      icon: 'sunny',
+      iconColor: '#D97706',
+      tileBg: '#FEF3C7',
+      body: 'Getting 10-15 minutes of outdoor sunlight within an hour of waking resets your master biological clock and boosts daytime energy.',
+    };
+  }
+  if (hour >= 12 && hour < 17) {
+    return {
+      title: 'Midday Cognitive Peak & Hydration',
+      icon: 'flash',
+      iconColor: '#0284C7',
+      tileBg: '#E0F2FE',
+      body: 'Core body temperature and cognitive performance peak mid-afternoon. Maintain steady hydration to prevent the afternoon slump.',
+    };
+  }
+  if (hour >= 17 && hour < 22) {
+    return {
+      title: 'Evening Wind-Down & Melatonin Support',
+      icon: 'partly-sunny',
+      iconColor: '#7C3AED',
+      tileBg: '#F3E8FF',
+      body: 'Dim harsh overhead lighting and minimize bright screen exposure to allow natural melatonin production for restorative deep sleep.',
+    };
+  }
+  return {
+    title: 'Night Recovery & Cellular Repair',
+    icon: 'moon',
+    iconColor: '#4F46E5',
+    tileBg: '#EEF2FF',
+    body: 'During deep delta-wave sleep, your brain clears metabolic waste and tissue repairs. Keep your sleeping space dark, quiet, and cool (~19°C).',
+  };
+}
+
 export default function StatsScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -54,22 +98,26 @@ export default function StatsScreen() {
     fetchStats();
   }, [fetchStats]);
 
+  const tip = getCircadianTip();
+  const currentStreak = stats?.currentStreak || 0;
+
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
 
-      {/* Clean Top Header */}
+      {/* Screen Header */}
       <View
         style={[
           styles.headerBar,
           {
-            paddingTop: insets.top + 10,
+            paddingTop: insets.top + (theme.isDark ? 8 : 10),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
+          <Text style={styles.headerEyebrow}>RHYTHM ANALYTICS</Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Consistency
           </Text>
@@ -85,75 +133,148 @@ export default function StatsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={theme.colors.primary}
+            tintColor="#F59E0B"
           />
         }
         contentContainerStyle={[
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: insets.bottom + 24,
+            paddingBottom: Math.max(insets.bottom + 36, 44),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <ActivityIndicator size="small" color="#F59E0B" />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Loading statistics...
+              Calculating consistency trends...
             </Text>
           </View>
         ) : (
           <View style={styles.content}>
-            {/* Minimal Clean Streak Card */}
-            <Card style={styles.streakCard}>
-              <View style={[styles.flameIconBox, { backgroundColor: theme.colors.backgroundElement }]}>
-                <Ionicons name="flame" size={32} color="#F97316" />
+            {/* 1. Unified Streak & Consistency Hub Card */}
+            <Card style={styles.streakHubCard}>
+              <View style={styles.streakTopRow}>
+                <View style={styles.flameIconBox}>
+                  <Ionicons name="flame" size={28} color="#EA580C" />
+                </View>
+
+                <View style={styles.streakCountCol}>
+                  <View style={styles.streakNumberRow}>
+                    <Text style={[styles.streakCount, { color: theme.colors.text }]}>
+                      {currentStreak}
+                    </Text>
+                    <Text style={[styles.streakDaysUnit, { color: theme.colors.textSecondary }]}>
+                      {currentStreak === 1 ? 'DAY STREAK' : 'DAYS STREAK'}
+                    </Text>
+                  </View>
+                  <Text style={styles.streakNote}>
+                    {currentStreak > 0
+                      ? 'Great momentum! Keep logging daily.'
+                      : 'Log today\'s routine to start your streak.'}
+                  </Text>
+                </View>
               </View>
 
-              <Text style={[styles.streakCount, { color: theme.colors.text }]}>
-                {stats?.currentStreak || 0}
-              </Text>
-              <Text style={[styles.streakLabel, { color: theme.colors.textSecondary }]}>
-                DAYS CURRENT STREAK
-              </Text>
-              <Text style={[styles.streakNote, { color: theme.colors.secondary }]}>
-                {(stats?.currentStreak || 0) > 0
-                  ? 'Great momentum! Keep logging daily.'
-                  : 'Log today&apos;s routine to begin your streak.'}
-              </Text>
+              {/* Integrated 3-Metric Summary Strip */}
+              <View style={[styles.metricsStrip, { borderTopColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}>
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
+                    BEST STREAK
+                  </Text>
+                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                    {stats?.maxStreak || 0}
+                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
+                  </Text>
+                </View>
+
+                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
+
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
+                    AVG SCORE
+                  </Text>
+                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                    {stats?.avgScore ? Math.round(stats.avgScore) : 0}
+                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
+                  </Text>
+                </View>
+
+                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
+
+                <View style={styles.metricItem}>
+                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
+                    TOTAL LOGGED
+                  </Text>
+                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                    {stats?.totalDays || 0}
+                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
+                  </Text>
+                </View>
+              </View>
             </Card>
 
-            {/* 7-Day Rhythm Trend Card */}
+            {/* 2. Sleek 7-Day Rhythm Trend Card (Precision Pill Columns) */}
             {stats?.last7DaysScores && stats.last7DaysScores.length > 0 && (
               <Card style={styles.trendCard}>
                 <View style={styles.trendHeader}>
                   <View style={styles.trendTitleRow}>
-                    <Ionicons name="trending-up-outline" size={17} color={theme.colors.secondary} />
-                    <Text style={[styles.trendTitle, { color: theme.colors.text }]}>Last 7 Days</Text>
+                    <Ionicons name="trending-up" size={17} color="#D97706" />
+                    <Text style={[styles.trendTitle, { color: theme.colors.text }]}>
+                      Last 7 Days Rhythm
+                    </Text>
                   </View>
                   <Text style={[styles.trendSubtitle, { color: theme.colors.textSecondary }]}>
-                    RHYTHM SCORE %
+                    SCORE %
                   </Text>
                 </View>
 
+                {/* Sleek Pill Chart */}
                 <View style={styles.trendBarsRow}>
                   {stats.last7DaysScores.map((day, idx) => {
                     const isToday = idx === (stats.last7DaysScores?.length || 0) - 1;
-                    const barHeight = Math.max(Math.round((day.score / 100) * 64), 4);
+                    const barHeight = Math.max(Math.round((day.score / 100) * 72), 6);
                     const barColor =
                       day.score >= 80
-                        ? theme.colors.success
+                        ? '#10B981'
                         : day.score >= 50
                         ? '#F59E0B'
                         : day.score > 0
                         ? '#EF4444'
-                        : theme.colors.borderSubtle;
+                        : 'transparent';
 
                     return (
                       <View key={day.date} style={styles.trendBarCol}>
-                        <View style={[styles.trendBarTrack, { backgroundColor: theme.colors.backgroundElement }]}>
+                        {/* Score Label above Bar */}
+                        <Text
+                          style={[
+                            styles.barScoreLabel,
+                            {
+                              color: isToday
+                                ? '#10B981'
+                                : day.score > 0
+                                ? theme.colors.textSecondary
+                                : 'transparent',
+                              fontWeight: isToday ? '800' : '600',
+                            },
+                          ]}>
+                          {day.score > 0 ? `${day.score}%` : '—'}
+                        </Text>
+
+                        {/* Slender Pill Track & Fill */}
+                        <View
+                          style={[
+                            styles.trendBarTrack,
+                            {
+                              backgroundColor: theme.isDark
+                                ? 'rgba(255, 255, 255, 0.08)'
+                                : '#F1F5F9',
+                              borderColor: isToday ? '#10B981' : 'transparent',
+                              borderWidth: isToday && day.score === 0 ? 1 : 0,
+                            },
+                          ]}>
                           <View
                             style={[
                               styles.trendBarFill,
@@ -164,12 +285,14 @@ export default function StatsScreen() {
                             ]}
                           />
                         </View>
+
+                        {/* Weekday Label */}
                         <Text
                           style={[
                             styles.trendDayText,
                             {
-                              color: isToday ? theme.colors.primary : theme.colors.textSecondary,
-                              fontWeight: isToday ? '800' : '500',
+                              color: isToday ? '#0F172A' : theme.colors.textSecondary,
+                              fontWeight: isToday ? '800' : '600',
                             },
                           ]}>
                           {isToday ? 'Today' : day.dayName}
@@ -181,47 +304,23 @@ export default function StatsScreen() {
               </Card>
             )}
 
-            {/* Unified 3-Stat Clean Row Card */}
-            <Card style={styles.metricsGroupCard}>
-              <View style={styles.metricItem}>
-                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>BEST STREAK</Text>
-                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                  {stats?.maxStreak || 0}
-                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                </Text>
-              </View>
-
-              <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderSubtle }]} />
-
-              <View style={styles.metricItem}>
-                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>AVG SCORE</Text>
-                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                  {stats?.avgScore ? Math.round(stats.avgScore) : 0}
-                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
-                </Text>
-              </View>
-
-              <View style={[styles.metricDivider, { backgroundColor: theme.colors.borderSubtle }]} />
-
-              <View style={styles.metricItem}>
-                <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>LOGGED</Text>
-                <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                  {stats?.totalDays || 0}
-                  <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                </Text>
-              </View>
-            </Card>
-
-            {/* Minimal Circadian Rhythm Tip */}
+            {/* 3. Contextual Circadian Rhythm Insight Card (Time of Day Adaptive) */}
             <Card style={styles.tipCard}>
               <View style={styles.tipHeader}>
-                <Ionicons name="bulb-outline" size={17} color={theme.colors.secondary} />
-                <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
-                  Morning Circadian Tip
-                </Text>
+                <View style={[styles.tipIconCircle, { backgroundColor: tip.tileBg }]}>
+                  <Ionicons name={tip.icon} size={18} color={tip.iconColor} />
+                </View>
+                <View style={styles.tipHeaderTextCol}>
+                  <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
+                    {tip.title}
+                  </Text>
+                  <Text style={[styles.tipSubtitle, { color: theme.colors.textSecondary }]}>
+                    Circadian Science Insight
+                  </Text>
+                </View>
               </View>
               <Text style={[styles.tipBody, { color: theme.colors.textSecondary }]}>
-                Natural morning sunlight sets your internal clock, lifting daytime energy and ensuring deeper recovery sleep at night.
+                {tip.body}
               </Text>
             </Card>
           </View>
@@ -243,10 +342,18 @@ const styles = StyleSheet.create({
     width: '100%',
     alignSelf: 'center',
   },
-  title: {
-    fontSize: 25,
+  headerEyebrow: {
+    fontSize: 11.5,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: 0.8,
+    color: '#D97706', // Warm Amber
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  title: {
+    fontSize: 27,
+    fontWeight: '800',
+    letterSpacing: -0.6,
   },
   subtitle: {
     fontSize: 13.5,
@@ -270,96 +377,62 @@ const styles = StyleSheet.create({
   },
   content: {
     width: '100%',
-    gap: 14,
+    gap: 16,
   },
-  streakCard: {
+  /* 1. Unified Streak Hub Card */
+  streakHubCard: {
+    padding: 20,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  streakTopRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 26,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    gap: 16,
+    marginBottom: 18,
   },
   flameIconBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#FFF7ED',
+    borderWidth: 1,
+    borderColor: '#FFEDD5',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+  },
+  streakCountCol: {
+    flex: 1,
+  },
+  streakNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
   },
   streakCount: {
-    fontSize: 44,
+    fontSize: 34,
     fontWeight: '900',
     letterSpacing: -1,
   },
-  streakLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+  streakDaysUnit: {
+    fontSize: 12,
+    fontWeight: '800',
     letterSpacing: 0.6,
-    marginTop: 2,
   },
   streakNote: {
     fontSize: 12.5,
     fontWeight: '600',
-    marginTop: 8,
+    color: '#D97706',
+    marginTop: 2,
   },
-  trendCard: {
-    padding: 16,
-    borderRadius: 18,
-  },
-  trendHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-  },
-  trendTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trendTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  trendSubtitle: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  trendBarsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 6,
-    height: 92,
-  },
-  trendBarCol: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
-    gap: 6,
-  },
-  trendBarTrack: {
-    width: '100%',
-    height: 64,
-    borderRadius: 6,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-  },
-  trendBarFill: {
-    width: '100%',
-    borderRadius: 6,
-  },
-  trendDayText: {
-    fontSize: 10,
-  },
-  metricsGroupCard: {
+  metricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingVertical: 18,
-    borderRadius: 18,
+    paddingTop: 16,
+    borderTopWidth: 1,
   },
   metricItem: {
     alignItems: 'center',
@@ -371,34 +444,119 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   metricNumber: {
-    fontSize: 20,
-    fontWeight: '800',
-    marginTop: 4,
+    fontSize: 19,
+    fontWeight: '900',
+    marginTop: 3,
   },
   metricUnit: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   metricDivider: {
     width: 1,
-    height: 28,
+    height: 26,
   },
-  tipCard: {
-    padding: 16,
-    borderRadius: 18,
-    gap: 6,
+  /* 2. Sleek 7-Day Trend Card */
+  trendCard: {
+    padding: 18,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  tipHeader: {
+  trendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  trendTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
+  trendTitle: {
+    fontSize: 14.5,
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  trendSubtitle: {
+    fontSize: 10.5,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  trendBarsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 8,
+    height: 110,
+    paddingHorizontal: 4,
+  },
+  trendBarCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  barScoreLabel: {
+    fontSize: 10,
+    height: 14,
+    textAlign: 'center',
+  },
+  trendBarTrack: {
+    width: 14, // Slender pill width instead of giant chunky 45px block
+    height: 72,
+    borderRadius: 7,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  trendBarFill: {
+    width: '100%',
+    borderRadius: 7,
+  },
+  trendDayText: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  /* 3. Circadian Tip Card */
+  tipCard: {
+    padding: 18,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  tipIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipHeaderTextCol: {
+    flex: 1,
+  },
   tipTitle: {
     fontSize: 14,
     fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  tipSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    marginTop: 1,
   },
   tipBody: {
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 18.5,
   },
 });

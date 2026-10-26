@@ -249,6 +249,7 @@ export default function LoginScreen() {
           {/* Forgot Password */}
           <View style={styles.forgotPasswordContainer}>
             <Pressable
+              onPress={() => router.push('/forgot-password')}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Forgot Password">

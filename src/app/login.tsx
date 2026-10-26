@@ -107,19 +107,21 @@ export default function LoginScreen() {
         message: response.message || 'Logged in successfully! Welcome back.',
       });
 
-      let nextRoute: '/(tabs)' | '/add-routine' = '/(tabs)';
+      let nextRoute: '/(tabs)/today' | '/add-routine' = '/(tabs)/today';
       try {
-        const todayRoutine = await routineService.getTodayRoutine(getTodayDateString());
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+        const routinePromise = routineService.getTodayRoutine(getTodayDateString());
+        const todayRoutine = await Promise.race([routinePromise, timeoutPromise]);
         if (!todayRoutine) {
           nextRoute = '/add-routine';
         }
       } catch {
-        nextRoute = '/(tabs)';
+        nextRoute = '/(tabs)/today';
       }
 
       setTimeout(() => {
         router.replace(nextRoute);
-      }, 500);
+      }, 300);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
       setToast({

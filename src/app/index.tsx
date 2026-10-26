@@ -100,7 +100,7 @@ export default function SplashScreen() {
   const handleProceed = useCallback(() => {
     if (isLoading || isAuthLoading) return;
     if (isAuthenticated) {
-      router.replace('/(tabs)');
+      router.replace('/(tabs)/today');
     } else if (hasCompletedOnboarding) {
       router.replace('/welcome');
     } else {

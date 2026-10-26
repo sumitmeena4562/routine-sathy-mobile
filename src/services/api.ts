@@ -1,22 +1,45 @@
 import { Platform } from 'react-native';
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import { Storage } from '@/utils/storage';
 
 export const AUTH_TOKEN_STORAGE_KEY = 'routine_sathy_auth_token_v1';
 export const USER_STORAGE_KEY = 'routine_sathy_auth_user_v1';
 
 /**
- * Resolves the appropriate base API URL depending on platform.
- * Android Emulator connects to Mac host machine via 10.0.2.2.
- * iOS Simulator and Web connect via localhost.
+ * Resolves the appropriate base API URL depending on environment and platform.
+ * - Explicit EXPO_PUBLIC_API_URL takes highest priority.
+ * - Expo Go on a physical phone: dynamically resolves dev machine's Wi-Fi IP from Constants.expoConfig?.hostUri.
+ * - Physical device fallback: uses local network LAN IP (192.168.2.21).
+ * - Android Emulator: uses 10.0.2.2.
+ * - iOS Simulator / Web: uses localhost.
  */
 function getApiBaseUrl(): string {
   if (process.env.EXPO_PUBLIC_API_URL) {
     return process.env.EXPO_PUBLIC_API_URL;
   }
+
+  // Dynamically extract computer IP from Expo Metro connection (e.g., 192.168.2.21:8081 -> 192.168.2.21)
+  const hostUri = Constants.expoConfig?.hostUri;
+  if (hostUri) {
+    const hostIp = hostUri.split(':')[0];
+    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+      return `http://${hostIp}:5001/api`;
+    }
+  }
+
+  // Real physical mobile phone fallback (connected on same Wi-Fi as Mac)
+  if (Device.isDevice) {
+    return 'http://192.168.2.21:5001/api';
+  }
+
+  // Android Emulator
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:5001/api';
   }
+
+  // iOS Simulator / Web
   return 'http://localhost:5001/api';
 }
 

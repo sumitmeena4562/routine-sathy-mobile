@@ -82,4 +82,17 @@ export const authService = {
       return null;
     }
   },
+
+  /**
+   * Request a password reset email for the given address.
+   * Server always returns 200 regardless of whether the email exists
+   * (to prevent user enumeration). Throws on network/rate-limit errors.
+   */
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/auth/forgot-password',
+      { email }
+    );
+    return response.data;
+  },
 };

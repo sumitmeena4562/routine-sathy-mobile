@@ -63,55 +63,6 @@ function getHabitMeta(name: string): {
   return { icon: 'sparkles-outline', color: '#059669', bg: '#ECFDF5' };
 }
 
-function getCircadianPhase(): {
-  phase: string;
-  window: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  description: string;
-  actionTip: string;
-} {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) {
-    return {
-      phase: 'Morning Awakening & Cortisol Surge',
-      window: 'Optimal Window • 6:00 AM - 10:00 AM',
-      icon: 'sunny-outline',
-      iconColor: '#F59E0B',
-      description: 'Morning natural sunlight anchors your master clock, stops melatonin, and ignites full daytime focus.',
-      actionTip: 'Get 10-15 mins of outdoor sunlight',
-    };
-  }
-  if (hour >= 12 && hour < 17) {
-    return {
-      phase: 'Deep Work & Cognitive Peak',
-      window: 'Peak Window • 1:00 PM - 5:00 PM',
-      icon: 'flash-outline',
-      iconColor: '#0EA5E9',
-      description: 'Alertness and core temperature peak. Tackle your most demanding tasks and keep hydration high.',
-      actionTip: 'Hydrate + take a 5-min walk',
-    };
-  }
-  if (hour >= 17 && hour < 22) {
-    return {
-      phase: 'Evening Wind-Down & Melatonin Prep',
-      window: 'Recovery Window • 7:30 PM - 10:00 PM',
-      icon: 'partly-sunny-outline',
-      iconColor: '#6366F1',
-      description: 'Dim overhead bright lights and minimize screen glare to cue natural sleep hormone production.',
-      actionTip: 'Switch to warm, low ambient lighting',
-    };
-  }
-  return {
-    phase: 'Cellular Restoration & Deep Sleep',
-    window: 'Sleep Window • 10:30 PM - 6:00 AM',
-    icon: 'moon-outline',
-    iconColor: '#8B5CF6',
-    description: 'Deep sleep flushes neural metabolic waste and consolidates memory. Keep your space cool and dark.',
-    actionTip: 'Keep bedroom cool (~19°C) and completely dark',
-  };
-}
-
 export default function TodayScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -214,10 +165,8 @@ export default function TodayScreen() {
   const totalHabits = routine?.activities?.length || 0;
   const completedHabits =
     routine?.activities?.filter((a) => Boolean(a.value)).length || 0;
-  const progressRatio = totalHabits > 0 ? completedHabits / totalHabits : 0;
   const score = Math.round(routine?.score || 0);
-
-  const circadian = getCircadianPhase();
+  const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -233,7 +182,7 @@ export default function TodayScreen() {
         />
       )}
 
-      {/* Clean Header Bar */}
+      {/* Header Bar */}
       <View
         style={[
           styles.headerBar,
@@ -328,15 +277,15 @@ export default function TodayScreen() {
           </Card>
         ) : (
           /* ========================================================
-             CASE B: ACTIVE ROUTINE DASHBOARD
+             CASE B: CLEAN, FOCUSED DASHBOARD (NO CLUTTER)
              ======================================================== */
           <View style={styles.dashboard}>
-            {/* Unified Clean Summary Card */}
+            {/* 1. Daily Rhythm Card */}
             <Card style={styles.summaryCard}>
               <View style={styles.summaryTopRow}>
                 <View>
                   <Text style={[styles.summaryLabel, { color: theme.colors.textSecondary }]}>
-                    DAILY RHYTHM
+                    DAILY RHYTHM SCORE
                   </Text>
                   <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>
                     {score}
@@ -344,63 +293,53 @@ export default function TodayScreen() {
                   </Text>
                 </View>
 
+                {/* Habit Count Pill */}
                 <View
                   style={[
                     styles.streakPill,
                     {
                       backgroundColor:
-                        progressRatio === 1
+                        completedHabits === totalHabits && totalHabits > 0
                           ? theme.isDark
                             ? 'rgba(16, 185, 129, 0.15)'
                             : '#ECFDF5'
                           : theme.colors.backgroundElement,
                       borderColor:
-                        progressRatio === 1
+                        completedHabits === totalHabits && totalHabits > 0
                           ? '#10B981'
                           : theme.colors.borderSubtle,
                     },
                   ]}>
                   <Ionicons
-                    name={progressRatio === 1 ? 'checkmark-circle' : 'flame'}
+                    name={completedHabits === totalHabits && totalHabits > 0 ? 'checkmark-circle' : 'flame'}
                     size={14}
-                    color={progressRatio === 1 ? '#10B981' : '#F97316'}
+                    color={completedHabits === totalHabits && totalHabits > 0 ? '#10B981' : '#F97316'}
                   />
                   <Text
                     style={[
                       styles.streakPillText,
-                      { color: progressRatio === 1 ? '#10B981' : theme.colors.text },
+                      {
+                        color:
+                          completedHabits === totalHabits && totalHabits > 0
+                            ? '#10B981'
+                            : theme.colors.text,
+                      },
                     ]}>
-                    {completedHabits}/{totalHabits} Done
+                    {completedHabits}/{totalHabits} Habits Done
                   </Text>
                 </View>
               </View>
 
-              {/* Polished Dynamic Progress Bar */}
-              <View style={styles.progressBarWrapper}>
-                <View style={styles.progressBarInfoRow}>
-                  <Text style={[styles.progressBarLabel, { color: theme.colors.textSecondary }]}>
-                    {progressRatio === 1
-                      ? 'All daily habits completed 🎉'
-                      : `${completedHabits} of ${totalHabits} habits completed`}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.progressBarPercent,
-                      { color: progressRatio === 1 ? '#10B981' : theme.colors.text },
-                    ]}>
-                    {Math.round(progressRatio * 100)}%
-                  </Text>
-                </View>
-                <ProgressBar
-                  progress={progressRatio}
-                  height={8}
-                  color={progressRatio === 1 ? '#10B981' : '#F59E0B'}
-                  trackColor={theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'}
-                  style={styles.progressBar}
-                />
-              </View>
+              {/* Score Progress Bar (matches 85/100 directly) */}
+              <ProgressBar
+                progress={scoreProgress}
+                height={7}
+                color={score >= 80 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444'}
+                trackColor={theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9'}
+                style={styles.progressBar}
+              />
 
-              {/* Minimal Metrics Strip with Icons */}
+              {/* Key Targets Row: Wake-up, Water, Focus */}
               <View style={[styles.metricsStrip, { borderTopColor: theme.colors.borderSubtle }]}>
                 <View style={styles.metricItem}>
                   <View style={styles.metricLabelRow}>
@@ -438,17 +377,12 @@ export default function TodayScreen() {
               </View>
             </Card>
 
-            {/* Today's Habits List Header */}
-            <View style={styles.sectionHeadingRow}>
-              <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
-                TODAY&apos;S HABITS
-              </Text>
-              <Text style={[styles.sectionHeadingSub, { color: theme.colors.textMuted }]}>
-                Tap to toggle
-              </Text>
-            </View>
+            {/* 2. Today's Habits Section Heading */}
+            <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
+              TODAY&apos;S HABITS
+            </Text>
 
-            {/* Premium Grouped Habits List Card */}
+            {/* Clean Grouped Habits List Card */}
             <Card style={styles.habitsGroupCard}>
               {routine.activities && routine.activities.length > 0 ? (
                 routine.activities.map((act, index) => {
@@ -462,12 +396,13 @@ export default function TodayScreen() {
                         onPress={() => handleToggleHabit(act.activityId, isDone)}
                         style={({ pressed }) => [
                           styles.habitRow,
-                          pressed && { opacity: 0.75 },
+                          pressed && { opacity: 0.7 },
                         ]}>
-                        <View style={styles.habitMain}>
+                        <View style={styles.habitLeft}>
+                          {/* Habit Icon Circle */}
                           <View
                             style={[
-                              styles.habitIconTile,
+                              styles.habitIconCircle,
                               {
                                 backgroundColor: theme.isDark
                                   ? 'rgba(255, 255, 255, 0.08)'
@@ -478,34 +413,25 @@ export default function TodayScreen() {
                             ]}>
                             <Ionicons
                               name={meta.icon}
-                              size={18}
+                              size={19}
                               color={isDone ? '#10B981' : meta.color}
                             />
                           </View>
 
-                          <View style={styles.habitTextCol}>
-                            <Text
-                              style={[
-                                styles.habitName,
-                                {
-                                  color: theme.colors.text,
-                                  fontWeight: isDone ? '600' : '700',
-                                },
-                              ]}>
-                              {act.name}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.habitSubtext,
-                                {
-                                  color: isDone ? '#10B981' : theme.colors.textMuted,
-                                },
-                              ]}>
-                              {isDone ? 'Completed today' : 'Tap to mark done'}
-                            </Text>
-                          </View>
+                          {/* Habit Title */}
+                          <Text
+                            style={[
+                              styles.habitName,
+                              {
+                                color: theme.colors.text,
+                                fontWeight: isDone ? '600' : '700',
+                              },
+                            ]}>
+                            {act.name}
+                          </Text>
                         </View>
 
+                        {/* Direct Checkbox Control */}
                         <View pointerEvents="none">
                           <HabitCheckControl
                             completed={isDone}
@@ -524,88 +450,46 @@ export default function TodayScreen() {
               ) : (
                 <View style={styles.noHabitsBox}>
                   <Text style={[styles.noHabitsText, { color: theme.colors.textSecondary }]}>
-                    No habits planned for today. Tap Edit to add some!
+                    No habits planned for today. Tap Edit to add habits.
                   </Text>
                 </View>
               )}
             </Card>
 
-            {/* Circadian Rhythm Biological Phase Card */}
-            <View style={styles.circadianSection}>
-              <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
-                CIRCADIAN BIOLOGICAL PHASE
-              </Text>
-
-              <Card style={styles.circadianCard}>
-                <View style={styles.circadianHeader}>
-                  <View style={[styles.circadianIconCircle, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F8FAFC' }]}>
-                    <Ionicons name={circadian.icon} size={20} color={circadian.iconColor} />
-                  </View>
-                  <View style={styles.circadianHeaderInfo}>
-                    <Text style={[styles.circadianPhaseTitle, { color: theme.colors.text }]}>
-                      {circadian.phase}
-                    </Text>
-                    <Text style={[styles.circadianWindowText, { color: theme.colors.textSecondary }]}>
-                      {circadian.window}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.circadianDesc, { color: theme.colors.textSecondary }]}>
-                  {circadian.description}
+            {/* 3. Subtle Positive Completion Banner (Only when all habits are complete) */}
+            {completedHabits === totalHabits && totalHabits > 0 && (
+              <View
+                style={[
+                  styles.allDoneBanner,
+                  {
+                    backgroundColor: theme.isDark ? 'rgba(16, 185, 129, 0.12)' : '#ECFDF5',
+                    borderColor: theme.isDark ? 'rgba(16, 185, 129, 0.25)' : '#A7F3D0',
+                  },
+                ]}>
+                <Ionicons name="sparkles" size={16} color="#10B981" />
+                <Text style={[styles.allDoneText, { color: theme.isDark ? '#6EE7B7' : '#065F46' }]}>
+                  All habits completed for today! Keep the rhythm going.
                 </Text>
+              </View>
+            )}
 
-                <View style={[styles.tipBanner, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="sparkles" size={14} color={circadian.iconColor} />
-                  <Text style={[styles.tipText, { color: theme.colors.text }]}>
-                    {circadian.actionTip}
-                  </Text>
-                </View>
-              </Card>
-            </View>
-
-            {/* Rhythm Score Breakdown Card */}
-            <View style={styles.breakdownSection}>
-              <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
-                TODAY&apos;S RHYTHM BREAKDOWN
+            {/* 4. Simple Clean Manage Action Button */}
+            <Pressable
+              onPress={() => router.push('/add-routine')}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.customizeBtn,
+                {
+                  backgroundColor: theme.colors.backgroundElement,
+                  borderColor: theme.colors.borderSubtle,
+                },
+                pressed && { opacity: 0.7 },
+              ]}>
+              <Ionicons name="create-outline" size={16} color={theme.colors.secondary} />
+              <Text style={[styles.customizeBtnText, { color: theme.colors.secondary }]}>
+                Edit Wake-up, Water & Habits
               </Text>
-
-              <Card style={styles.breakdownCard}>
-                <View style={styles.breakdownRow}>
-                  <View style={styles.breakdownItemLeft}>
-                    <View style={[styles.breakdownDot, { backgroundColor: '#F59E0B' }]} />
-                    <Text style={[styles.breakdownLabel, { color: theme.colors.text }]}>
-                      Morning Wake-up ({routine.wakeUpTime || '06:00'})
-                    </Text>
-                  </View>
-                  <Text style={[styles.breakdownPts, { color: '#10B981' }]}>+30 pts</Text>
-                </View>
-
-                <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
-
-                <View style={styles.breakdownRow}>
-                  <View style={styles.breakdownItemLeft}>
-                    <View style={[styles.breakdownDot, { backgroundColor: '#0EA5E9' }]} />
-                    <Text style={[styles.breakdownLabel, { color: theme.colors.text }]}>
-                      Hydration Intake ({routine.waterIntake || 0}L)
-                    </Text>
-                  </View>
-                  <Text style={[styles.breakdownPts, { color: '#0EA5E9' }]}>+20 pts</Text>
-                </View>
-
-                <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
-
-                <View style={styles.breakdownRow}>
-                  <View style={styles.breakdownItemLeft}>
-                    <View style={[styles.breakdownDot, { backgroundColor: '#8B5CF6' }]} />
-                    <Text style={[styles.breakdownLabel, { color: theme.colors.text }]}>
-                      Habit Execution ({completedHabits}/{totalHabits})
-                    </Text>
-                  </View>
-                  <Text style={[styles.breakdownPts, { color: '#8B5CF6' }]}>+35 pts</Text>
-                </View>
-              </Card>
-            </View>
+            </Pressable>
           </View>
         )}
       </ScrollView>
@@ -712,7 +596,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   summaryLabel: {
     fontSize: 11,
@@ -733,34 +617,18 @@ const styles = StyleSheet.create({
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 4,
+    gap: 5,
   },
   streakPillText: {
     fontSize: 12,
     fontWeight: '700',
   },
-  progressBarWrapper: {
-    marginBottom: 16,
-  },
-  progressBarInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  progressBarLabel: {
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-  progressBarPercent: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
   progressBar: {
+    marginBottom: 16,
     borderRadius: 6,
   },
   metricsStrip: {
@@ -792,59 +660,43 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
   },
-  sectionHeadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-    paddingHorizontal: 4,
-  },
   sectionHeading: {
     fontSize: 11.5,
     fontWeight: '700',
     letterSpacing: 0.6,
-  },
-  sectionHeadingSub: {
-    fontSize: 11,
-    fontWeight: '500',
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
   habitsGroupCard: {
     padding: 4,
     borderRadius: 20,
-    marginBottom: 20,
+    marginBottom: 16,
   },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
-  habitMain: {
+  habitLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingRight: 10,
   },
-  habitIconTile: {
+  habitIconCircle: {
     width: 38,
     height: 38,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  habitTextCol: {
-    flex: 1,
-  },
   habitName: {
     fontSize: 15,
     letterSpacing: -0.2,
-  },
-  habitSubtext: {
-    fontSize: 11.5,
-    fontWeight: '500',
-    marginTop: 2,
+    flex: 1,
   },
   divider: {
     height: 1,
@@ -858,89 +710,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
   },
-  circadianSection: {
-    marginBottom: 20,
-  },
-  circadianCard: {
-    padding: 16,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  circadianHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 10,
-  },
-  circadianIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  circadianHeaderInfo: {
-    flex: 1,
-  },
-  circadianPhaseTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  circadianWindowText: {
-    fontSize: 11.5,
-    fontWeight: '500',
-    marginTop: 2,
-  },
-  circadianDesc: {
-    fontSize: 13,
-    lineHeight: 18.5,
-    marginBottom: 12,
-  },
-  tipBanner: {
+  allDoneBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 14,
   },
-  tipText: {
-    fontSize: 12,
+  allDoneText: {
+    fontSize: 12.5,
     fontWeight: '600',
     flex: 1,
   },
-  breakdownSection: {
-    marginBottom: 12,
-  },
-  breakdownCard: {
-    padding: 6,
-    borderRadius: 20,
-    marginTop: 8,
-  },
-  breakdownRow: {
+  customizeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
+    justifyContent: 'center',
+    gap: 6,
     paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
   },
-  breakdownItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  breakdownDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  breakdownLabel: {
-    fontSize: 13.5,
-    fontWeight: '600',
-  },
-  breakdownPts: {
+  customizeBtnText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '600',
   },
 });

@@ -193,9 +193,22 @@ export default function TodayScreen() {
   const firstName = user?.name ? user.name.split(' ')[0] : 'there';
   const greeting = getTimeGreeting();
 
-  const totalHabits = routine?.activities?.length || 0;
+  // Deduplicate activities by name for clean presentation
+  const seenHabitNames = new Set<string>();
+  const displayActivities: RoutineActivity[] = [];
+  if (routine?.activities) {
+    for (const act of routine.activities) {
+      const key = act.name.trim().toLowerCase();
+      if (!seenHabitNames.has(key)) {
+        seenHabitNames.add(key);
+        displayActivities.push(act);
+      }
+    }
+  }
+
+  const totalHabits = displayActivities.length;
   const completedHabits =
-    routine?.activities?.filter((a) => Boolean(a.value)).length || 0;
+    displayActivities.filter((a) => Boolean(a.value)).length;
   const score = Math.round(routine?.score || 0);
   const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
 
@@ -459,10 +472,10 @@ export default function TodayScreen() {
                   borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
                 },
               ]}>
-              {routine.activities && routine.activities.length > 0 ? (
-                routine.activities.map((act, index) => {
+              {displayActivities && displayActivities.length > 0 ? (
+                displayActivities.map((act, index) => {
                   const isDone = Boolean(act.value);
-                  const isLast = index === routine.activities.length - 1;
+                  const isLast = index === displayActivities.length - 1;
                   const meta = getHabitBrandMeta(act.name);
 
                   return (

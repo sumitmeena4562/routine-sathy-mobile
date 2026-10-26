@@ -27,9 +27,67 @@ import { HabitItem, RoutineActivity } from '@/types/routine';
 
 const DEFAULT_HABITS: HabitItem[] = [
   { id: 'workout', name: 'Workout / Exercise', type: 'boolean', icon: 'barbell-outline', enabled: true },
-  { id: 'meditation', name: 'Mindfulness & Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
-  { id: 'reading', name: 'Reading Book (20 mins)', type: 'boolean', icon: 'book-outline', enabled: true },
+  { id: 'meditation', name: 'Meditation / Mindfulness', type: 'boolean', icon: 'leaf-outline', enabled: true },
+  { id: 'reading', name: 'Reading', type: 'boolean', icon: 'book-outline', enabled: true },
 ];
+
+/**
+ * Curated brand palette for habits matching Today dashboard
+ */
+function getHabitBrandMeta(name: string): {
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  tileBg: string;
+} {
+  const lower = name.toLowerCase();
+  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
+    return {
+      icon: 'barbell',
+      iconColor: '#EA580C', // Sunrise Orange
+      tileBg: '#FFF7ED',
+    };
+  }
+  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
+    return {
+      icon: 'leaf',
+      iconColor: '#059669', // Sacred Botanical Green
+      tileBg: '#ECFDF5',
+    };
+  }
+  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
+    return {
+      icon: 'book',
+      iconColor: '#4F46E5', // Deep Insight Indigo
+      tileBg: '#EEF2FF',
+    };
+  }
+  if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
+    return {
+      icon: 'water',
+      iconColor: '#0284C7', // Pure Sky Flow
+      tileBg: '#F0F9FF',
+    };
+  }
+  if (lower.includes('walk') || lower.includes('run') || lower.includes('step')) {
+    return {
+      icon: 'footsteps',
+      iconColor: '#0D9488', // Earth Teal
+      tileBg: '#F0FDFA',
+    };
+  }
+  if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night')) {
+    return {
+      icon: 'moon',
+      iconColor: '#7C3AED', // Twilight Violet
+      tileBg: '#F5F3FF',
+    };
+  }
+  return {
+    icon: 'sparkles',
+    iconColor: '#D97706', // Golden Dawn Spark
+    tileBg: '#FEF3C7',
+  };
+}
 
 export default function AddRoutineScreen() {
   const router = useRouter();
@@ -39,18 +97,22 @@ export default function AddRoutineScreen() {
 
   const isCompact = windowHeight < 720 || windowWidth < 380;
   const isTablet = windowWidth >= 768;
-  const containerMaxWidth = isTablet ? 500 : 440;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 22;
+  const containerMaxWidth = isTablet ? 520 : 460;
+  const horizontalPadding = isTablet ? 32 : isCompact ? 16 : 20;
 
-  // Simple state with practical defaults
+  // Practical defaults
   const [wakeHour, setWakeHour] = useState(6);
-  const [wakeMin, setWakeMin] = useState(30);
-  const [waterIntake, setWaterIntake] = useState(3.0);
+  const [wakeMin, setWakeMin] = useState(0);
+  const [waterIntake, setWaterIntake] = useState(2.0);
   const [studyHours, setStudyHours] = useState(4.0);
   const [habits, setHabits] = useState<HabitItem[]>(DEFAULT_HABITS);
   const [selectedHabitIds, setSelectedHabitIds] = useState<Set<string>>(
     new Set(['workout', 'meditation', 'reading'])
   );
+  // Track existing completion state so editing targets never resets completed habits
+  const [existingCompletionMap, setExistingCompletionMap] = useState<
+    Record<string, boolean | string | number>
+  >({});
 
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{
@@ -59,36 +121,83 @@ export default function AddRoutineScreen() {
     message: string;
   } | null>(null);
 
-  // Load user goals on mount
+  // Load defaults and today's existing routine (if in Edit mode)
   useEffect(() => {
     async function loadDefaults() {
       try {
-        const [serverHabits, serverGoals] = await Promise.allSettled([
+        const [todayRoutineRes, serverHabitsRes, serverGoalsRes] = await Promise.allSettled([
+          routineService.getTodayRoutine(),
           routineService.getUserHabits(),
           routineService.getUserGoals(),
         ]);
 
-        if (serverHabits.status === 'fulfilled' && serverHabits.value.length > 0) {
-          setHabits(serverHabits.value);
-          const enabledIds = new Set(
-            serverHabits.value.filter((h) => h.enabled).map((h) => h.id)
-          );
-          setSelectedHabitIds(enabledIds);
+        // 1. Process habits list with deduplication by name
+        if (serverHabitsRes.status === 'fulfilled' && serverHabitsRes.value.length > 0) {
+          const seen = new Set<string>();
+          const deduped: HabitItem[] = [];
+          for (const h of serverHabitsRes.value) {
+            const key = h.name.trim().toLowerCase();
+            if (!seen.has(key)) {
+              seen.add(key);
+              deduped.push(h);
+            }
+          }
+          setHabits(deduped);
         }
 
-        if (serverGoals.status === 'fulfilled' && serverGoals.value) {
-          if (serverGoals.value.targetWakeUp) {
-            const [h, m] = serverGoals.value.targetWakeUp.split(':').map(Number);
+        // 2. If today's routine exists, prefill from it (Edit mode)
+        if (todayRoutineRes.status === 'fulfilled' && todayRoutineRes.value) {
+          const r = todayRoutineRes.value;
+          if (r.wakeUpTime) {
+            const [h, m] = r.wakeUpTime.split(':').map(Number);
             if (!isNaN(h) && !isNaN(m)) {
               setWakeHour(h);
               setWakeMin(m);
             }
           }
-          if (serverGoals.value.targetWater) setWaterIntake(serverGoals.value.targetWater);
-          if (serverGoals.value.targetStudy) setStudyHours(serverGoals.value.targetStudy);
+          if (r.waterIntake !== undefined && r.waterIntake > 0) {
+            setWaterIntake(r.waterIntake);
+          }
+          if (r.studyHours !== undefined && r.studyHours > 0) {
+            setStudyHours(r.studyHours);
+          }
+          if (r.activities && r.activities.length > 0) {
+            const activeIds = new Set<string>();
+            const compMap: Record<string, boolean | string | number> = {};
+            r.activities.forEach((act) => {
+              const id = act.activityId || act.name;
+              activeIds.add(id);
+              compMap[id] = act.value;
+              compMap[act.name] = act.value;
+            });
+            setSelectedHabitIds(activeIds);
+            setExistingCompletionMap(compMap);
+            return;
+          }
+        }
+
+        // 3. Fallback to user goals if no routine logged yet today
+        if (serverGoalsRes.status === 'fulfilled' && serverGoalsRes.value) {
+          const g = serverGoalsRes.value;
+          if (g.targetWakeUp) {
+            const [h, m] = g.targetWakeUp.split(':').map(Number);
+            if (!isNaN(h) && !isNaN(m)) {
+              setWakeHour(h);
+              setWakeMin(m);
+            }
+          }
+          if (g.targetWater) setWaterIntake(g.targetWater);
+          if (g.targetStudy) setStudyHours(g.targetStudy);
+        }
+
+        if (serverHabitsRes.status === 'fulfilled' && serverHabitsRes.value.length > 0) {
+          const enabledIds = new Set(
+            serverHabitsRes.value.filter((h) => h.enabled).map((h) => h.id)
+          );
+          if (enabledIds.size > 0) setSelectedHabitIds(enabledIds);
         }
       } catch {
-        // Fallback to local defaults
+        // Safe fallback to practical defaults
       }
     }
     loadDefaults();
@@ -117,7 +226,7 @@ export default function AddRoutineScreen() {
 
   const adjustWater = (delta: number) => {
     triggerHaptic('light');
-    setWaterIntake((prev) => Math.max(1.0, Math.min(6.0, Math.round((prev + delta) * 10) / 10)));
+    setWaterIntake((prev) => Math.max(0.5, Math.min(6.0, Math.round((prev + delta) * 10) / 10)));
   };
 
   const adjustStudy = (delta: number) => {
@@ -145,12 +254,13 @@ export default function AddRoutineScreen() {
     setLoading(true);
     setToast(null);
 
+    // Build activities preserving existing completion state
     const activities: RoutineActivity[] = habits
       .filter((h) => selectedHabitIds.has(h.id))
       .map((h) => ({
         activityId: h.id,
         name: h.name,
-        value: false,
+        value: existingCompletionMap[h.id] ?? existingCompletionMap[h.name] ?? false,
       }));
 
     try {
@@ -212,17 +322,26 @@ export default function AddRoutineScreen() {
             style={({ pressed }) => [
               styles.closeButton,
               {
-                backgroundColor: theme.colors.backgroundElement,
-                borderColor: theme.colors.borderSubtle,
+                backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
               },
               pressed && styles.pressed,
             ]}>
             <Ionicons name="close" size={20} color={theme.colors.text} />
           </Pressable>
 
-          <Text style={[styles.dateBadgeText, { color: theme.colors.textSecondary }]}>
-            {formattedDate}
-          </Text>
+          <View
+            style={[
+              styles.datePill,
+              {
+                backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
+                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+              },
+            ]}>
+            <Text style={[styles.dateBadgeText, { color: theme.colors.textSecondary }]}>
+              {formattedDate}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -235,13 +354,14 @@ export default function AddRoutineScreen() {
             styles.scrollContent,
             {
               maxWidth: containerMaxWidth,
-              paddingBottom: Math.max(insets.bottom + 28, 40),
+              paddingBottom: Math.max(insets.bottom + 36, 44),
               paddingLeft: insets.left + horizontalPadding,
               paddingRight: insets.right + horizontalPadding,
             },
           ]}>
-          {/* Minimal Clean Title */}
+          {/* Header Title Section */}
           <View style={styles.header}>
+            <Text style={styles.eyebrow}>DAILY ANCHORS</Text>
             <Text style={[styles.title, { color: theme.colors.text }]}>
               Plan Today&apos;s Routine
             </Text>
@@ -250,7 +370,7 @@ export default function AddRoutineScreen() {
             </Text>
           </View>
 
-          {/* Section 1: Unified Grouped Daily Targets */}
+          {/* Section 1: Unified Daily Targets */}
           <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
             DAILY TARGETS
           </Text>
@@ -258,19 +378,31 @@ export default function AddRoutineScreen() {
           <Card style={styles.groupedCard}>
             {/* Row 1: Wake-up Time Stepper */}
             <View style={styles.targetRow}>
-              <View style={styles.targetInfo}>
-                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Wake-up</Text>
-                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                  Morning rise anchor
-                </Text>
+              <View style={styles.targetLeft}>
+                <View style={[styles.targetIconCircle, { backgroundColor: '#FFF7ED' }]}>
+                  <Ionicons name="sunny" size={18} color="#D97706" />
+                </View>
+                <View style={styles.targetInfo}>
+                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Wake-up</Text>
+                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                    Morning rise anchor
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.stepperContainer}>
                 <Pressable
                   onPress={() => adjustWakeTime(-15)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="remove" size={16} color={theme.colors.text} />
                 </Pressable>
 
                 <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
@@ -280,29 +412,48 @@ export default function AddRoutineScreen() {
                 <Pressable
                   onPress={() => adjustWakeTime(15)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="add" size={16} color={theme.colors.text} />
                 </Pressable>
               </View>
             </View>
 
-            <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+            <View style={[styles.divider, { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' }]} />
 
             {/* Row 2: Hydration Stepper */}
             <View style={styles.targetRow}>
-              <View style={styles.targetInfo}>
-                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Water</Text>
-                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                  Daily hydration goal
-                </Text>
+              <View style={styles.targetLeft}>
+                <View style={[styles.targetIconCircle, { backgroundColor: '#F0F9FF' }]}>
+                  <Ionicons name="water" size={18} color="#0284C7" />
+                </View>
+                <View style={styles.targetInfo}>
+                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Water</Text>
+                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                    Daily hydration goal
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.stepperContainer}>
                 <Pressable
                   onPress={() => adjustWater(-0.5)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="remove" size={16} color={theme.colors.text} />
                 </Pressable>
 
                 <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
@@ -312,29 +463,48 @@ export default function AddRoutineScreen() {
                 <Pressable
                   onPress={() => adjustWater(0.5)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="add" size={16} color={theme.colors.text} />
                 </Pressable>
               </View>
             </View>
 
-            <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+            <View style={[styles.divider, { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' }]} />
 
             {/* Row 3: Deep Focus Stepper */}
             <View style={styles.targetRow}>
-              <View style={styles.targetInfo}>
-                <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Focus</Text>
-                <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                  Study &amp; deep work hours
-                </Text>
+              <View style={styles.targetLeft}>
+                <View style={[styles.targetIconCircle, { backgroundColor: '#F5F3FF' }]}>
+                  <Ionicons name="hourglass" size={18} color="#7C3AED" />
+                </View>
+                <View style={styles.targetInfo}>
+                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Focus</Text>
+                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                    Study &amp; deep work hours
+                  </Text>
+                </View>
               </View>
 
               <View style={styles.stepperContainer}>
                 <Pressable
                   onPress={() => adjustStudy(-0.5)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="remove" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="remove" size={16} color={theme.colors.text} />
                 </Pressable>
 
                 <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
@@ -344,57 +514,107 @@ export default function AddRoutineScreen() {
                 <Pressable
                   onPress={() => adjustStudy(0.5)}
                   hitSlop={8}
-                  style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
-                  <Ionicons name="add" size={18} color={theme.colors.text} />
+                  style={({ pressed }) => [
+                    styles.stepperBtn,
+                    {
+                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="add" size={16} color={theme.colors.text} />
                 </Pressable>
               </View>
             </View>
           </Card>
 
           {/* Section 2: Habits Selection */}
-          <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginTop: 22 }]}>
-            TODAY&apos;S HABITS ({selectedHabitIds.size} ACTIVE)
-          </Text>
+          <View style={styles.sectionHeadingRow}>
+            <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
+              TODAY&apos;S HABITS
+            </Text>
+            <View
+              style={[
+                styles.countBadge,
+                {
+                  backgroundColor: theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                  borderColor: theme.isDark ? '#065F46' : '#A7F3D0',
+                },
+              ]}>
+              <Text style={styles.countBadgeText}>{selectedHabitIds.size} ACTIVE</Text>
+            </View>
+          </View>
 
           <Card style={styles.groupedCard}>
             {habits.map((habit, index) => {
               const isSelected = selectedHabitIds.has(habit.id);
               const isLast = index === habits.length - 1;
+              const meta = getHabitBrandMeta(habit.name);
+
               return (
                 <React.Fragment key={habit.id}>
                   <Pressable
                     onPress={() => toggleHabit(habit.id)}
                     style={({ pressed }) => [
                       styles.habitRow,
-                      pressed && { opacity: 0.7 },
+                      pressed && { opacity: 0.75 },
                     ]}>
-                    <Text
-                      style={[
-                        styles.habitRowName,
-                        {
-                          color: isSelected ? theme.colors.text : theme.colors.textMuted,
-                          fontWeight: isSelected ? '700' : '500',
-                        },
-                      ]}>
-                      {habit.name}
-                    </Text>
+                    <View style={styles.habitLeft}>
+                      {/* Habit Icon Circle */}
+                      <View
+                        style={[
+                          styles.habitIconCircle,
+                          {
+                            backgroundColor: theme.isDark
+                              ? 'rgba(255, 255, 255, 0.08)'
+                              : meta.tileBg,
+                          },
+                        ]}>
+                        <Ionicons name={meta.icon} size={18} color={meta.iconColor} />
+                      </View>
 
-                    <Ionicons
-                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
-                      size={22}
-                      color={isSelected ? theme.colors.primary : theme.colors.textMuted}
-                    />
+                      {/* Habit Name */}
+                      <Text
+                        style={[
+                          styles.habitRowName,
+                          {
+                            color: isSelected ? theme.colors.text : theme.colors.textSecondary,
+                            fontWeight: isSelected ? '700' : '500',
+                          },
+                        ]}>
+                        {habit.name}
+                      </Text>
+                    </View>
+
+                    {/* Clean Checkbox Indicator */}
+                    {isSelected ? (
+                      <View style={styles.checkFilledCircle}>
+                        <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                      </View>
+                    ) : (
+                      <View
+                        style={[
+                          styles.checkEmptyCircle,
+                          { borderColor: theme.isDark ? '#475569' : '#CBD5E1' },
+                        ]}
+                      />
+                    )}
                   </Pressable>
 
                   {!isLast && (
-                    <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+                    <View
+                      style={[
+                        styles.divider,
+                        { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' },
+                      ]}
+                    />
                   )}
                 </React.Fragment>
               );
             })}
           </Card>
 
-          {/* Clean CTA Button */}
+          {/* Clean CTA Save Button */}
           <Button
             title="Save Routine"
             onPress={handleSave}
@@ -403,6 +623,7 @@ export default function AddRoutineScreen() {
             size="lg"
             pill
             fullWidth
+            icon={<Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />}
             style={styles.saveBtn}
           />
         </ScrollView>
@@ -417,7 +638,7 @@ const styles = StyleSheet.create({
   },
   topBar: {
     zIndex: 10,
-    height: 48,
+    height: 52,
     justifyContent: 'center',
   },
   topBarInner: {
@@ -434,14 +655,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   pressed: {
     opacity: 0.75,
     transform: [{ scale: 0.96 }],
   },
+  datePill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
+  },
   dateBadgeText: {
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: '600',
+    letterSpacing: 0.2,
   },
   keyboardView: {
     flex: 1,
@@ -452,7 +690,15 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   header: {
-    marginBottom: 20,
+    marginBottom: 22,
+  },
+  eyebrow: {
+    fontSize: 11.5,
+    fontWeight: '800',
+    color: '#D97706',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 4,
   },
   title: {
     fontSize: 27,
@@ -465,22 +711,57 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   groupLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    fontSize: 11.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
     marginBottom: 8,
     paddingHorizontal: 4,
   },
+  sectionHeadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 24,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  countBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  countBadgeText: {
+    fontSize: 10.5,
+    fontWeight: '800',
+    color: '#059669',
+    letterSpacing: 0.5,
+  },
   groupedCard: {
-    padding: 4,
-    borderRadius: 16,
+    padding: 2,
+    borderRadius: 18,
+    overflow: 'hidden',
   },
   targetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
+  },
+  targetLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  targetIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   targetInfo: {
     flex: 1,
@@ -502,6 +783,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -520,12 +802,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
+  },
+  habitLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  habitIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   habitRowName: {
     fontSize: 14.5,
+    flex: 1,
+  },
+  checkFilledCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  checkEmptyCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    backgroundColor: 'transparent',
   },
   saveBtn: {
-    marginTop: 24,
+    marginTop: 26,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
 });

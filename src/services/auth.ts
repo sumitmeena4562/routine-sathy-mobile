@@ -84,14 +84,27 @@ export const authService = {
   },
 
   /**
-   * Request a password reset email for the given address.
-   * Server always returns 200 regardless of whether the email exists
-   * (to prevent user enumeration). Throws on network/rate-limit errors.
+   * Request a 6-digit password reset OTP sent to the user's email.
    */
-  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+  async sendPasswordResetOtp(email: string): Promise<{ success: boolean; message: string }> {
     const response = await api.post<{ success: boolean; message: string }>(
-      '/auth/forgot-password',
+      '/auth/forgot-password-otp',
       { email }
+    );
+    return response.data;
+  },
+
+  /**
+   * Reset user password by verifying the 6-digit OTP code and saving the new password.
+   */
+  async resetPasswordWithOtp(params: {
+    email: string;
+    otp: string;
+    password: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/auth/reset-password-otp',
+      params
     );
     return response.data;
   },

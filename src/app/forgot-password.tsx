@@ -84,12 +84,11 @@ export default function ForgotPasswordScreen() {
     setToast(null);
 
     try {
-      await authService.forgotPassword(email.trim().toLowerCase());
+      await authService.sendPasswordResetOtp(email.trim().toLowerCase());
 
-      // Server always returns 200 (doesn't reveal if email exists).
-      // Navigate to confirmation screen on success.
+      // Navigate to OTP verification & password reset screen
       router.replace({
-        pathname: '/check-email',
+        pathname: '/reset-password-otp',
         params: { email: email.trim().toLowerCase() },
       });
     } catch (err: unknown) {
@@ -187,7 +186,7 @@ export default function ForgotPasswordScreen() {
                 { color: theme.colors.textSecondary },
                 isCompact && styles.subtitleCompact,
               ]}>
-              Enter your email and we&apos;ll send you a link to reset your password.
+              Enter your registered email and we&apos;ll send you a 6-digit verification code.
             </Text>
           </View>
 
@@ -219,7 +218,7 @@ export default function ForgotPasswordScreen() {
 
           {/* CTA Button */}
           <Button
-            title="Send Reset Link"
+            title="Send Verification Code"
             onPress={handleSendLink}
             loading={loading}
             variant="primary"

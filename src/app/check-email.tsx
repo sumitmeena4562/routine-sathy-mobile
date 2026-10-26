@@ -176,7 +176,7 @@ export default function CheckEmailScreen() {
 
           {/* Helper note */}
           <Text style={[styles.helperNote, { color: theme.colors.textMuted }]}>
-            Didn't receive the email? Check your spam folder, or{' '}
+            Didn&apos;t receive the email? Check your spam folder, or{' '}
             <Text
               style={[styles.helperLink, { color: theme.colors.text }]}
               onPress={() => router.replace('/forgot-password')}

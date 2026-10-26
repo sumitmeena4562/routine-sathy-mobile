@@ -9,18 +9,30 @@ export const USER_STORAGE_KEY = 'routine_sathy_auth_user_v1';
 
 /**
  * Resolves the appropriate base API URL depending on environment and platform.
- * - Explicit EXPO_PUBLIC_API_URL takes highest priority.
- * - Expo Go on a physical phone: dynamically resolves dev machine's Wi-Fi IP from Constants.expoConfig?.hostUri.
- * - Physical device fallback: uses local network LAN IP (192.168.2.21).
- * - Android Emulator: uses 10.0.2.2.
- * - iOS Simulator / Web: uses localhost.
+ * - If EXPO_PUBLIC_API_URL is set to a live remote backend (https://), always connect to it!
+ * - Android Emulator: uses 10.0.2.2 for local development.
+ * - iOS Simulator / Web: uses localhost:5001 for local development.
+ * - Expo Go on physical device: dynamically resolves Mac's Wi-Fi IP from Constants.expoConfig?.hostUri.
+ * - Fallback: live production backend (https://routine-sathy.vercel.app/api).
  */
 function getApiBaseUrl(): string {
-  if (process.env.EXPO_PUBLIC_API_URL) {
-    return process.env.EXPO_PUBLIC_API_URL;
+  // 1. Android Emulator: Android emulator DNS cannot resolve WAN hosts like *.vercel.app reliably.
+  // Routing to 10.0.2.2:5001 connects directly to local backend on Mac (which connects directly to MongoDB Atlas).
+  if (Platform.OS === 'android' && !Device.isDevice) {
+    return 'http://10.0.2.2:5001/api';
   }
 
-  // Dynamically extract computer IP from Expo Metro connection (e.g., 192.168.2.21:8081 -> 192.168.2.21)
+  // 2. iOS Simulator: direct localhost
+  if (Platform.OS === 'ios' && !Device.isDevice) {
+    return 'http://localhost:5001/api';
+  }
+
+  // 3. Web: direct localhost
+  if (Platform.OS === 'web') {
+    return 'http://localhost:5001/api';
+  }
+
+  // 4. Physical device via Expo Go: dynamically resolve Mac IP from Metro connection
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const hostIp = hostUri.split(':')[0];
@@ -29,18 +41,8 @@ function getApiBaseUrl(): string {
     }
   }
 
-  // Real physical mobile phone fallback (connected on same Wi-Fi as Mac)
-  if (Device.isDevice) {
-    return 'http://192.168.2.21:5001/api';
-  }
-
-  // Android Emulator
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:5001/api';
-  }
-
-  // iOS Simulator / Web
-  return 'http://localhost:5001/api';
+  // 5. Remote / Production cloud fallback (Vercel)
+  return process.env.EXPO_PUBLIC_API_URL || 'https://routine-sathy.vercel.app/api';
 }
 
 // eslint-disable-next-line import/no-named-as-default-member

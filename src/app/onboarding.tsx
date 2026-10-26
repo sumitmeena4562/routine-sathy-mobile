@@ -99,14 +99,14 @@ export default function OnboardingScreen() {
       setCurrentIndex(nextIndex);
     } else {
       await completeOnboarding();
-      router.push('/welcome');
+      router.replace('/welcome');
     }
   }, [currentIndex, completeOnboarding, rawWidth, router]);
 
   const handleSkip = useCallback(async () => {
     triggerHaptic();
     await completeOnboarding();
-    router.push('/welcome');
+    router.replace('/welcome');
   }, [completeOnboarding, router]);
 
   const isLastSlide = currentIndex === SLIDES.length - 1;

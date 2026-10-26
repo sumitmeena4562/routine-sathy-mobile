@@ -68,7 +68,14 @@ export const routineService = {
    * Retrieves overall streak and performance statistics.
    */
   async getRoutineStats(): Promise<RoutineStats> {
-    const response = await api.get<{ data: RoutineStats }>('/routines/stats');
-    return response.data.data;
+    const response = await api.get<any>('/routines/stats');
+    const raw = response.data?.data || response.data;
+    return {
+      currentStreak: raw?.currentStreak || 0,
+      maxStreak: raw?.maxStreak ?? raw?.longestStreak ?? 0,
+      avgScore: raw?.avgScore || 0,
+      totalDays: raw?.totalDays || 0,
+      last7DaysScores: raw?.last7DaysScores || [],
+    };
   },
 };

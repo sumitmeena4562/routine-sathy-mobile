@@ -252,6 +252,8 @@ export default function LoginScreen() {
               }}
               isPassword
               autoCapitalize="none"
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
               errorMessage={errors.password}
               leftIcon={
                 <Ionicons

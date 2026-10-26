@@ -353,11 +353,13 @@ export default function TodayScreen() {
                           </Text>
                         </View>
 
-                        <HabitCheckControl
-                          completed={isDone}
-                          onToggle={() => handleToggleHabit(act.activityId, isDone)}
-                          size={34}
-                        />
+                        <View pointerEvents="none">
+                          <HabitCheckControl
+                            completed={isDone}
+                            onToggle={() => {}}
+                            size={34}
+                          />
+                        </View>
                       </Pressable>
 
                       {!isLast && (

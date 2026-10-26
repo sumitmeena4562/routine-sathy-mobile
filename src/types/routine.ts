@@ -41,9 +41,16 @@ export interface UserGoals {
   targetStudy: number;
 }
 
+export interface TrendDay {
+  date: string;
+  dayName: string;
+  score: number;
+}
+
 export interface RoutineStats {
   currentStreak: number;
   maxStreak: number;
   avgScore: number;
   totalDays: number;
+  last7DaysScores?: TrendDay[];
 }

@@ -125,6 +125,62 @@ export default function StatsScreen() {
               </Text>
             </Card>
 
+            {/* 7-Day Rhythm Trend Card */}
+            {stats?.last7DaysScores && stats.last7DaysScores.length > 0 && (
+              <Card style={styles.trendCard}>
+                <View style={styles.trendHeader}>
+                  <View style={styles.trendTitleRow}>
+                    <Ionicons name="trending-up-outline" size={17} color={theme.colors.secondary} />
+                    <Text style={[styles.trendTitle, { color: theme.colors.text }]}>Last 7 Days</Text>
+                  </View>
+                  <Text style={[styles.trendSubtitle, { color: theme.colors.textSecondary }]}>
+                    RHYTHM SCORE %
+                  </Text>
+                </View>
+
+                <View style={styles.trendBarsRow}>
+                  {stats.last7DaysScores.map((day, idx) => {
+                    const isToday = idx === (stats.last7DaysScores?.length || 0) - 1;
+                    const barHeight = Math.max(Math.round((day.score / 100) * 64), 4);
+                    const barColor =
+                      day.score >= 80
+                        ? theme.colors.success
+                        : day.score >= 50
+                        ? '#F59E0B'
+                        : day.score > 0
+                        ? '#EF4444'
+                        : theme.colors.borderSubtle;
+
+                    return (
+                      <View key={day.date} style={styles.trendBarCol}>
+                        <View style={[styles.trendBarTrack, { backgroundColor: theme.colors.backgroundElement }]}>
+                          <View
+                            style={[
+                              styles.trendBarFill,
+                              {
+                                height: barHeight,
+                                backgroundColor: barColor,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.trendDayText,
+                            {
+                              color: isToday ? theme.colors.primary : theme.colors.textSecondary,
+                              fontWeight: isToday ? '800' : '500',
+                            },
+                          ]}>
+                          {isToday ? 'Today' : day.dayName}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </Card>
+            )}
+
             {/* Unified 3-Stat Clean Row Card */}
             <Card style={styles.metricsGroupCard}>
               <View style={styles.metricItem}>
@@ -245,6 +301,58 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     fontWeight: '600',
     marginTop: 8,
+  },
+  trendCard: {
+    padding: 16,
+    borderRadius: 18,
+  },
+  trendHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  trendTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  trendTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  trendSubtitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+  },
+  trendBarsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 6,
+    height: 92,
+  },
+  trendBarCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+    gap: 6,
+  },
+  trendBarTrack: {
+    width: '100%',
+    height: 64,
+    borderRadius: 6,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+  },
+  trendBarFill: {
+    width: '100%',
+    borderRadius: 6,
+  },
+  trendDayText: {
+    fontSize: 10,
   },
   metricsGroupCard: {
     flexDirection: 'row',

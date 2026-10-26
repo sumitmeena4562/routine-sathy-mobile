@@ -105,6 +105,10 @@ export default function LoginScreen() {
         type: 'success',
         message: response.message || 'Logged in successfully! Welcome back.',
       });
+
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
       setToast({

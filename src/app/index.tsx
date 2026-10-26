@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { useAuth } from '@/context/AuthContext';
 import Svg, {
   Circle,
   Defs,
@@ -91,26 +92,29 @@ export default function SplashScreen() {
   const isCompact = windowHeight < 700 || windowWidth < 380;
 
   const { hasCompletedOnboarding, isLoading } = useOnboarding();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
 
   // Gentle breathing motion
   const scale = useSharedValue(1);
 
   const handleProceed = useCallback(() => {
-    if (isLoading) return;
-    if (hasCompletedOnboarding) {
+    if (isLoading || isAuthLoading) return;
+    if (isAuthenticated) {
+      router.replace('/(tabs)');
+    } else if (hasCompletedOnboarding) {
       router.replace('/welcome');
     } else {
       router.replace('/onboarding');
     }
-  }, [hasCompletedOnboarding, isLoading, router]);
+  }, [isAuthenticated, hasCompletedOnboarding, isLoading, isAuthLoading, router]);
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || isAuthLoading) return;
     const timer = setTimeout(() => {
       handleProceed();
     }, 1200);
     return () => clearTimeout(timer);
-  }, [isLoading, handleProceed]);
+  }, [isLoading, isAuthLoading, handleProceed]);
 
   useEffect(() => {
     scale.value = withRepeat(

@@ -124,6 +124,10 @@ export default function SignUpScreen() {
         type: 'success',
         message: response.message || 'User registered successfully',
       });
+
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create account. Please try again.';
       setToast({

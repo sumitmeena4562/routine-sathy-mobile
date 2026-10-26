@@ -51,7 +51,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
@@ -249,7 +249,14 @@ export default function LoginScreen() {
           {/* Forgot Password */}
           <View style={styles.forgotPasswordContainer}>
             <Pressable
-              onPress={() => router.push('/forgot-password')}
+              onPress={() => {
+                triggerHaptic('light');
+                setToast({
+                  visible: true,
+                  type: 'info',
+                  message: 'Forgot Password is under development. Coming soon!',
+                });
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Forgot Password">

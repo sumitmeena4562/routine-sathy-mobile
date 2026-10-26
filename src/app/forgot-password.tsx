@@ -173,6 +173,21 @@ export default function ForgotPasswordScreen() {
               <RoutineSathyEmblem size={emblemSize} />
             </View>
 
+            {/* Under Development Badge */}
+            <View
+              style={[
+                styles.underDevBadge,
+                {
+                  backgroundColor: theme.isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                  borderColor: theme.isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+                },
+              ]}>
+              <Ionicons name="construct-outline" size={13} color={theme.colors.warning} />
+              <Text style={[styles.underDevText, { color: theme.colors.warning }]}>
+                Under Development
+              </Text>
+            </View>
+
             <Text
               style={[
                 styles.title,
@@ -299,6 +314,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+  },
+  underDevBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 5,
+    marginBottom: 14,
+  },
+  underDevText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   title: {
     fontSize: 27,

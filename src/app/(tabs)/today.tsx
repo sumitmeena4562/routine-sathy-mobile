@@ -481,15 +481,13 @@ export default function TodayScreen() {
                               {
                                 backgroundColor: theme.isDark
                                   ? 'rgba(255, 255, 255, 0.08)'
-                                  : isDone
-                                  ? '#ECFDF5'
                                   : meta.tileBg,
                               },
                             ]}>
                             <Ionicons
                               name={meta.icon}
                               size={18}
-                              color={isDone ? '#059669' : meta.iconColor}
+                              color={meta.iconColor}
                             />
                           </View>
 

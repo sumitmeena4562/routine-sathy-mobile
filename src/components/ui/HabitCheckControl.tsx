@@ -81,22 +81,15 @@ export function HabitCheckControl({
             width: size,
             height: size,
             borderRadius: theme.radius.full,
-            backgroundColor: completed ? theme.colors.success : theme.colors.backgroundElement,
-            borderColor: completed ? theme.colors.successBorder : theme.colors.border,
-            borderWidth: theme.borderWidth.thin,
+            backgroundColor: completed ? '#10B981' : 'transparent',
+            borderColor: completed ? '#10B981' : theme.isDark ? '#475569' : '#CBD5E1',
+            borderWidth: completed ? 0 : 2,
           },
           completed ? theme.shadows.sm : undefined,
         ]}>
         {completed ? (
-          <Ionicons name="checkmark-sharp" size={iconSize} color={theme.colors.successForeground} />
-        ) : (
-          <Ionicons
-            name="checkmark"
-            size={iconSize}
-            color={theme.colors.textMuted}
-            style={{ opacity: 0.5 }}
-          />
-        )}
+          <Ionicons name="checkmark-sharp" size={iconSize} color="#FFFFFF" />
+        ) : null}
       </Animated.View>
 
       {streakCount !== undefined && streakCount > 0 && (

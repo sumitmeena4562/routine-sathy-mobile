@@ -322,12 +322,9 @@ export default function TodayScreen() {
               ]}>
               <View style={styles.heroTopRow}>
                 <View>
-                  <View style={styles.heroLabelRow}>
-                    <Ionicons name="sparkles" size={13} color="#D97706" />
-                    <Text style={styles.heroLabel}>
-                      CIRCADIAN RHYTHM SCORE
-                    </Text>
-                  </View>
+                  <Text style={[styles.heroLabel, { color: theme.colors.textSecondary }]}>
+                    DAILY RHYTHM
+                  </Text>
                   <View style={styles.scoreRow}>
                     <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>{score}</Text>
                     <Text style={[styles.scoreTotal, { color: theme.colors.textSecondary }]}> / 100</Text>
@@ -681,17 +678,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 16,
   },
-  heroLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
-  },
   heroLabel: {
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    color: '#D97706', // Warm Amber Sunrise
+    fontWeight: '700',
+    letterSpacing: 0.6,
   },
   scoreRow: {
     flexDirection: 'row',

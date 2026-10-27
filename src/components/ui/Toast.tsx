@@ -24,11 +24,15 @@ export interface ToastProps {
   onDismiss: () => void;
 }
 
+/**
+ * Minimalist Floating Capsule Toast
+ * Inspired by Apple Dynamic Island & Linear's high-contrast micro notifications.
+ */
 export function Toast({
   visible,
   message,
   type = 'success',
-  duration = 3500,
+  duration = 3000,
   onDismiss,
 }: ToastProps) {
   const theme = useTheme();
@@ -40,9 +44,11 @@ export function Toast({
 
     if (Platform.OS !== 'web') {
       if (type === 'success') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } else if (type === 'error') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
     }
 
@@ -64,17 +70,10 @@ export function Toast({
 
   const iconColor =
     type === 'success'
-      ? theme.colors.success
+      ? '#34D399' // Vibrant emerald mint
       : type === 'error'
-      ? theme.colors.error
-      : theme.colors.info;
-
-  const badgeBg =
-    type === 'success'
-      ? theme.colors.successMuted
-      : type === 'error'
-      ? theme.colors.errorMuted
-      : theme.colors.infoMuted;
+      ? '#F87171' // Clean soft coral rose
+      : '#38BDF8'; // Sky blue
 
   return (
     <View
@@ -86,38 +85,28 @@ export function Toast({
         },
       ]}>
       <Animated.View
-        entering={FadeInUp.springify().damping(15).stiffness(120)}
-        exiting={FadeOutUp.duration(200)}
+        entering={FadeInUp.springify().damping(18).stiffness(160)}
+        exiting={FadeOutUp.duration(180)}
         style={[
-          styles.pill,
+          styles.capsule,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.borderSubtle,
-            maxWidth: Math.min(width - 32, 440),
-            shadowOpacity: theme.isDark ? 0.35 : 0.12,
+            backgroundColor: theme.isDark ? '#1E293B' : '#0F172A',
+            borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.10)',
+            maxWidth: Math.min(width - 40, 420),
           },
         ]}>
         <Pressable
           onPress={onDismiss}
-          style={styles.pressableRow}
+          style={styles.pressableContent}
           accessibilityRole="alert"
           accessibilityLabel={message}>
-          {/* Icon Badge */}
-          <View style={[styles.iconWrapper, { backgroundColor: badgeBg }]}>
-            <Ionicons name={iconName} size={18} color={iconColor} />
-          </View>
+          {/* Crisp Micro Icon */}
+          <Ionicons name={iconName} size={17} color={iconColor} style={styles.icon} />
 
-          {/* Message Text */}
-          <Text
-            numberOfLines={2}
-            style={[styles.message, { color: theme.colors.text }]}>
+          {/* Clean Message */}
+          <Text numberOfLines={2} style={styles.messageText}>
             {message}
           </Text>
-
-          {/* Close Action */}
-          <View style={styles.closeButton}>
-            <Ionicons name="close" size={16} color={theme.colors.textMuted} />
-          </View>
         </Pressable>
       </Animated.View>
     </View>
@@ -132,38 +121,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 99999,
     elevation: 99999,
+    paddingHorizontal: 20,
   },
-  pill: {
-    width: '92%',
-    borderRadius: 24,
+  capsule: {
+    borderRadius: 22,
     borderWidth: 1,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
     shadowRadius: 14,
-    elevation: 8,
+    elevation: 10,
+    alignSelf: 'center',
   },
-  pressableRow: {
+  pressableContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 15,
+    gap: 8,
   },
-  iconWrapper: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+  icon: {
+    marginTop: 0.5,
   },
-  message: {
-    flex: 1,
-    fontSize: 14,
+  messageText: {
+    fontSize: 13.5,
     fontWeight: '600',
+    color: '#FFFFFF',
     letterSpacing: -0.2,
-    lineHeight: 19,
-  },
-  closeButton: {
-    padding: 4,
+    lineHeight: 18,
+    flexShrink: 1,
   },
 });

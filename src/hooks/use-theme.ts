@@ -1,14 +1,32 @@
+import { useThemeContext } from '@/context/ThemeContext';
+
 /**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
+ * Hook to access the current design system theme tokens and controls.
+ *
+ * Provides direct access to active semantic colors (e.g. `theme.primary`, `theme.background`),
+ * as well as structured token groups (`colors`, `typography`, `spacing`, `radius`, `shadows`)
+ * and theme toggles (`isDark`, `mode`, `toggleTheme`, `setPreference`).
  */
-
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'dark' ? 'dark' : 'light';
+  const context = useThemeContext();
 
-  return Colors[theme];
+  return {
+    ...context.colors, // Direct color access for backwards compatibility (e.g. theme.background)
+    colors: context.colors,
+    typography: context.typography,
+    spacing: context.spacing,
+    radius: context.radius,
+    borderWidth: context.borderWidth,
+    shadows: context.shadows,
+    heights: context.heights,
+    glass: context.glass,
+    animation: context.animation,
+    isDark: context.isDark,
+    mode: context.mode,
+    preference: context.preference,
+    setPreference: context.setPreference,
+    toggleTheme: context.toggleTheme,
+  };
 }
+
+export type Theme = ReturnType<typeof useTheme>;

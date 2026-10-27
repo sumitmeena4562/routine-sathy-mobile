@@ -1,98 +1,299 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
+import {
+  Badge,
+  Button,
+  Card,
+  HabitCheckControl,
+  IconButton,
+  ProgressBar,
+  ScreenContainer,
+  ScreenHeader,
+} from '@/components/ui';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
+interface RoutineHabit {
+  id: string;
+  title: string;
+  timeOfDay: 'Morning' | 'Afternoon' | 'Evening';
+  category: string;
+  completed: boolean;
+  streakCount: number;
+  duration: string;
 }
 
 export default function HomeScreen() {
+  const theme = useTheme();
+
+  const [habits, setHabits] = useState<RoutineHabit[]>([
+    {
+      id: '1',
+      title: 'Morning Pranayama & Meditation',
+      timeOfDay: 'Morning',
+      category: 'Mindfulness',
+      completed: true,
+      streakCount: 14,
+      duration: '15m',
+    },
+    {
+      id: '2',
+      title: 'Hydration Goal (2L Water)',
+      timeOfDay: 'Morning',
+      category: 'Health',
+      completed: true,
+      streakCount: 7,
+      duration: 'All day',
+    },
+    {
+      id: '3',
+      title: 'Deep Focused Work Sprint',
+      timeOfDay: 'Afternoon',
+      category: 'Focus',
+      completed: false,
+      streakCount: 5,
+      duration: '90m',
+    },
+    {
+      id: '4',
+      title: 'Evening Walk & Tech Detachment',
+      timeOfDay: 'Evening',
+      category: 'Wellness',
+      completed: false,
+      streakCount: 12,
+      duration: '30m',
+    },
+  ]);
+
+  const completedCount = habits.filter((h) => h.completed).length;
+  const progressRatio = habits.length > 0 ? completedCount / habits.length : 0;
+  const progressPercent = Math.round(progressRatio * 100);
+
+  const toggleHabit = (id: string) => {
+    setHabits((prev) =>
+      prev.map((h) => (h.id === id ? { ...h, completed: !h.completed } : h))
+    );
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
-
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+    <ScreenContainer scrollable>
+      {/* 1. Top Header with Quick Theme Mode Switcher */}
+      <ScreenHeader
+        title="Routine Sathy"
+        subtitle="Your daily mindfulness & habit flow"
+        rightAction={
+          <IconButton
+            variant="glass"
+            shape="circle"
+            size="md"
+            onPress={theme.toggleTheme}
+            accessibilityLabel="Toggle Theme Mode"
+            icon={
+              <Ionicons
+                name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
+                size={20}
+                color={theme.colors.primary}
+              />
+            }
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        }
+      />
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      {/* 2. Daily Routine Overview Card */}
+      <Card variant="surface" style={styles.overviewCard}>
+        <View style={styles.overviewHeader}>
+          <View>
+            <ThemedText type="label" style={{ color: theme.colors.primary }}>
+              {"TODAY'S MOMENTUM"}
+            </ThemedText>
+            <ThemedText type="title" style={{ marginTop: 2 }}>
+              {progressPercent}% Complete
+            </ThemedText>
+          </View>
+          <Badge
+            label={`${completedCount}/${habits.length} Done`}
+            variant={progressRatio === 1 ? 'success' : 'primary'}
+            size="md"
+          />
+        </View>
+
+        <ProgressBar
+          progress={progressRatio}
+          height={10}
+          style={{ marginTop: theme.spacing.md }}
+        />
+
+        <View style={[styles.statsRow, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.statItem}>
+            <Ionicons name="flame" size={18} color={theme.colors.warning} />
+            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
+              14 Day Streak
+            </ThemedText>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="trophy-outline" size={18} color={theme.colors.primary} />
+            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
+              Top 5% Flow
+            </ThemedText>
+          </View>
+          <View style={styles.statItem}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.success} />
+            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
+              Protected
+            </ThemedText>
+          </View>
+        </View>
+      </Card>
+
+      {/* 3. Daily Habits Section */}
+      <View style={styles.sectionHeaderRow}>
+        <ThemedText type="heading">{"Today's Habits"}</ThemedText>
+        <Badge
+          label="Automated Sync"
+          variant="secondary"
+          size="sm"
+          icon={<Ionicons name="cloud-done-outline" size={12} color={theme.colors.secondaryForeground} />}
+        />
+      </View>
+
+      <View style={styles.habitsList}>
+        {habits.map((habit) => (
+          <Card
+            key={habit.id}
+            variant={habit.completed ? 'surface' : 'outline'}
+            style={[
+              styles.habitCard,
+              habit.completed && {
+                borderColor: theme.colors.successBorder,
+                borderWidth: theme.borderWidth.thin,
+              },
+            ]}
+            onPress={() => toggleHabit(habit.id)}>
+            <View style={styles.habitContent}>
+              <HabitCheckControl
+                completed={habit.completed}
+                streakCount={habit.streakCount}
+                onToggle={() => toggleHabit(habit.id)}
+              />
+              <View style={styles.habitInfo}>
+                <ThemedText
+                  type="bodyMedium"
+                  style={[
+                    styles.habitTitle,
+                    habit.completed && {
+                      color: theme.colors.textSecondary,
+                      textDecorationLine: 'line-through',
+                    },
+                  ]}>
+                  {habit.title}
+                </ThemedText>
+                <View style={styles.habitMeta}>
+                  <ThemedText type="caption" style={{ color: theme.colors.textSecondary }}>
+                    {habit.timeOfDay} • {habit.duration}
+                  </ThemedText>
+                  <Badge
+                    label={habit.category}
+                    variant={habit.completed ? 'success' : 'neutral'}
+                    size="sm"
+                  />
+                </View>
+              </View>
+            </View>
+          </Card>
+        ))}
+      </View>
+
+      {/* 4. Action Banner */}
+      <Card variant="muted" style={styles.actionBanner}>
+        <View style={styles.bannerRow}>
+          <View style={{ flex: 1 }}>
+            <ThemedText type="heading">Design System Active</ThemedText>
+            <ThemedText type="caption" style={{ color: theme.colors.textSecondary, marginTop: 4 }}>
+              Current mode: <ThemedText type="code">{theme.mode.toUpperCase()}</ThemedText> • Primary token:{' '}
+              <ThemedText type="code">{theme.colors.primary}</ThemedText>
+            </ThemedText>
+          </View>
+          <Button
+            title={theme.isDark ? 'Light Mode' : 'Dark Mode'}
+            variant="primary"
+            size="sm"
+            onPress={theme.toggleTheme}
+            icon={
+              <Ionicons
+                name={theme.isDark ? 'sunny' : 'moon'}
+                size={14}
+                color={theme.colors.primaryForeground}
+              />
+            }
+          />
+        </View>
+      </Card>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+  overviewCard: {
+    marginTop: Spacing.lg,
+  },
+  overviewHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  heroSection: {
+  statItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: Spacing['2xl'],
+    marginBottom: Spacing.md,
+  },
+  habitsList: {
+    gap: Spacing.md,
+  },
+  habitCard: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  habitContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  habitInfo: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    marginLeft: Spacing.md,
   },
-  title: {
-    textAlign: 'center',
+  habitTitle: {
+    fontWeight: '600',
   },
-  code: {
-    textTransform: 'uppercase',
+  habitMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.xs,
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  actionBanner: {
+    marginTop: Spacing['2xl'],
+    marginBottom: Spacing.lg,
+  },
+  bannerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 });

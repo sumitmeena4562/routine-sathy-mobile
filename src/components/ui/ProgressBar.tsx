@@ -42,8 +42,11 @@ export function ProgressBar({
   }, [clampedProgress, animated, theme.animation.durationNormal, progressAnim]);
 
   const barHeight = height ?? theme.heights.progressBar;
-  const barColor = color ?? (clampedProgress >= 1 ? theme.colors.success : theme.colors.primary);
-  const barTrackColor = trackColor ?? theme.colors.backgroundElement;
+  const barTrackColor =
+    trackColor ??
+    (theme.isDark ? 'rgba(255, 255, 255, 0.08)' : theme.colors.borderSubtle);
+
+  const fillColor = color ?? theme.colors.primary;
 
   const animatedStyle = useAnimatedStyle(() => ({
     width: `${progressAnim.value * 100}%`,
@@ -66,8 +69,8 @@ export function ProgressBar({
           animatedStyle,
           {
             height: barHeight,
-            backgroundColor: barColor,
             borderRadius: theme.radius.full,
+            backgroundColor: fillColor,
           },
         ]}
       />

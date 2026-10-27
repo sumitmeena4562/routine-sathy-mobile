@@ -36,6 +36,7 @@ export interface ButtonProps {
   loading?: boolean;
   disabled?: boolean;
   fullWidth?: boolean;
+  pill?: boolean;
   haptic?: boolean;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
@@ -52,6 +53,7 @@ export function Button({
   loading = false,
   disabled = false,
   fullWidth = false,
+  pill = true,
   haptic = true,
   style,
   textStyle,
@@ -80,10 +82,10 @@ export function Button({
       ? theme.spacing.md
       : size === 'lg'
       ? theme.spacing['2xl']
-      : theme.spacing.lg;
+      : theme.spacing.xl;
 
-  const fontSize = size === 'sm' ? 14 : size === 'lg' ? 17 : 15;
-  const borderRadius = size === 'sm' ? theme.radius.md : theme.radius.lg;
+  const fontSize = size === 'sm' ? 14 : size === 'lg' ? 16.5 : 15;
+  const borderRadius = pill ? theme.radius.full : theme.radius.xl;
 
   // Variant styling
   let backgroundColor: string = theme.colors.primary;
@@ -97,13 +99,15 @@ export function Button({
       textColor = theme.colors.primaryForeground;
       break;
     case 'secondary':
-      backgroundColor = theme.colors.secondaryMuted;
-      textColor = theme.colors.primary;
+      backgroundColor = theme.colors.backgroundElement;
+      textColor = theme.colors.text;
+      borderColor = theme.colors.border;
+      borderWidth = theme.borderWidth.thin;
       break;
     case 'outline':
       backgroundColor = 'transparent';
-      textColor = theme.colors.primary;
-      borderColor = theme.colors.primaryBorder;
+      textColor = theme.colors.text;
+      borderColor = theme.colors.border;
       borderWidth = theme.borderWidth.thin;
       break;
     case 'glass':
@@ -132,6 +136,8 @@ export function Button({
     borderColor = 'transparent';
   }
 
+  const isPrimary = variant === 'primary' && !disabled;
+
   return (
     <Pressable
       onPress={handlePress}
@@ -148,17 +154,39 @@ export function Button({
           backgroundColor,
           borderColor,
           borderWidth,
-          alignSelf: fullWidth ? 'stretch' : 'flex-start',
-          opacity: pressed ? 0.8 : 1,
+          width: fullWidth ? '100%' : 'auto',
+          opacity: pressed ? 0.88 : 1,
+          transform: [{ scale: pressed ? 0.985 : 1 }],
+          overflow: 'hidden',
+          ...(variant === 'glass' && Platform.OS === 'web'
+            ? ({
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+              } as any)
+            : {}),
         },
-        variant === 'primary' && !disabled ? theme.shadows.sm : undefined,
+        isPrimary
+          ? {
+              shadowColor: '#000000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: theme.isDark ? 0.3 : 0.12,
+              shadowRadius: 10,
+              elevation: 3,
+            }
+          : undefined,
         style,
       ]}>
       {loading ? (
-        <ActivityIndicator size="small" color={textColor} />
+        <ActivityIndicator
+          size="small"
+          color={textColor}
+          style={styles.spinner}
+        />
       ) : (
         <View style={styles.contentRow}>
-          {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}
+          {icon && iconPosition === 'left' && (
+            <View style={styles.leftIcon}>{icon}</View>
+          )}
           <Text
             style={[
               styles.text,
@@ -170,7 +198,9 @@ export function Button({
             ]}>
             {title}
           </Text>
-          {icon && iconPosition === 'right' && <View style={styles.iconRight}>{icon}</View>}
+          {icon && iconPosition === 'right' && (
+            <View style={styles.rightIcon}>{icon}</View>
+          )}
         </View>
       )}
     </Pressable>
@@ -179,23 +209,28 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     flexDirection: 'row',
+    position: 'relative',
   },
   contentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 2,
   },
   text: {
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
-  iconLeft: {
+  leftIcon: {
     marginRight: 8,
   },
-  iconRight: {
+  rightIcon: {
     marginLeft: 8,
+  },
+  spinner: {
+    zIndex: 2,
   },
 });

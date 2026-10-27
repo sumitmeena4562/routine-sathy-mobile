@@ -1,17 +1,21 @@
-import React from 'react';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import React, { useEffect } from 'react';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { RoutineThemeProvider } from '@/context/ThemeContext';
+import { OnboardingProvider } from '@/context/OnboardingContext';
 import { useTheme } from '@/hooks/use-theme';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootNavigator() {
   const theme = useTheme();
+
+  useEffect(() => {
+    // Dismiss native static splash screen smoothly
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   // Map centralized tokens to React Navigation Theme
   const navigationTheme = {
@@ -29,9 +33,12 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <AnimatedSplashOverlay />
-      <AppTabs />
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found" options={{ headerShown: false }} />
+      </Stack>
     </ThemeProvider>
   );
 }
@@ -39,7 +46,9 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <RoutineThemeProvider>
-      <RootNavigator />
+      <OnboardingProvider>
+        <RootNavigator />
+      </OnboardingProvider>
     </RoutineThemeProvider>
   );
 }

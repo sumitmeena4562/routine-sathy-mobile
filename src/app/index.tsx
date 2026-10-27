@@ -1,299 +1,289 @@
-import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
+import React, { useCallback, useEffect } from 'react';
 import {
-  Badge,
-  Button,
-  Card,
-  HabitCheckControl,
-  IconButton,
-  ProgressBar,
-  ScreenContainer,
-  ScreenHeader,
-} from '@/components/ui';
-import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import Svg, {
+  Circle,
+  Defs,
+  G,
+  Path,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
-interface RoutineHabit {
-  id: string;
-  title: string;
-  timeOfDay: 'Morning' | 'Afternoon' | 'Evening';
-  category: string;
-  completed: boolean;
-  streakCount: number;
-  duration: string;
-}
+/**
+ * Three subtle pill dots matching the modern onboarding pagination style.
+ */
+function ModernPillLoader() {
+  const dot1 = useSharedValue(0.3);
+  const dot2 = useSharedValue(0.3);
+  const dot3 = useSharedValue(0.3);
 
-export default function HomeScreen() {
-  const theme = useTheme();
-
-  const [habits, setHabits] = useState<RoutineHabit[]>([
-    {
-      id: '1',
-      title: 'Morning Pranayama & Meditation',
-      timeOfDay: 'Morning',
-      category: 'Mindfulness',
-      completed: true,
-      streakCount: 14,
-      duration: '15m',
-    },
-    {
-      id: '2',
-      title: 'Hydration Goal (2L Water)',
-      timeOfDay: 'Morning',
-      category: 'Health',
-      completed: true,
-      streakCount: 7,
-      duration: 'All day',
-    },
-    {
-      id: '3',
-      title: 'Deep Focused Work Sprint',
-      timeOfDay: 'Afternoon',
-      category: 'Focus',
-      completed: false,
-      streakCount: 5,
-      duration: '90m',
-    },
-    {
-      id: '4',
-      title: 'Evening Walk & Tech Detachment',
-      timeOfDay: 'Evening',
-      category: 'Wellness',
-      completed: false,
-      streakCount: 12,
-      duration: '30m',
-    },
-  ]);
-
-  const completedCount = habits.filter((h) => h.completed).length;
-  const progressRatio = habits.length > 0 ? completedCount / habits.length : 0;
-  const progressPercent = Math.round(progressRatio * 100);
-
-  const toggleHabit = (id: string) => {
-    setHabits((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, completed: !h.completed } : h))
+  useEffect(() => {
+    dot1.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
     );
-  };
+
+    dot2.value = withDelay(
+      200,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+        ),
+        -1,
+        true
+      )
+    );
+
+    dot3.value = withDelay(
+      400,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+        ),
+        -1,
+        true
+      )
+    );
+  }, [dot1, dot2, dot3]);
+
+  const style1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
+  const style2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
+  const style3 = useAnimatedStyle(() => ({ opacity: dot3.value }));
 
   return (
-    <ScreenContainer scrollable>
-      {/* 1. Top Header with Quick Theme Mode Switcher */}
-      <ScreenHeader
-        title="Routine Sathy"
-        subtitle="Your daily mindfulness & habit flow"
-        rightAction={
-          <IconButton
-            variant="glass"
-            shape="circle"
-            size="md"
-            onPress={theme.toggleTheme}
-            accessibilityLabel="Toggle Theme Mode"
-            icon={
-              <Ionicons
-                name={theme.isDark ? 'sunny-outline' : 'moon-outline'}
-                size={20}
-                color={theme.colors.primary}
-              />
-            }
-          />
-        }
-      />
+    <View style={styles.loaderRow}>
+      <Animated.View style={[styles.pillActive, style1]} />
+      <Animated.View style={[styles.dotSmall, style2]} />
+      <Animated.View style={[styles.dotSmall, style3]} />
+    </View>
+  );
+}
 
-      {/* 2. Daily Routine Overview Card */}
-      <Card variant="surface" style={styles.overviewCard}>
-        <View style={styles.overviewHeader}>
-          <View>
-            <ThemedText type="label" style={{ color: theme.colors.primary }}>
-              {"TODAY'S MOMENTUM"}
-            </ThemedText>
-            <ThemedText type="title" style={{ marginTop: 2 }}>
-              {progressPercent}% Complete
-            </ThemedText>
-          </View>
-          <Badge
-            label={`${completedCount}/${habits.length} Done`}
-            variant={progressRatio === 1 ? 'success' : 'primary'}
-            size="md"
-          />
-        </View>
+export default function SplashScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isCompact = windowHeight < 700 || windowWidth < 380;
 
-        <ProgressBar
-          progress={progressRatio}
-          height={10}
-          style={{ marginTop: theme.spacing.md }}
-        />
+  // Gentle breathing motion
+  const scale = useSharedValue(1);
 
-        <View style={[styles.statsRow, { borderTopColor: theme.colors.border }]}>
-          <View style={styles.statItem}>
-            <Ionicons name="flame" size={18} color={theme.colors.warning} />
-            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
-              14 Day Streak
-            </ThemedText>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="trophy-outline" size={18} color={theme.colors.primary} />
-            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
-              Top 5% Flow
-            </ThemedText>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="shield-checkmark-outline" size={18} color={theme.colors.success} />
-            <ThemedText type="smallBold" style={{ marginLeft: 4 }}>
-              Protected
-            </ThemedText>
-          </View>
-        </View>
-      </Card>
+  const handleProceed = useCallback(() => {
+    router.replace('/onboarding');
+  }, [router]);
 
-      {/* 3. Daily Habits Section */}
-      <View style={styles.sectionHeaderRow}>
-        <ThemedText type="heading">{"Today's Habits"}</ThemedText>
-        <Badge
-          label="Automated Sync"
-          variant="secondary"
-          size="sm"
-          icon={<Ionicons name="cloud-done-outline" size={12} color={theme.colors.secondaryForeground} />}
-        />
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleProceed();
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [handleProceed]);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.025, { duration: 2200, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.98, { duration: 2200, easing: Easing.inOut(Easing.sin) })
+      ),
+      -1,
+      true
+    );
+  }, [scale]);
+
+  const animatedEmblemStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const iconTileSize = isCompact ? 104 : 120;
+
+  return (
+    <Pressable onPress={handleProceed} style={styles.root}>
+      {/* Native Dark Status Bar on Pure White Canvas */}
+      <StatusBar style="dark" />
+
+      {/* Main Center Content */}
+      <View style={styles.centerContainer}>
+        {/* Animated Lifestyle Brand Insignia (Warm Amber Sun + Midnight Navy Emblem) */}
+        <Animated.View style={[styles.emblemWrapper, animatedEmblemStyle]}>
+          <Svg width={iconTileSize} height={iconTileSize} viewBox="0 0 120 120" fill="none">
+            <Defs>
+              <RadialGradient id="splashSunGrad" cx="50%" cy="50%" rx="50%" ry="50%">
+                <Stop offset="0%" stopColor="#FFF7ED" stopOpacity="1" />
+                <Stop offset="70%" stopColor="#FFEDD5" stopOpacity="0.8" />
+                <Stop offset="100%" stopColor="#FED7AA" stopOpacity="0.3" />
+              </RadialGradient>
+            </Defs>
+
+            {/* Warm Sunrise Sun Backdrop */}
+            <Circle cx="60" cy="60" r="54" fill="url(#splashSunGrad)" />
+            <Circle cx="60" cy="60" r="54" stroke="#FED7AA" strokeWidth="1.5" />
+
+            {/* Gentle Radiating Dawn Rays */}
+            <G stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" opacity="0.85">
+              <Path d="M 60 12 L 60 4" />
+              <Path d="M 94 26 L 100 20" />
+              <Path d="M 108 60 L 116 60" />
+              <Path d="M 94 94 L 100 100" />
+              <Path d="M 26 26 L 20 20" />
+              <Path d="M 12 60 L 4 60" />
+              <Path d="M 26 94 L 20 100" />
+            </G>
+
+            {/* Sacred Sathy Lotus & Circadian Rhythm Curves (Deep Midnight Navy #0F172A) */}
+            {/* Outer Circadian Arc */}
+            <Path
+              d="M 60 28 C 76 28, 88 40, 88 60 C 88 74, 78 86, 60 86"
+              stroke="#0F172A"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+            <Path
+              d="M 60 86 C 44 86, 32 74, 32 60 C 32 46, 42 34, 52 30"
+              stroke="#0F172A"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+
+            {/* Sunrise Habit Anchor Dots */}
+            <Circle cx="60" cy="28" r="4" fill="#F97316" />
+            <Circle cx="88" cy="60" r="3.5" fill="#F97316" />
+            <Circle cx="60" cy="86" r="4" fill="#F97316" />
+            <Circle cx="32" cy="60" r="3.5" fill="#F97316" />
+
+            {/* Central Awakening Lotus Petal */}
+            <Path
+              d="M 60 38 C 55 48, 54 58, 60 70 C 66 58, 65 48, 60 38 Z"
+              fill="#0F172A"
+            />
+            {/* Left Petal */}
+            <Path
+              d="M 60 70 C 52 64, 46 58, 44 52 C 43 47, 47 45, 50 47 C 55 50, 58 58, 60 70 Z"
+              fill="#0F172A"
+            />
+            {/* Right Petal */}
+            <Path
+              d="M 60 70 C 68 64, 74 58, 76 52 C 77 47, 73 45, 70 47 C 65 50, 62 58, 60 70 Z"
+              fill="#0F172A"
+            />
+
+            {/* Golden Core Dawn Spark */}
+            <Circle cx="60" cy="60" r="3" fill="#F97316" />
+          </Svg>
+        </Animated.View>
+
+        {/* Brand App Title */}
+        <Text style={[styles.brandTitle, isCompact && styles.brandTitleCompact]}>
+          Routine Sathy
+        </Text>
+
+        {/* Brand Subtitle Tagline */}
+        <Text style={[styles.brandTagline, isCompact && styles.brandTaglineCompact]}>
+          Your Mindful Daily Rhythm
+        </Text>
       </View>
 
-      <View style={styles.habitsList}>
-        {habits.map((habit) => (
-          <Card
-            key={habit.id}
-            variant={habit.completed ? 'surface' : 'outline'}
-            style={[
-              styles.habitCard,
-              habit.completed && {
-                borderColor: theme.colors.successBorder,
-                borderWidth: theme.borderWidth.thin,
-              },
-            ]}
-            onPress={() => toggleHabit(habit.id)}>
-            <View style={styles.habitContent}>
-              <HabitCheckControl
-                completed={habit.completed}
-                streakCount={habit.streakCount}
-                onToggle={() => toggleHabit(habit.id)}
-              />
-              <View style={styles.habitInfo}>
-                <ThemedText
-                  type="bodyMedium"
-                  style={[
-                    styles.habitTitle,
-                    habit.completed && {
-                      color: theme.colors.textSecondary,
-                      textDecorationLine: 'line-through',
-                    },
-                  ]}>
-                  {habit.title}
-                </ThemedText>
-                <View style={styles.habitMeta}>
-                  <ThemedText type="caption" style={{ color: theme.colors.textSecondary }}>
-                    {habit.timeOfDay} • {habit.duration}
-                  </ThemedText>
-                  <Badge
-                    label={habit.category}
-                    variant={habit.completed ? 'success' : 'neutral'}
-                    size="sm"
-                  />
-                </View>
-              </View>
-            </View>
-          </Card>
-        ))}
+      {/* Bottom Modern Pill Loader (Docked above physical bottom) */}
+      <View
+        style={[
+          styles.bottomLoaderContainer,
+          { bottom: Math.max(insets.bottom + 28, 48) },
+        ]}>
+        <ModernPillLoader />
       </View>
-
-      {/* 4. Action Banner */}
-      <Card variant="muted" style={styles.actionBanner}>
-        <View style={styles.bannerRow}>
-          <View style={{ flex: 1 }}>
-            <ThemedText type="heading">Design System Active</ThemedText>
-            <ThemedText type="caption" style={{ color: theme.colors.textSecondary, marginTop: 4 }}>
-              Current mode: <ThemedText type="code">{theme.mode.toUpperCase()}</ThemedText> • Primary token:{' '}
-              <ThemedText type="code">{theme.colors.primary}</ThemedText>
-            </ThemedText>
-          </View>
-          <Button
-            title={theme.isDark ? 'Light Mode' : 'Dark Mode'}
-            variant="primary"
-            size="sm"
-            onPress={theme.toggleTheme}
-            icon={
-              <Ionicons
-                name={theme.isDark ? 'sunny' : 'moon'}
-                size={14}
-                color={theme.colors.primaryForeground}
-              />
-            }
-          />
-        </View>
-      </Card>
-    </ScreenContainer>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  overviewCard: {
-    marginTop: Spacing.lg,
-  },
-  overviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing.lg,
-    paddingTop: Spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: Spacing['2xl'],
-    marginBottom: Spacing.md,
-  },
-  habitsList: {
-    gap: Spacing.md,
-  },
-  habitCard: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-  },
-  habitContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  habitInfo: {
+  root: {
     flex: 1,
-    marginLeft: Spacing.md,
+    backgroundColor: '#FFFFFF', // Pure crisp white canvas
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  habitTitle: {
-    fontWeight: '600',
+  centerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    width: '100%',
+    maxWidth: 440,
   },
-  habitMeta: {
+  emblemWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  brandTitle: {
+    fontSize: 29,
+    fontWeight: '800',
+    letterSpacing: -0.7,
+    color: '#0F172A', // Deep midnight navy
+    textAlign: 'center',
+  },
+  brandTitleCompact: {
+    fontSize: 25,
+    letterSpacing: -0.5,
+  },
+  brandTagline: {
+    fontSize: 14.5,
+    fontWeight: '500',
+    color: '#64748B', // Clean slate gray
+    marginTop: 8,
+    textAlign: 'center',
+    letterSpacing: -0.1,
+  },
+  brandTaglineCompact: {
+    fontSize: 13.5,
+    marginTop: 6,
+  },
+  bottomLoaderContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.xs,
+    justifyContent: 'center',
+    gap: 8,
   },
-  actionBanner: {
-    marginTop: Spacing['2xl'],
-    marginBottom: Spacing.lg,
+  pillActive: {
+    width: 24,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#0F172A',
   },
-  bannerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  dotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#CBD5E1',
   },
 });

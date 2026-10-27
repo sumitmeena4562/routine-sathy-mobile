@@ -108,4 +108,43 @@ export const authService = {
     );
     return response.data;
   },
+
+  /**
+   * Update user display name.
+   */
+  async updateProfile(params: { name: string }): Promise<User> {
+    const response = await api.put<User>('/auth/profile', params);
+    if (response.data) {
+      await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data));
+    }
+    return response.data;
+  },
+
+  /**
+   * Change user password.
+   */
+  async changePassword(params: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const response = await api.put<{ success: boolean; message: string }>(
+      '/auth/change-password',
+      params
+    );
+    return response.data;
+  },
+
+  /**
+   * Update user settings (notifications, reminders).
+   */
+  async updateSettings(settings: {
+    morningReminder?: boolean;
+    eveningReminder?: boolean;
+  }): Promise<{ success: boolean; settings: Record<string, unknown> }> {
+    const response = await api.put<{ success: boolean; settings: Record<string, unknown> }>(
+      '/auth/settings',
+      settings
+    );
+    return response.data;
+  },
 };

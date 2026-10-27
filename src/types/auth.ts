@@ -1,8 +1,18 @@
+export interface UserSettings {
+  morningReminder?: boolean;
+  eveningReminder?: boolean;
+  soundEffects?: boolean;
+  vibration?: boolean;
+  quietHoursStart?: string;
+  quietHoursEnd?: string;
+}
+
 export interface User {
   _id: string;
   name: string;
   email: string;
   role?: string;
+  settings?: UserSettings;
   createdAt?: string;
   updatedAt?: string;
 }

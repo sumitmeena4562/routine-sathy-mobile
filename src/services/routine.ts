@@ -65,6 +65,17 @@ export const routineService = {
   },
 
   /**
+   * Updates default targets/goals for the user.
+   */
+  async updateUserGoals(goals: Partial<UserGoals>): Promise<UserGoals> {
+    const response = await api.put<{ success: boolean; goals: UserGoals }>(
+      '/auth/goals',
+      goals
+    );
+    return response.data.goals;
+  },
+
+  /**
    * Retrieves overall streak and performance statistics.
    */
   async getRoutineStats(): Promise<RoutineStats> {

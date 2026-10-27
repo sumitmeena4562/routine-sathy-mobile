@@ -84,13 +84,15 @@ export default function ForgotPasswordScreen() {
     setToast(null);
 
     try {
-      await authService.forgotPassword(email.trim().toLowerCase());
+      const res = await authService.sendPasswordResetOtp(email.trim().toLowerCase());
 
-      // Server always returns 200 (doesn't reveal if email exists).
-      // Navigate to confirmation screen on success.
+      // Navigate to OTP verification & password reset screen (include devOtp if in dev mode)
       router.replace({
-        pathname: '/check-email',
-        params: { email: email.trim().toLowerCase() },
+        pathname: '/reset-password-otp',
+        params: {
+          email: email.trim().toLowerCase(),
+          ...(res.otp ? { devOtp: res.otp } : {}),
+        },
       });
     } catch (err: unknown) {
       const msg =
@@ -171,6 +173,21 @@ export default function ForgotPasswordScreen() {
               <RoutineSathyEmblem size={emblemSize} />
             </View>
 
+            {/* Under Development Badge */}
+            <View
+              style={[
+                styles.underDevBadge,
+                {
+                  backgroundColor: theme.isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
+                  borderColor: theme.isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+                },
+              ]}>
+              <Ionicons name="construct-outline" size={13} color={theme.colors.warning} />
+              <Text style={[styles.underDevText, { color: theme.colors.warning }]}>
+                Under Development
+              </Text>
+            </View>
+
             <Text
               style={[
                 styles.title,
@@ -187,7 +204,7 @@ export default function ForgotPasswordScreen() {
                 { color: theme.colors.textSecondary },
                 isCompact && styles.subtitleCompact,
               ]}>
-              Enter your email and we&apos;ll send you a link to reset your password.
+              Enter your registered email and we&apos;ll send you a 6-digit verification code.
             </Text>
           </View>
 
@@ -219,7 +236,7 @@ export default function ForgotPasswordScreen() {
 
           {/* CTA Button */}
           <Button
-            title="Send Reset Link"
+            title="Send Verification Code"
             onPress={handleSendLink}
             loading={loading}
             variant="primary"
@@ -297,6 +314,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 14,
+  },
+  underDevBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 5,
+    marginBottom: 14,
+  },
+  underDevText: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   title: {
     fontSize: 27,

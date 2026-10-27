@@ -24,6 +24,7 @@ import {
 } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
+import { getTodayDateString, routineService } from '@/services/routine';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
@@ -105,6 +106,22 @@ export default function LoginScreen() {
         type: 'success',
         message: response.message || 'Logged in successfully! Welcome back.',
       });
+
+      let nextRoute: '/(tabs)/today' | '/add-routine' = '/(tabs)/today';
+      try {
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
+        const routinePromise = routineService.getTodayRoutine(getTodayDateString());
+        const todayRoutine = await Promise.race([routinePromise, timeoutPromise]);
+        if (!todayRoutine) {
+          nextRoute = '/add-routine';
+        }
+      } catch {
+        nextRoute = '/(tabs)/today';
+      }
+
+      setTimeout(() => {
+        router.replace(nextRoute);
+      }, 300);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';
       setToast({
@@ -235,6 +252,8 @@ export default function LoginScreen() {
               }}
               isPassword
               autoCapitalize="none"
+              returnKeyType="go"
+              onSubmitEditing={handleLogin}
               errorMessage={errors.password}
               leftIcon={
                 <Ionicons
@@ -249,7 +268,14 @@ export default function LoginScreen() {
           {/* Forgot Password */}
           <View style={styles.forgotPasswordContainer}>
             <Pressable
-              onPress={() => router.push('/forgot-password')}
+              onPress={() => {
+                triggerHaptic('light');
+                setToast({
+                  visible: true,
+                  type: 'info',
+                  message: 'Forgot Password is under development. Coming soon!',
+                });
+              }}
               hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel="Forgot Password">

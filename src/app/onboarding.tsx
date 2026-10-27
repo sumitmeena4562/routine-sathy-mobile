@@ -15,6 +15,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  interpolateColor,
+  SharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 import {
   DawnAwakeningIllustration,
@@ -61,6 +70,50 @@ const SLIDES: OnboardingSlide[] = [
   },
 ];
 
+interface AnimatedDotProps {
+  index: number;
+  scrollX: SharedValue<number>;
+  width: number;
+  isDark: boolean;
+}
+
+function AnimatedDot({ index, scrollX, width, isDark }: AnimatedDotProps) {
+  const animatedDotStyle = useAnimatedStyle(() => {
+    const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
+
+    const dotWidth = interpolate(
+      scrollX.value,
+      inputRange,
+      [8, 28, 8],
+      Extrapolation.CLAMP
+    );
+
+    const opacity = interpolate(
+      scrollX.value,
+      inputRange,
+      [0.4, 1, 0.4],
+      Extrapolation.CLAMP
+    );
+
+    const activeColor = isDark ? '#FFFFFF' : '#0F172A';
+    const inactiveColor = isDark ? '#475569' : '#CBD5E1';
+
+    const backgroundColor = interpolateColor(
+      scrollX.value,
+      inputRange,
+      [inactiveColor, activeColor, inactiveColor]
+    );
+
+    return {
+      width: dotWidth,
+      opacity,
+      backgroundColor,
+    };
+  });
+
+  return <Animated.View style={[styles.dotBase, animatedDotStyle]} />;
+}
+
 export default function OnboardingScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -77,15 +130,24 @@ export default function OnboardingScreen() {
   const illustrationHeight = isCompact ? 200 : 240;
   const illustrationWidth = Math.max(Math.min(rawWidth - 48, 320), 240);
 
-  const handleScroll = useCallback(
+  // Shared scroll offset for fluid interactive dot animation
+  const scrollX = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollX.value = event.contentOffset.x;
+    },
+  });
+
+  const onMomentumScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const offsetX = e.nativeEvent.contentOffset.x;
       const index = Math.round(offsetX / rawWidth);
-      if (index !== currentIndex && index >= 0 && index < SLIDES.length) {
+      if (index >= 0 && index < SLIDES.length) {
         setCurrentIndex(index);
       }
     },
-    [currentIndex, rawWidth]
+    [rawWidth]
   );
 
   const handleNext = useCallback(async () => {
@@ -157,8 +219,8 @@ export default function OnboardingScreen() {
       </View>
 
       {/* Main Swipeable Carousel */}
-      <FlatList
-        ref={flatListRef}
+      <Animated.FlatList
+        ref={flatListRef as any}
         data={SLIDES}
         keyExtractor={(item) => item.id}
         horizontal
@@ -167,8 +229,8 @@ export default function OnboardingScreen() {
         bounces={false}
         initialNumToRender={3}
         scrollEventThrottle={16}
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleScroll}
+        onScroll={scrollHandler}
+        onMomentumScrollEnd={onMomentumScrollEnd}
         getItemLayout={(_, index) => ({
           length: rawWidth,
           offset: rawWidth * index,
@@ -205,7 +267,7 @@ export default function OnboardingScreen() {
         )}
       />
 
-      {/* Bottom Docked Section: Pagination Dots + Bold Pill CTA */}
+      {/* Bottom Docked Section: Smooth Animated Pill Dots + Bold Pill CTA */}
       <View
         style={[
           styles.bottomControls,
@@ -215,36 +277,17 @@ export default function OnboardingScreen() {
             paddingRight: insets.right + 24,
           },
         ]}>
-        {/* Modern Pill Pagination Dots (Exact screenshot style) */}
+        {/* Smooth Animated Expanding Pill Dots (Apple/Airbnb style) */}
         <View style={styles.paginationRow}>
-          {SLIDES.map((_, index) => {
-            const isActive = index === currentIndex;
-            return (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  isActive
-                    ? [
-                        styles.dotActive,
-                        {
-                          backgroundColor: theme.isDark
-                            ? '#FFFFFF'
-                            : '#0F172A',
-                        },
-                      ]
-                    : [
-                        styles.dotInactive,
-                        {
-                          backgroundColor: theme.isDark
-                            ? '#334155'
-                            : '#CBD5E1',
-                        },
-                      ],
-                ]}
-              />
-            );
-          })}
+          {SLIDES.map((_, index) => (
+            <AnimatedDot
+              key={index}
+              index={index}
+              scrollX={scrollX}
+              width={rawWidth}
+              isDark={theme.isDark}
+            />
+          ))}
         </View>
 
         {/* Solid Black/Navy Pill CTA Button */}
@@ -357,16 +400,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    height: 14,
   },
-  dot: {
-    height: 7,
-    borderRadius: 3.5,
-  },
-  dotActive: {
-    width: 28,
-  },
-  dotInactive: {
-    width: 7,
+  dotBase: {
+    height: 8,
+    borderRadius: 4,
   },
   primaryPillButton: {
     width: '100%',

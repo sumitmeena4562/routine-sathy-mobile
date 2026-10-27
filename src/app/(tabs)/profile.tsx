@@ -115,7 +115,7 @@ export default function ProfileScreen() {
       if (type === 'warning') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } else if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }

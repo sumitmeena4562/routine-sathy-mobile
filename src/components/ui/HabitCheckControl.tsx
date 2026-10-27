@@ -54,8 +54,8 @@ export function HabitCheckControl({
 
     if (Platform.OS !== 'web') {
       if (!completed) {
-        // Successful habit completion haptic
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        // Successful habit completion: snappy crisp medium impact
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }

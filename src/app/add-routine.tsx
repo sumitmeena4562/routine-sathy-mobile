@@ -206,7 +206,7 @@ export default function AddRoutineScreen() {
   const triggerHaptic = useCallback((type: 'light' | 'success' | 'warning') => {
     if (Platform.OS !== 'web') {
       if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } else if (type === 'warning') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } else {

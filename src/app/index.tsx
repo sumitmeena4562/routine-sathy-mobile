@@ -30,9 +30,9 @@ import Animated, {
 } from 'react-native-reanimated';
 
 /**
- * Three subtle pill dots matching the modern onboarding pagination style.
+ * Three delicate animated pulse dots for the splash screen.
  */
-function ModernPillLoader() {
+function SplashWaveLoader() {
   const dot1 = useSharedValue(0.3);
   const dot2 = useSharedValue(0.3);
   const dot3 = useSharedValue(0.3);
@@ -40,19 +40,19 @@ function ModernPillLoader() {
   useEffect(() => {
     dot1.value = withRepeat(
       withSequence(
-        withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-        withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+        withTiming(1, { duration: 500, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0.3, { duration: 500, easing: Easing.inOut(Easing.quad) })
       ),
       -1,
       true
     );
 
     dot2.value = withDelay(
-      200,
+      150,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.3, { duration: 500, easing: Easing.inOut(Easing.quad) })
         ),
         -1,
         true
@@ -60,11 +60,11 @@ function ModernPillLoader() {
     );
 
     dot3.value = withDelay(
-      400,
+      300,
       withRepeat(
         withSequence(
-          withTiming(1, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-          withTiming(0.3, { duration: 600, easing: Easing.inOut(Easing.quad) })
+          withTiming(1, { duration: 500, easing: Easing.inOut(Easing.quad) }),
+          withTiming(0.3, { duration: 500, easing: Easing.inOut(Easing.quad) })
         ),
         -1,
         true
@@ -72,15 +72,24 @@ function ModernPillLoader() {
     );
   }, [dot1, dot2, dot3]);
 
-  const style1 = useAnimatedStyle(() => ({ opacity: dot1.value }));
-  const style2 = useAnimatedStyle(() => ({ opacity: dot2.value }));
-  const style3 = useAnimatedStyle(() => ({ opacity: dot3.value }));
+  const style1 = useAnimatedStyle(() => ({
+    opacity: dot1.value,
+    transform: [{ scale: 0.8 + dot1.value * 0.4 }],
+  }));
+  const style2 = useAnimatedStyle(() => ({
+    opacity: dot2.value,
+    transform: [{ scale: 0.8 + dot2.value * 0.4 }],
+  }));
+  const style3 = useAnimatedStyle(() => ({
+    opacity: dot3.value,
+    transform: [{ scale: 0.8 + dot3.value * 0.4 }],
+  }));
 
   return (
     <View style={styles.loaderRow}>
-      <Animated.View style={[styles.pillActive, style1]} />
-      <Animated.View style={[styles.dotSmall, style2]} />
-      <Animated.View style={[styles.dotSmall, style3]} />
+      <Animated.View style={[styles.loaderDot, style1]} />
+      <Animated.View style={[styles.loaderDot, style2]} />
+      <Animated.View style={[styles.loaderDot, style3]} />
     </View>
   );
 }
@@ -219,13 +228,14 @@ export default function SplashScreen() {
         </Text>
       </View>
 
-      {/* Bottom Modern Pill Loader (Docked above physical bottom) */}
+      {/* Bottom Subtle Wave Loader & App Version */}
       <View
         style={[
           styles.bottomLoaderContainer,
-          { bottom: Math.max(insets.bottom + 28, 48) },
+          { bottom: Math.max(insets.bottom + 20, 36) },
         ]}>
-        <ModernPillLoader />
+        <SplashWaveLoader />
+        <Text style={styles.versionText}>Routine Sathy v1.0.1</Text>
       </View>
     </Pressable>
   );
@@ -280,6 +290,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
   },
   loaderRow: {
     flexDirection: 'row',
@@ -287,16 +298,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  pillActive: {
-    width: 24,
-    height: 6,
-    borderRadius: 3,
+  loaderDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#0F172A',
   },
-  dotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#CBD5E1',
+  versionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#94A3B8',
+    letterSpacing: 0.3,
   },
 });

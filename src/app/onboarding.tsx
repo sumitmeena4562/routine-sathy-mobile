@@ -5,6 +5,7 @@ import {
   NativeSyntheticEvent,
   Platform,
   Pressable,
+  StatusBar as RNStatusBar,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -120,7 +121,10 @@ export default function OnboardingScreen() {
         style={[
           styles.topBar,
           {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
+            paddingTop:
+              Platform.OS === 'android'
+                ? Math.max(insets.top, RNStatusBar.currentHeight ?? 36) + 10
+                : Math.max(insets.top, 20) + 8,
             paddingLeft: insets.left + 24,
             paddingRight: insets.right + 24,
           },
@@ -134,9 +138,16 @@ export default function OnboardingScreen() {
             accessibilityLabel="Skip onboarding"
             style={({ pressed }) => [
               styles.skipButton,
+              {
+                backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
+              },
               pressed && styles.buttonPressed,
             ]}>
-            <Text style={[styles.skipText, { color: theme.colors.textSecondary }]}>
+            <Text
+              style={[
+                styles.skipText,
+                { color: theme.isDark ? '#94A3B8' : '#475569' },
+              ]}>
               Skip
             </Text>
           </Pressable>
@@ -272,19 +283,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     zIndex: 10,
-    height: 48,
+    minHeight: 44,
   },
   topBarPlaceholder: {
     width: 44,
   },
   skipButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   skipText: {
-    fontSize: 14.5,
+    fontSize: 13.5,
     fontWeight: '600',
-    letterSpacing: -0.2,
+    letterSpacing: -0.1,
   },
   carouselList: {
     flex: 1,
@@ -345,14 +359,14 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dot: {
-    height: 6,
-    borderRadius: 3,
+    height: 7,
+    borderRadius: 3.5,
   },
   dotActive: {
-    width: 24,
+    width: 28,
   },
   dotInactive: {
-    width: 6,
+    width: 7,
   },
   primaryPillButton: {
     width: '100%',

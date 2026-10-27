@@ -104,15 +104,15 @@ export const Colors = {
     infoForeground: Palette.white,
     infoMuted: 'rgba(2, 132, 199, 0.12)',
 
-    // Surfaces & Backgrounds - Pure Crisp White Canvas
-    background: '#FFFFFF',
+    // Surfaces & Backgrounds - Premium Lifestyle Canvas with Clear Depth
+    background: '#F4F6F9',
     surface: '#FFFFFF',
     surfaceElevated: '#FFFFFF',
     surfaceOverlay: 'rgba(255, 255, 255, 0.94)',
 
     // Background Elements & Interactive Containers
-    backgroundElement: '#F8FAFC',
-    backgroundSelected: '#F1F5F9',
+    backgroundElement: '#EAEFF5',
+    backgroundSelected: '#E2E8F0',
 
     // Text & Content
     text: '#0F172A',
@@ -449,15 +449,15 @@ export const Shadows = {
   sm: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
   md: {
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
   },
   lg: {

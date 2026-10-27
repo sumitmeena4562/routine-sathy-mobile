@@ -50,23 +50,29 @@ export function Card({
   const cardRadius = radius ?? theme.radius.xl;
 
   let backgroundColor: string = theme.colors.surface;
-  let borderColor: string = 'transparent';
-  let borderWidth: number = 0;
+  let borderColor: string = theme.isDark ? 'rgba(255, 255, 255, 0.08)' : theme.colors.border;
+  let borderWidth: number = theme.borderWidth.thin;
 
   switch (variant) {
     case 'surface':
       backgroundColor = theme.colors.surface;
+      borderColor = theme.isDark ? 'rgba(255, 255, 255, 0.08)' : theme.colors.border;
+      borderWidth = theme.borderWidth.thin;
       break;
     case 'elevated':
       backgroundColor = theme.colors.surfaceElevated;
+      borderColor = theme.isDark ? 'rgba(255, 255, 255, 0.12)' : theme.colors.border;
+      borderWidth = theme.borderWidth.thin;
       break;
     case 'outline':
       backgroundColor = theme.colors.surface;
-      borderColor = theme.colors.borderSubtle;
+      borderColor = theme.colors.border;
       borderWidth = theme.borderWidth.thin;
       break;
     case 'muted':
       backgroundColor = theme.colors.backgroundElement;
+      borderColor = 'transparent';
+      borderWidth = 0;
       break;
   }
 

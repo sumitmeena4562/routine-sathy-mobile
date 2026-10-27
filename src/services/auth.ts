@@ -1,0 +1,150 @@
+import {
+  AuthResponse,
+  LoginCredentials,
+  RegisterCredentials,
+  User,
+} from '@/types/auth';
+import { Storage } from '@/utils/storage';
+import { api, AUTH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from './api';
+
+export const authService = {
+  /**
+   * Register a new user with name, email and password.
+   */
+  async register(credentials: RegisterCredentials): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>('/auth/register', credentials);
+    if (response.data.token) {
+      await authService.saveSession(response.data);
+    }
+    return response.data;
+  },
+
+  /**
+   * Login an existing user with email and password.
+   */
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    if (response.data.token) {
+      await authService.saveSession(response.data);
+    }
+    return response.data;
+  },
+
+  /**
+   * Fetch current authenticated user's profile.
+   */
+  async getCurrentUser(): Promise<User> {
+    const response = await api.get<User>('/auth/me');
+    await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data));
+    return response.data;
+  },
+
+  /**
+   * Persist auth token and user profile securely.
+   */
+  async saveSession(auth: AuthResponse): Promise<void> {
+    if (auth.token) {
+      await Storage.setItem(AUTH_TOKEN_STORAGE_KEY, auth.token);
+    }
+    const userProfile: User = {
+      _id: auth._id,
+      name: auth.name,
+      email: auth.email,
+      role: auth.role,
+    };
+    await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(userProfile));
+  },
+
+  /**
+   * Clear session on logout.
+   */
+  async clearSession(): Promise<void> {
+    await Storage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    await Storage.removeItem(USER_STORAGE_KEY);
+  },
+
+  /**
+   * Retrieve saved JWT token.
+   */
+  async getSavedToken(): Promise<string | null> {
+    return await Storage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  },
+
+  /**
+   * Retrieve saved user object from storage.
+   */
+  async getSavedUser(): Promise<User | null> {
+    const raw = await Storage.getItem(USER_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as User;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Request a 6-digit password reset OTP sent to the user's email.
+   */
+  async sendPasswordResetOtp(email: string): Promise<{ success: boolean; message: string; otp?: string }> {
+    const response = await api.post<{ success: boolean; message: string; otp?: string }>(
+      '/auth/forgot-password-otp',
+      { email }
+    );
+    return response.data;
+  },
+
+  /**
+   * Reset user password by verifying the 6-digit OTP code and saving the new password.
+   */
+  async resetPasswordWithOtp(params: {
+    email: string;
+    otp: string;
+    password: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>(
+      '/auth/reset-password-otp',
+      params
+    );
+    return response.data;
+  },
+
+  /**
+   * Update user display name.
+   */
+  async updateProfile(params: { name: string }): Promise<User> {
+    const response = await api.put<User>('/auth/profile', params);
+    if (response.data) {
+      await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data));
+    }
+    return response.data;
+  },
+
+  /**
+   * Change user password.
+   */
+  async changePassword(params: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<{ success: boolean; message: string }> {
+    const response = await api.put<{ success: boolean; message: string }>(
+      '/auth/change-password',
+      params
+    );
+    return response.data;
+  },
+
+  /**
+   * Update user settings (notifications, reminders).
+   */
+  async updateSettings(settings: {
+    morningReminder?: boolean;
+    eveningReminder?: boolean;
+  }): Promise<{ success: boolean; settings: Record<string, unknown> }> {
+    const response = await api.put<{ success: boolean; settings: Record<string, unknown> }>(
+      '/auth/settings',
+      settings
+    );
+    return response.data;
+  },
+};

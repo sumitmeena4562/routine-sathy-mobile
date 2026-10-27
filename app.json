@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "routine-sathy-mobile",
+    "name": "Routine Sathy",
     "slug": "routine-sathy-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,9 +8,12 @@
     "scheme": "routinesathymobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.sathy.routinesathy",
+      "supportsTablet": true
     },
     "android": {
+      "package": "com.sathy.routinesathy",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -38,6 +41,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cf011c13-414a-48e2-9a4a-91ed457440f7"
+      }
     }
   }
 }

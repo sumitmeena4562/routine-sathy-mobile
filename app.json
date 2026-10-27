@@ -2,7 +2,7 @@
   "expo": {
     "name": "Routine Sathy",
     "slug": "routine-sathy-mobile",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "routinesathymobile",
@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.sathy.routinesathy",
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -36,8 +37,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-updates"
     ],
+    "updates": {
+      "url": "https://u.expo.dev/cf011c13-414a-48e2-9a4a-91ed457440f7"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

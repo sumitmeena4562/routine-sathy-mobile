@@ -72,23 +72,13 @@ export function Card({
 
   const shadowStyle = shadow !== 'none' && variant !== 'muted' ? theme.shadows[shadow] : undefined;
 
-  const content = (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor,
-          borderRadius: cardRadius,
-          padding: cardPadding,
-          borderColor,
-          borderWidth,
-        },
-        shadowStyle,
-        style,
-      ]}>
-      {children}
-    </View>
-  );
+  const cardStyles: ViewStyle = {
+    backgroundColor,
+    borderRadius: cardRadius,
+    padding: cardPadding,
+    borderColor,
+    borderWidth,
+  };
 
   if (onPress) {
     return (
@@ -96,13 +86,23 @@ export function Card({
         onPress={handlePress}
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
-        style={({ pressed }) => [{ opacity: pressed ? 0.9 : 1 }]}>
-        {content}
+        style={({ pressed }) => [
+          styles.card,
+          cardStyles,
+          shadowStyle,
+          style,
+          { opacity: pressed ? 0.9 : 1 },
+        ]}>
+        {children}
       </Pressable>
     );
   }
 
-  return content;
+  return (
+    <View style={[styles.card, cardStyles, shadowStyle, style]}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

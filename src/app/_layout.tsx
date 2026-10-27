@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 
 import { RoutineThemeProvider } from '@/context/ThemeContext';
 import { OnboardingProvider } from '@/context/OnboardingContext';
+import { AuthProvider } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -33,10 +34,15 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navigationTheme}>
-      <StatusBar style="dark" />
+      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="welcome" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
+        <Stack.Screen name="check-email" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
     </ThemeProvider>
@@ -47,7 +53,9 @@ export default function RootLayout() {
   return (
     <RoutineThemeProvider>
       <OnboardingProvider>
-        <RootNavigator />
+        <AuthProvider>
+          <RootNavigator />
+        </AuthProvider>
       </OnboardingProvider>
     </RoutineThemeProvider>
   );

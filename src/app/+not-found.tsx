@@ -4,11 +4,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '@/components/ui';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function NotFoundScreen() {
   const router = useRouter();
   const theme = useTheme();
+  const { hasCompletedOnboarding } = useOnboarding();
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -26,10 +28,10 @@ export default function NotFoundScreen() {
       </Text>
 
       <Button
-        title="Return to Onboarding"
+        title="Return Home"
         variant="primary"
         size="md"
-        onPress={() => router.replace('/onboarding')}
+        onPress={() => router.replace(hasCompletedOnboarding ? '/welcome' : '/onboarding')}
         style={styles.button}
       />
     </View>

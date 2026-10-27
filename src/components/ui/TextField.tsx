@@ -46,12 +46,12 @@ export function TextField({
 
   const handleFocus: TextInputProps['onFocus'] = (e) => {
     setIsFocused(true);
-    onFocus?.(e as any);
+    onFocus?.(e);
   };
 
   const handleBlur: TextInputProps['onBlur'] = (e) => {
     setIsFocused(false);
-    onBlur?.(e as any);
+    onBlur?.(e);
   };
 
   const hasError = !!errorMessage;

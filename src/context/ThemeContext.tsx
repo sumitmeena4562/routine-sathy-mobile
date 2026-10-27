@@ -1,4 +1,12 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useColorScheme as useRNColorScheme } from 'react-native';
 
 import {
   AnimationTokens,
@@ -14,6 +22,7 @@ import {
   ThemeMode,
   Typography,
 } from '@/constants/theme';
+import { Storage } from '@/utils/storage';
 
 export type UserThemePreference = 'system' | 'light' | 'dark';
 
@@ -22,6 +31,8 @@ export interface ThemeContextValue extends ThemeBundle {
   setPreference: (pref: UserThemePreference) => void;
   toggleTheme: () => void;
 }
+
+const THEME_PREF_STORAGE_KEY = 'routine_sathy_theme_preference_v1';
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
@@ -34,26 +45,44 @@ export function RoutineThemeProvider({
   children,
   initialPreference = 'light',
 }: RoutineThemeProviderProps) {
-  const [preference, setPreference] = useState<UserThemePreference>(initialPreference);
+  const [preference, setPreferenceState] = useState<UserThemePreference>(initialPreference);
+  const systemScheme = useRNColorScheme();
 
-  // Default theme is pure white ('light') per user requirements
+  // Load saved preference from storage
+  useEffect(() => {
+    async function loadThemePreference() {
+      try {
+        const saved = await Storage.getItem(THEME_PREF_STORAGE_KEY);
+        if (saved === 'light' || saved === 'dark' || saved === 'system') {
+          setPreferenceState(saved);
+        }
+      } catch {
+        // Fallback to default
+      }
+    }
+    loadThemePreference();
+  }, []);
+
+  const setPreference = useCallback((pref: UserThemePreference) => {
+    setPreferenceState(pref);
+    Storage.setItem(THEME_PREF_STORAGE_KEY, pref).catch(() => {});
+  }, []);
+
+  // Determine active mode
   const resolvedMode: ThemeMode = useMemo(() => {
     if (preference === 'system') {
-      return 'light';
+      return systemScheme === 'dark' ? 'dark' : 'light';
     }
     return preference;
-  }, [preference]);
+  }, [preference, systemScheme]);
 
   const isDark = resolvedMode === 'dark';
   const activeColors: ThemeColors = Colors[resolvedMode];
 
   const toggleTheme = useCallback(() => {
-    setPreference((prev) => {
-      if (prev === 'light') return 'dark';
-      if (prev === 'dark') return 'light';
-      return isDark ? 'light' : 'dark';
-    });
-  }, [isDark]);
+    const nextPref: UserThemePreference = isDark ? 'light' : 'dark';
+    setPreference(nextPref);
+  }, [isDark, setPreference]);
 
   const contextValue: ThemeContextValue = useMemo(
     () => ({
@@ -72,7 +101,7 @@ export function RoutineThemeProvider({
       glass: GlassTokens,
       animation: AnimationTokens,
     }),
-    [resolvedMode, isDark, preference, toggleTheme, activeColors]
+    [resolvedMode, isDark, preference, setPreference, toggleTheme, activeColors]
   );
 
   return <ThemeContext.Provider value={contextValue}>{children}</ThemeContext.Provider>;

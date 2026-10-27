@@ -26,7 +26,7 @@ export interface ScreenContainerProps {
 export function ScreenContainer({
   children,
   scrollable = false,
-  withTabInset = true,
+  withTabInset = false,
   withAtmosphere = true,
   style,
   contentContainerStyle,
@@ -35,7 +35,7 @@ export function ScreenContainer({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
-  const bottomPadding = withTabInset
+  const additionalBottomPadding = withTabInset
     ? insets.bottom + BottomTabInset + theme.spacing.lg
     : insets.bottom + theme.spacing.lg;
 
@@ -55,7 +55,7 @@ export function ScreenContainer({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               baseContentStyle,
-              { paddingBottom: bottomPadding, paddingTop: theme.spacing.md },
+              { paddingBottom: additionalBottomPadding, paddingTop: theme.spacing.md },
               contentContainerStyle,
             ]}
             style={[styles.scrollView, style]}
@@ -71,12 +71,12 @@ export function ScreenContainer({
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       {withAtmosphere && <AmbientAtmosphere />}
       <SafeAreaView
-        edges={['top', 'left', 'right', 'bottom']}
+        edges={['top', 'left', 'right']}
         style={[
           styles.safeArea,
           baseContentStyle,
           {
-            paddingBottom: bottomPadding,
+            paddingBottom: additionalBottomPadding,
             paddingTop: theme.spacing.md,
           },
           style,

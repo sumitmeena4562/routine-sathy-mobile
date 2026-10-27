@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 
@@ -60,6 +61,7 @@ const SLIDES: OnboardingSlide[] = [
 ];
 
 export default function OnboardingScreen() {
+  const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -97,23 +99,15 @@ export default function OnboardingScreen() {
       setCurrentIndex(nextIndex);
     } else {
       await completeOnboarding();
-      // Onboarding complete: smooth loop back to start for continuous demonstration & replay
-      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-      setCurrentIndex(0);
+      router.push('/welcome');
     }
-  }, [currentIndex, completeOnboarding, rawWidth]);
+  }, [currentIndex, completeOnboarding, rawWidth, router]);
 
   const handleSkip = useCallback(async () => {
     triggerHaptic();
     await completeOnboarding();
-    const lastIndex = SLIDES.length - 1;
-    try {
-      flatListRef.current?.scrollToIndex({ index: lastIndex, animated: true });
-    } catch {
-      flatListRef.current?.scrollToOffset({ offset: lastIndex * rawWidth, animated: true });
-    }
-    setCurrentIndex(lastIndex);
-  }, [completeOnboarding, rawWidth]);
+    router.push('/welcome');
+  }, [completeOnboarding, router]);
 
   const isLastSlide = currentIndex === SLIDES.length - 1;
 

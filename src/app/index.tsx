@@ -235,7 +235,7 @@ export default function SplashScreen() {
           { bottom: Math.max(insets.bottom + 20, 36) },
         ]}>
         <SplashWaveLoader />
-        <Text style={styles.versionText}>Routine Sathy v1.0.1</Text>
+        <Text style={styles.versionText}>Routine Sathy v1.0.2</Text>
       </View>
     </Pressable>
   );

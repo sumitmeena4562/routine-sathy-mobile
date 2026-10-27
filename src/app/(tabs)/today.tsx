@@ -139,14 +139,14 @@ export default function TodayScreen() {
   }, [fetchRoutine]);
 
   const triggerHaptic = useCallback((type: 'light' | 'success') => {
-    if (Platform.OS !== 'web') {
+    if (Platform.OS !== 'web' && user?.settings?.vibration !== false) {
       if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       }
     }
-  }, []);
+  }, [user?.settings?.vibration]);
 
   const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
     if (!routine) return;

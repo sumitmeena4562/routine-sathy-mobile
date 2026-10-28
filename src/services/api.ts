@@ -9,40 +9,61 @@ export const USER_STORAGE_KEY = 'routine_sathy_auth_user_v1';
 
 /**
  * Resolves the appropriate base API URL depending on environment and platform.
- * - If EXPO_PUBLIC_API_URL is set to a live remote backend (https://), always connect to it!
- * - Android Emulator: uses 10.0.2.2 for local development.
- * - iOS Simulator / Web: uses localhost:5001 for local development.
- * - Expo Go on physical device: dynamically resolves Mac's Wi-Fi IP from Constants.expoConfig?.hostUri.
- * - Fallback: live production backend (https://routine-sathy.vercel.app/api).
+ * 
+ * 1. STANDALONE PRODUCTION APK & RELEASE BUILDS (!__DEV__):
+ *    ALWAYS connects directly to the live secure cloud backend (HTTPS) on Vercel.
+ *    Never attempts to reach 10.0.2.2 or localhost in production, eliminating
+ *    Android cleartext HTTP blocking and network connection errors permanently.
+ * 
+ * 2. LOCAL DEVELOPMENT (__DEV__ === true):
+ *    - If EXPO_PUBLIC_USE_LOCAL is set or URL contains localhost, routes to local backend (port 5001).
+ *      - Android Emulator: http://10.0.2.2:5001/api
+ *      - iOS Simulator / Web: http://localhost:5001/api
+ *      - Physical Device via Expo Go: dynamic Mac IP from hostUri
+ *    - Otherwise, default to live production backend so local dev works seamlessly even without running local server!
  */
 function getApiBaseUrl(): string {
-  // 1. Android Emulator: Android emulator DNS cannot resolve WAN hosts like *.vercel.app reliably.
-  // Routing to 10.0.2.2:5001 connects directly to local backend on Mac (which connects directly to MongoDB Atlas).
-  if (Platform.OS === 'android' && !Device.isDevice) {
-    return 'http://10.0.2.2:5001/api';
+  const cloudBackendUrl = 'https://routine-sathy.vercel.app/api';
+  const configuredUrl = process.env.EXPO_PUBLIC_API_URL;
+
+  // 1. Release / Standalone APK builds: Guaranteed live cloud backend (HTTPS)
+  if (!__DEV__) {
+    return configuredUrl && configuredUrl.startsWith('https://')
+      ? configuredUrl
+      : cloudBackendUrl;
   }
 
-  // 2. iOS Simulator: direct localhost
-  if (Platform.OS === 'ios' && !Device.isDevice) {
-    return 'http://localhost:5001/api';
-  }
+  // 2. Local Development (__DEV__ === true):
+  // Check if developer wants local backend on port 5001
+  const wantsLocal =
+    process.env.EXPO_PUBLIC_USE_LOCAL === 'true' ||
+    (configuredUrl && (configuredUrl.includes('localhost') || configuredUrl.includes('127.0.0.1') || configuredUrl.includes('10.0.2.2')));
 
-  // 3. Web: direct localhost
-  if (Platform.OS === 'web') {
-    return 'http://localhost:5001/api';
-  }
-
-  // 4. Physical device via Expo Go: dynamically resolve Mac IP from Metro connection
-  const hostUri = Constants.expoConfig?.hostUri;
-  if (hostUri) {
-    const hostIp = hostUri.split(':')[0];
-    if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
-      return `http://${hostIp}:5001/api`;
+  if (wantsLocal) {
+    // Android Emulator -> 10.0.2.2 maps to Mac localhost
+    if (Platform.OS === 'android' && !Device.isDevice) {
+      return 'http://10.0.2.2:5001/api';
     }
+
+    // iOS Simulator & Web -> direct localhost
+    if (Platform.OS === 'ios' || Platform.OS === 'web') {
+      return 'http://localhost:5001/api';
+    }
+
+    // Physical Device via Expo Go -> dynamically resolve Mac's LAN IP from Metro connection
+    const hostUri = Constants.expoConfig?.hostUri;
+    if (hostUri) {
+      const hostIp = hostUri.split(':')[0];
+      if (hostIp && hostIp !== 'localhost' && hostIp !== '127.0.0.1') {
+        return `http://${hostIp}:5001/api`;
+      }
+    }
+
+    return 'http://localhost:5001/api';
   }
 
-  // 5. Remote / Production cloud fallback (Vercel)
-  return process.env.EXPO_PUBLIC_API_URL || 'https://routine-sathy.vercel.app/api';
+  // Default in local dev: use configured URL or cloud backend
+  return configuredUrl || cloudBackendUrl;
 }
 
 // eslint-disable-next-line import/no-named-as-default-member
@@ -80,7 +101,7 @@ api.interceptors.response.use(
     if (error.response?.data?.message) {
       errorMessage = error.response.data.message;
     } else if (error.message === 'Network Error') {
-      errorMessage = 'Unable to connect to server. Please check if your backend is running.';
+      errorMessage = 'Unable to connect to server. Please check your internet connection.';
     } else if (error.code === 'ECONNABORTED') {
       errorMessage = 'Request timed out. Please check your internet connection.';
     }

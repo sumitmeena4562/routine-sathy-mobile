@@ -15,10 +15,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 import Animated, {
   Extrapolation,
   interpolate,
-  interpolateColor,
   SharedValue,
   useAnimatedScrollHandler,
   useAnimatedStyle,
@@ -26,16 +26,28 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import {
+  BrandLandscapeIllustration,
   DawnAwakeningIllustration,
   DeepFocusIllustration,
   NightRecoveryIllustration,
 } from '@/components/illustrations';
+import { BrandLogo } from '@/components/ui';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { useTheme } from '@/hooks/use-theme';
+import {
+  ComponentTokens,
+  LayoutTokens,
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 
-function triggerHaptic() {
+function triggerHaptic(type: 'light' | 'success' = 'light') {
   if (Platform.OS !== 'web') {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (type === 'success') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
   }
 }
 
@@ -49,24 +61,21 @@ interface OnboardingSlide {
 const SLIDES: OnboardingSlide[] = [
   {
     id: 'dawn',
-    title: 'Wake with Natural\nClarity & Energy',
-    description:
-      'Align your morning rhythm with biological sunrise. Effortless waking without multiple alarms or morning brain fog.',
-    illustration: (w, h) => <DawnAwakeningIllustration width={w} height={h} />,
+    title: 'Wake Up Refreshed',
+    description: 'Build mindful morning habits to start every day with natural energy and clarity.',
+    illustration: (w, h) => <DawnAwakeningIllustration width={w} height={h} tone="dark" />,
   },
   {
     id: 'focus',
-    title: 'Focus in Peak\nDaily Flow Blocks',
-    description:
-      'Synchronize your deep work sessions with your body’s peak alertness hours. Accomplish more with zero mental burnout.',
-    illustration: (w, h) => <DeepFocusIllustration width={w} height={h} />,
+    title: 'Stay in Flow',
+    description: 'Track your daily routines and achieve your goals without mental burnout.',
+    illustration: (w, h) => <DeepFocusIllustration width={w} height={h} tone="dark" />,
   },
   {
     id: 'recovery',
-    title: 'Rest with Deep\nNight Recovery',
-    description:
-      'A gentle digital sunset to quiet bedtime racing thoughts, ease into non-REM sleep, and wake up deeply restored.',
-    illustration: (w, h) => <NightRecoveryIllustration width={w} height={h} />,
+    title: 'Rest & Recharge',
+    description: 'Unwind your mind with gentle evening rituals for deep, restorative sleep.',
+    illustration: (w, h) => <NightRecoveryIllustration width={w} height={h} tone="dark" />,
   },
 ];
 
@@ -74,10 +83,9 @@ interface AnimatedDotProps {
   index: number;
   scrollX: SharedValue<number>;
   width: number;
-  isDark: boolean;
 }
 
-function AnimatedDot({ index, scrollX, width, isDark }: AnimatedDotProps) {
+function AnimatedDot({ index, scrollX, width }: AnimatedDotProps) {
   const animatedDotStyle = useAnimatedStyle(() => {
     const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
 
@@ -91,23 +99,13 @@ function AnimatedDot({ index, scrollX, width, isDark }: AnimatedDotProps) {
     const opacity = interpolate(
       scrollX.value,
       inputRange,
-      [0.4, 1, 0.4],
+      [0.35, 1, 0.35],
       Extrapolation.CLAMP
-    );
-
-    const activeColor = isDark ? '#FFFFFF' : '#0F172A';
-    const inactiveColor = isDark ? '#475569' : '#CBD5E1';
-
-    const backgroundColor = interpolateColor(
-      scrollX.value,
-      inputRange,
-      [inactiveColor, activeColor, inactiveColor]
     );
 
     return {
       width: dotWidth,
       opacity,
-      backgroundColor,
     };
   });
 
@@ -116,7 +114,6 @@ function AnimatedDot({ index, scrollX, width, isDark }: AnimatedDotProps) {
 
 export default function OnboardingScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -126,8 +123,8 @@ export default function OnboardingScreen() {
 
   const rawWidth = windowWidth > 0 ? windowWidth : 375;
   const rawHeight = windowHeight > 0 ? windowHeight : 812;
-  const isCompact = rawHeight < 720;
-  const illustrationHeight = isCompact ? 200 : 240;
+  const isCompact = rawHeight < 720 || rawWidth < 380;
+  const illustrationHeight = isCompact ? 180 : 220;
   const illustrationWidth = Math.max(Math.min(rawWidth - 48, 320), 240);
 
   // Shared scroll offset for fluid interactive dot animation
@@ -144,15 +141,18 @@ export default function OnboardingScreen() {
       const offsetX = e.nativeEvent.contentOffset.x;
       const index = Math.round(offsetX / rawWidth);
       if (index >= 0 && index < SLIDES.length) {
+        if (index !== currentIndex) {
+          triggerHaptic('light');
+        }
         setCurrentIndex(index);
       }
     },
-    [rawWidth]
+    [rawWidth, currentIndex]
   );
 
   const handleNext = useCallback(async () => {
-    triggerHaptic();
     if (currentIndex < SLIDES.length - 1) {
+      triggerHaptic('light');
       const nextIndex = currentIndex + 1;
       try {
         flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
@@ -161,13 +161,14 @@ export default function OnboardingScreen() {
       }
       setCurrentIndex(nextIndex);
     } else {
+      triggerHaptic('success');
       await completeOnboarding();
       router.replace('/welcome');
     }
   }, [currentIndex, completeOnboarding, rawWidth, router]);
 
   const handleSkip = useCallback(async () => {
-    triggerHaptic();
+    triggerHaptic('light');
     await completeOnboarding();
     router.replace('/welcome');
   }, [completeOnboarding, router]);
@@ -175,10 +176,13 @@ export default function OnboardingScreen() {
   const isLastSlide = currentIndex === SLIDES.length - 1;
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+    <View style={[styles.root, { backgroundColor: ComponentTokens.brandLandscape.skyTop }]}>
+      <StatusBar style="light" />
 
-      {/* Top Header Bar with Clean Skip Action */}
+      {/* 1. Signature Brand Landscape Background Canvas */}
+      <BrandLandscapeIllustration animated />
+
+      {/* 2. Top Header Bar with Brand Identity and Frosted Glass Skip Action */}
       <View
         style={[
           styles.topBar,
@@ -187,11 +191,11 @@ export default function OnboardingScreen() {
               Platform.OS === 'android'
                 ? Math.max(insets.top, RNStatusBar.currentHeight ?? 36) + 10
                 : Math.max(insets.top, 20) + 8,
-            paddingLeft: insets.left + 24,
-            paddingRight: insets.right + 24,
+            paddingLeft: insets.left + PrimitiveTokens.space[6],
+            paddingRight: insets.right + PrimitiveTokens.space[6],
           },
         ]}>
-        <View style={styles.topBarPlaceholder} />
+        <BrandLogo size="sm" tone="dark" layout="horizontal" />
         {!isLastSlide ? (
           <Pressable
             onPress={handleSkip}
@@ -200,25 +204,16 @@ export default function OnboardingScreen() {
             accessibilityLabel="Skip onboarding"
             style={({ pressed }) => [
               styles.skipButton,
-              {
-                backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-              },
-              pressed && styles.buttonPressed,
+              pressed && styles.skipButtonPressed,
             ]}>
-            <Text
-              style={[
-                styles.skipText,
-                { color: theme.isDark ? '#94A3B8' : '#475569' },
-              ]}>
-              Skip
-            </Text>
+            <Text style={styles.skipText}>Skip</Text>
           </Pressable>
         ) : (
           <View style={styles.topBarPlaceholder} />
         )}
       </View>
 
-      {/* Main Swipeable Carousel */}
+      {/* 3. Main Swipeable Carousel */}
       <Animated.FlatList
         ref={flatListRef as any}
         data={SLIDES}
@@ -239,25 +234,24 @@ export default function OnboardingScreen() {
         style={styles.carouselList}
         renderItem={({ item }) => (
           <View style={[styles.slideContainer, { width: rawWidth }]}>
-            {/* 1. Big Center Illustration */}
+            {/* Seamless Transparent Artwork Floating Directly on Landscape Canvas */}
             <View style={styles.illustrationWrapper}>
               {item.illustration(illustrationWidth, illustrationHeight)}
             </View>
 
-            {/* 2. Text Content */}
+            {/* Clean Typography */}
             <View style={styles.textContainer}>
               <Text
                 style={[
                   styles.slideTitle,
-                  { color: theme.colors.text },
                   isCompact && styles.slideTitleCompact,
                 ]}>
                 {item.title}
               </Text>
+
               <Text
                 style={[
                   styles.slideDescription,
-                  { color: theme.colors.textSecondary },
                   isCompact && styles.slideDescriptionCompact,
                 ]}>
                 {item.description}
@@ -267,17 +261,17 @@ export default function OnboardingScreen() {
         )}
       />
 
-      {/* Bottom Docked Section: Smooth Animated Pill Dots + Bold Pill CTA */}
+      {/* 4. Bottom Docked Section: Sunrise Amber Expanding Dots + Pill CTA */}
       <View
         style={[
           styles.bottomControls,
           {
-            paddingBottom: Math.max(insets.bottom, 16) + 12,
-            paddingLeft: insets.left + 24,
-            paddingRight: insets.right + 24,
+            paddingBottom: Math.max(insets.bottom, PrimitiveTokens.space[4]) + PrimitiveTokens.space[3],
+            paddingLeft: insets.left + PrimitiveTokens.space[6],
+            paddingRight: insets.right + PrimitiveTokens.space[6],
           },
         ]}>
-        {/* Smooth Animated Expanding Pill Dots (Apple/Airbnb style) */}
+        {/* Smooth Animated Expanding Pill Dots */}
         <View style={styles.paginationRow}>
           {SLIDES.map((_, index) => (
             <AnimatedDot
@@ -285,32 +279,28 @@ export default function OnboardingScreen() {
               index={index}
               scrollX={scrollX}
               width={rawWidth}
-              isDark={theme.isDark}
             />
           ))}
         </View>
 
-        {/* Solid Black/Navy Pill CTA Button */}
+        {/* Sunrise Amber Pill CTA Button */}
         <Pressable
           onPress={handleNext}
           accessibilityRole="button"
-          accessibilityLabel={isLastSlide ? 'Get Started' : 'Next'}
+          accessibilityLabel={isLastSlide ? 'Get Started' : 'Next slide'}
           style={({ pressed }) => [
             styles.primaryPillButton,
-            {
-              backgroundColor: theme.isDark ? '#F8FAFC' : '#0F172A',
-            },
             pressed && styles.buttonPressed,
           ]}>
-          <Text
-            style={[
-              styles.primaryPillButtonText,
-              {
-                color: theme.isDark ? '#0F172A' : '#FFFFFF',
-              },
-            ]}>
+          <Text style={styles.primaryPillButtonText}>
             {isLastSlide ? 'Get Started' : 'Next'}
           </Text>
+          <Ionicons
+            name={isLastSlide ? 'sparkles' : 'arrow-forward'}
+            size={18}
+            color={SemanticDarkTokens.color.action.primary.fg}
+            style={styles.buttonIcon}
+          />
         </Pressable>
       </View>
     </View>
@@ -320,111 +310,145 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    zIndex: 10,
+    zIndex: 20,
     minHeight: 44,
   },
   topBarPlaceholder: {
-    width: 44,
+    width: 60,
   },
   skipButton: {
     paddingVertical: 7,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingHorizontal: PrimitiveTokens.space[4],
+    borderRadius: LayoutTokens.radius.button,
+    backgroundColor: SemanticDarkTokens.color.action.secondary.bg,
+    borderWidth: 1,
+    borderColor: SemanticDarkTokens.color.border.default,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  skipButtonPressed: {
+    backgroundColor: SemanticDarkTokens.color.action.secondary.pressed,
+    transform: [{ scale: 0.97 }],
+  },
   skipText: {
-    fontSize: 13.5,
-    fontWeight: '600',
+    fontSize: TypographyScale.caption.fontSize,
+    fontWeight: TypographyScale.caption.fontWeight,
     letterSpacing: -0.1,
+    color: ComponentTokens.brandLandscape.trail,
   },
   carouselList: {
     flex: 1,
+    zIndex: 10,
   },
   slideContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: LayoutTokens.space.sectionGap,
   },
   illustrationWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
-    marginTop: 10,
+    marginBottom: LayoutTokens.space.sectionGap,
+    marginTop: PrimitiveTokens.space[2],
   },
   textContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    maxWidth: 380,
-    paddingHorizontal: 12,
+    maxWidth: 340,
+    paddingHorizontal: PrimitiveTokens.space[3],
   },
   slideTitle: {
-    fontSize: 27,
-    fontWeight: '800',
+    fontSize: TypographyScale.h2.fontSize,
+    fontWeight: TypographyScale.h2.fontWeight,
     textAlign: 'center',
-    letterSpacing: -0.7,
-    lineHeight: 35,
-    marginBottom: 14,
+    letterSpacing: TypographyScale.h2.letterSpacing,
+    lineHeight: TypographyScale.h2.lineHeight,
+    color: SemanticDarkTokens.color.text.primary,
+    marginBottom: 10,
+    textShadowColor: 'rgba(0, 0, 0, 0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   slideTitleCompact: {
-    fontSize: 23,
-    lineHeight: 30,
-    marginBottom: 10,
+    fontSize: TypographyScale.h3.fontSize,
+    lineHeight: TypographyScale.h3.lineHeight,
+    marginBottom: PrimitiveTokens.space[2],
   },
   slideDescription: {
-    fontSize: 14.5,
-    lineHeight: 22,
+    fontSize: TypographyScale.body.fontSize,
+    lineHeight: TypographyScale.body.lineHeight,
     textAlign: 'center',
     letterSpacing: -0.1,
+    color: SemanticDarkTokens.color.text.secondary,
+    maxWidth: 310,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   slideDescriptionCompact: {
-    fontSize: 13.5,
-    lineHeight: 20,
+    fontSize: TypographyScale.bodySm.fontSize,
+    lineHeight: TypographyScale.bodySm.lineHeight,
   },
   bottomControls: {
     width: '100%',
     maxWidth: 440,
     alignSelf: 'center',
     alignItems: 'center',
-    gap: 24,
+    gap: PrimitiveTokens.space[5],
+    zIndex: 20,
   },
   paginationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: PrimitiveTokens.space[2],
     height: 14,
   },
   dotBase: {
-    height: 8,
-    borderRadius: 4,
+    height: PrimitiveTokens.space[2],
+    borderRadius: PrimitiveTokens.space[1],
+    backgroundColor: PrimitiveTokens.color.amber[400],
+    shadowColor: PrimitiveTokens.color.amber[400],
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 6,
+    elevation: 3,
   },
   primaryPillButton: {
     width: '100%',
-    height: 56,
-    borderRadius: 28,
+    height: ComponentTokens.button.heightLg,
+    borderRadius: LayoutTokens.radius.button,
+    backgroundColor: SemanticDarkTokens.color.action.primary.bg,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: PrimitiveTokens.color.amber[400],
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowOpacity: 0.38,
+    shadowRadius: 14,
+    elevation: 5,
   },
   primaryPillButtonText: {
-    fontSize: 16.5,
-    fontWeight: '700',
+    fontSize: TypographyScale.bodyLg.fontSize,
+    fontWeight: TypographyScale.bodyLg.fontWeight,
     letterSpacing: -0.2,
+    color: SemanticDarkTokens.color.action.primary.fg,
+  },
+  buttonIcon: {
+    marginLeft: PrimitiveTokens.space[2],
   },
   buttonPressed: {
-    opacity: 0.88,
+    backgroundColor: SemanticDarkTokens.color.action.primary.pressed,
     transform: [{ scale: 0.985 }],
+    opacity: 0.95,
   },
 });

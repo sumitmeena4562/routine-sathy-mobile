@@ -48,48 +48,48 @@ function getHabitBrandMeta(name: string): {
   if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
     return {
       icon: 'barbell',
-      iconColor: '#EA580C', // Sunrise Orange
-      tileBg: '#FFF7ED',
+      iconColor: '#B45309',
+      tileBg: '#FEF3C7',
     };
   }
   if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
     return {
       icon: 'leaf',
-      iconColor: '#059669', // Sacred Botanical Green
-      tileBg: '#ECFDF5',
+      iconColor: '#1E9E5A',
+      tileBg: '#E3F3E9',
     };
   }
   if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
     return {
       icon: 'book',
-      iconColor: '#4F46E5', // Deep Insight Indigo
+      iconColor: '#4F46E5',
       tileBg: '#EEF2FF',
     };
   }
   if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
     return {
       icon: 'water',
-      iconColor: '#0284C7', // Pure Sky Flow
-      tileBg: '#F0F9FF',
+      iconColor: '#0284C7',
+      tileBg: '#E0F2FE',
     };
   }
   if (lower.includes('walk') || lower.includes('run') || lower.includes('step')) {
     return {
       icon: 'footsteps',
-      iconColor: '#0D9488', // Earth Teal
-      tileBg: '#F0FDFA',
+      iconColor: '#16A34A',
+      tileBg: '#E3F3E9',
     };
   }
   if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night')) {
     return {
       icon: 'moon',
-      iconColor: '#7C3AED', // Twilight Violet
-      tileBg: '#F5F3FF',
+      iconColor: '#4338CA',
+      tileBg: '#EEF2FF',
     };
   }
   return {
     icon: 'sparkles',
-    iconColor: '#D97706', // Golden Dawn Spark
+    iconColor: '#B45309',
     tileBg: '#FEF3C7',
   };
 }
@@ -330,7 +330,7 @@ export default function TodayScreen() {
                 styles.heroCard,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+                  borderColor: theme.colors.border,
                 },
               ]}>
               <View style={styles.heroTopRow}>
@@ -351,12 +351,8 @@ export default function TodayScreen() {
                     {
                       backgroundColor:
                         completedHabits === totalHabits && totalHabits > 0
-                          ? theme.isDark
-                            ? 'rgba(16, 185, 129, 0.15)'
-                            : '#ECFDF5'
-                          : theme.isDark
-                          ? 'rgba(245, 158, 11, 0.15)'
-                          : '#FFFBEB',
+                          ? '#E3F3E9'
+                          : '#FEF3C7',
                       borderColor:
                         completedHabits === totalHabits && totalHabits > 0
                           ? '#A7F3D0'
@@ -366,7 +362,7 @@ export default function TodayScreen() {
                   <Ionicons
                     name={completedHabits === totalHabits && totalHabits > 0 ? 'checkmark-circle' : 'flame'}
                     size={14}
-                    color={completedHabits === totalHabits && totalHabits > 0 ? '#059669' : '#D97706'}
+                    color={completedHabits === totalHabits && totalHabits > 0 ? '#0B6B35' : '#92400E'}
                   />
                   <Text
                     style={[
@@ -374,8 +370,8 @@ export default function TodayScreen() {
                       {
                         color:
                           completedHabits === totalHabits && totalHabits > 0
-                            ? '#059669'
-                            : '#D97706',
+                            ? '#0B6B35'
+                            : '#92400E',
                       },
                     ]}>
                     {completedHabits}/{totalHabits} Done
@@ -387,7 +383,7 @@ export default function TodayScreen() {
               <View
                 style={[
                   styles.heroProgressTrack,
-                  { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                  { backgroundColor: theme.colors.surfaceAlt },
                 ]}>
                 <View
                   style={[
@@ -395,7 +391,7 @@ export default function TodayScreen() {
                     {
                       width: `${scoreProgress * 100}%`,
                       backgroundColor:
-                        score >= 80 ? '#10B981' : score >= 50 ? '#F59E0B' : '#EF4444',
+                        score >= 80 ? theme.colors.success : score >= 50 ? theme.colors.primary : theme.colors.error,
                     },
                   ]}
                 />
@@ -405,11 +401,11 @@ export default function TodayScreen() {
               <View
                 style={[
                   styles.heroMetricsStrip,
-                  { borderTopColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                  { borderTopColor: theme.colors.borderSubtle },
                 ]}>
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="sunny" size={13} color="#D97706" />
+                    <Ionicons name="sunny" size={13} color="#B45309" />
                     <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Wake-up</Text>
                   </View>
                   <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
@@ -420,7 +416,7 @@ export default function TodayScreen() {
                 <View
                   style={[
                     styles.heroMetricSep,
-                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                    { backgroundColor: theme.colors.borderSubtle },
                   ]}
                 />
 
@@ -437,13 +433,13 @@ export default function TodayScreen() {
                 <View
                   style={[
                     styles.heroMetricSep,
-                    { backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9' },
+                    { backgroundColor: theme.colors.borderSubtle },
                   ]}
                 />
 
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="hourglass" size={13} color="#7C3AED" />
+                    <Ionicons name="hourglass" size={13} color="#4F46E5" />
                     <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Focus</Text>
                   </View>
                   <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
@@ -458,7 +454,7 @@ export default function TodayScreen() {
               <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
                 TODAY&apos;S HABITS
               </Text>
-              <Text style={[styles.sectionCountText, { color: '#059669' }]}>
+              <Text style={[styles.sectionCountText, { color: theme.colors.success }]}>
                 {completedHabits} of {totalHabits} completed
               </Text>
             </View>
@@ -469,7 +465,7 @@ export default function TodayScreen() {
                 styles.habitsGroupCard,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#E2E8F0',
+                  borderColor: theme.colors.border,
                 },
               ]}>
               {displayActivities && displayActivities.length > 0 ? (

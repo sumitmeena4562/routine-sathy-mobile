@@ -114,22 +114,8 @@ export default function WelcomeScreen() {
         <View style={[styles.contentWrapper, { maxWidth: containerMaxWidth }]}>
           {/* 1. Hero Brand Identity Section */}
           <View style={styles.heroSection}>
-            <View
-              style={[
-                styles.emblemContainer,
-                {
-                  width: emblemSize + 28,
-                  height: emblemSize + 28,
-                  borderRadius: (emblemSize + 28) / 2,
-                  backgroundColor: theme.isDark
-                    ? 'rgba(248, 250, 252, 0.05)'
-                    : '#FFF7ED',
-                  borderColor: theme.isDark
-                    ? 'rgba(255, 255, 255, 0.08)'
-                    : '#FED7AA',
-                },
-              ]}>
-              <RoutineSathyEmblem size={emblemSize} />
+            <View style={{ marginBottom: 20 }}>
+              <RoutineSathyEmblem size={emblemSize + 24} withTile={true} />
             </View>
 
             <Text
@@ -244,7 +230,7 @@ export default function WelcomeScreen() {
               size={isCompact ? 'md' : 'lg'}
               pill
               fullWidth
-              icon={<Ionicons name="mail-outline" size={19} color="#FFFFFF" />}
+              icon={<Ionicons name="mail-outline" size={19} color={theme.colors.primaryForeground} />}
               onPress={() => router.push('/signup')}
               style={[styles.emailButton, { height: buttonHeight }]}
             />

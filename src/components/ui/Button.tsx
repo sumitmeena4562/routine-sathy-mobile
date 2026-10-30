@@ -18,6 +18,7 @@ import { useTheme } from '@/hooks/use-theme';
 export type ButtonVariant =
   | 'primary'
   | 'secondary'
+  | 'dark'
   | 'outline'
   | 'glass'
   | 'ghost'
@@ -97,6 +98,10 @@ export function Button({
     case 'primary':
       backgroundColor = theme.colors.primary;
       textColor = theme.colors.primaryForeground;
+      break;
+    case 'dark':
+      backgroundColor = theme.colors.brand;
+      textColor = theme.colors.brandForeground;
       break;
     case 'secondary':
       backgroundColor = theme.colors.backgroundElement;
@@ -213,6 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     position: 'relative',
+    minHeight: 48,
   },
   contentRow: {
     flexDirection: 'row',

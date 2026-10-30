@@ -1,6 +1,15 @@
 import '@/global.css';
 
 import { Platform, StyleSheet } from 'react-native';
+import {
+  PrimitiveTokens,
+  SemanticLightTokens,
+  SemanticDarkTokens,
+  LayoutTokens,
+  ComponentTokens,
+} from '@/theme/tokens.generated';
+
+export { PrimitiveTokens, LayoutTokens, ComponentTokens };
 
 /**
  * ============================================================================
@@ -74,142 +83,140 @@ export const Palette = {
 // ----------------------------------------------------------------------------
 export const Colors = {
   light: {
-    // Brand - Deep midnight navy pill & text
-    primary: '#0F172A',
-    primaryForeground: Palette.white,
-    primaryMuted: 'rgba(15, 23, 42, 0.06)',
-    primaryBorder: 'rgba(15, 23, 42, 0.12)',
+    // Brand & CTAs - Derived from design tokens
+    primary: SemanticLightTokens.color.action.primary.bg, // #FBBF24 (Sunrise Amber)
+    primaryForeground: SemanticLightTokens.color.action.primary.fg, // #0B3D2E
+    primaryMuted: 'rgba(251, 191, 36, 0.15)',
+    primaryBorder: 'rgba(251, 191, 36, 0.35)',
 
-    // Secondary - Warm sunrise orange matching character illustrations
-    secondary: '#F97316',
-    secondaryForeground: '#0F172A',
-    secondaryMuted: 'rgba(249, 115, 22, 0.10)',
+    brand: SemanticLightTokens.color.text.primary, // #0B3D2E (Deep Forest Ink)
+    brandForeground: '#FFFFFF',
 
-    // Habit Progress & Success
-    success: '#10B981',
-    successForeground: Palette.white,
-    successMuted: 'rgba(16, 185, 129, 0.12)',
-    successBorder: 'rgba(16, 185, 129, 0.22)',
+    // Secondary - Mint & Leaf
+    secondary: SemanticLightTokens.color.action.secondary.bg, // #E3F3E9
+    secondaryForeground: SemanticLightTokens.color.action.secondary.fg, // #0B3D2E
+    secondaryMuted: 'rgba(30, 158, 90, 0.12)',
+
+    // Habit Progress & Success (Fern #1E9E5A)
+    success: SemanticLightTokens.color.state.success,
+    successForeground: '#FFFFFF',
+    successMuted: SemanticLightTokens.color.state.successBg,
+    successBorder: 'rgba(30, 158, 90, 0.22)',
 
     // Status Colors
-    warning: '#F59E0B',
-    warningForeground: Palette.white,
-    warningMuted: 'rgba(245, 158, 11, 0.12)',
+    warning: SemanticLightTokens.color.state.warning,
+    warningForeground: '#FFFFFF',
+    warningMuted: SemanticLightTokens.color.state.warningBg,
 
-    error: Palette.rose500,
-    errorForeground: Palette.white,
-    errorMuted: 'rgba(239, 68, 68, 0.12)',
+    error: SemanticLightTokens.color.state.error,
+    errorForeground: '#FFFFFF',
+    errorMuted: SemanticLightTokens.color.state.errorBg,
 
-    info: '#0284C7',
-    infoForeground: Palette.white,
-    infoMuted: 'rgba(2, 132, 199, 0.12)',
+    info: SemanticLightTokens.color.state.info,
+    infoForeground: '#FFFFFF',
+    infoMuted: SemanticLightTokens.color.state.infoBg,
 
-    // Surfaces & Backgrounds - Premium Lifestyle Canvas with Clear Depth
-    background: '#F4F6F9',
-    surface: '#FFFFFF',
-    surfaceElevated: '#FFFFFF',
-    surfaceOverlay: 'rgba(255, 255, 255, 0.94)',
+    // Surfaces & Backgrounds - Peace Canvas #F7F8F6
+    background: SemanticLightTokens.color.bg.app,
+    surface: SemanticLightTokens.color.bg.surface,
+    surfaceElevated: SemanticLightTokens.color.bg.surface,
+    surfaceAlt: SemanticLightTokens.color.bg.surfaceAlt,
+    surfaceOverlay: 'rgba(247, 248, 246, 0.95)',
 
     // Background Elements & Interactive Containers
-    backgroundElement: '#EAEFF5',
-    backgroundSelected: '#E2E8F0',
+    backgroundElement: SemanticLightTokens.color.bg.surfaceAlt,
+    backgroundSelected: SemanticLightTokens.color.border.default,
 
-    // Text & Content
-    text: '#0F172A',
-    textSecondary: '#64748B',
-    textMuted: '#94A3B8',
-    textInverse: Palette.white,
+    // Text & Content - Forest Ink #0B3D2E
+    text: SemanticLightTokens.color.text.primary,
+    textSecondary: SemanticLightTokens.color.text.secondary,
+    textMuted: SemanticLightTokens.color.text.muted,
+    textInverse: SemanticLightTokens.color.text.inverse,
 
-    // Borders & Dividers
-    border: '#E2E8F0',
-    borderSubtle: '#F1F5F9',
-    borderFocus: '#0F172A',
+    // Borders & Dividers - Forest Line #DFE7E1
+    border: SemanticLightTokens.color.border.default,
+    borderSubtle: SemanticLightTokens.color.border.subtle,
+    borderFocus: SemanticLightTokens.color.border.focus,
 
     // Glassmorphism
     glassSurface: 'rgba(255, 255, 255, 0.85)',
     glassSurfaceHeavy: 'rgba(255, 255, 255, 0.95)',
     glassSurfaceSubtle: 'rgba(255, 255, 255, 0.60)',
-    glassBorder: 'rgba(15, 23, 42, 0.08)',
-    glassBorderSubtle: 'rgba(15, 23, 42, 0.05)',
+    glassBorder: 'rgba(11, 61, 46, 0.08)',
+    glassBorderSubtle: 'rgba(11, 61, 46, 0.05)',
 
     // Warm Ambient Auras
-    ambientOrb1: '#FED7AA',
-    ambientOrb2: '#FFEDD5',
-    ambientOrb3: '#F8FAFC',
+    ambientOrb1: '#FEF3C7',
+    ambientOrb2: '#E3F3E9',
+    ambientOrb3: '#F7F8F6',
 
     // Interactive States
-    disabled: 'rgba(100, 116, 139, 0.40)',
-    disabledBackground: 'rgba(15, 23, 42, 0.04)',
-    ripple: 'rgba(15, 23, 42, 0.06)',
+    disabled: 'rgba(79, 101, 91, 0.40)',
+    disabledBackground: 'rgba(11, 61, 46, 0.04)',
+    ripple: 'rgba(11, 61, 46, 0.06)',
   },
   dark: {
-    // Brand
-    primary: '#F8FAFC',
-    primaryForeground: '#0F172A',
-    primaryMuted: 'rgba(248, 250, 252, 0.12)',
-    primaryBorder: 'rgba(248, 250, 252, 0.24)',
+    // Brand & CTAs - Derived from design tokens
+    primary: SemanticDarkTokens.color.action.primary.bg,
+    primaryForeground: SemanticDarkTokens.color.action.primary.fg,
+    primaryMuted: 'rgba(251, 191, 36, 0.20)',
+    primaryBorder: 'rgba(251, 191, 36, 0.40)',
 
-    // Secondary Accent
-    secondary: '#FB923C',
-    secondaryForeground: '#FFFFFF',
-    secondaryMuted: 'rgba(251, 146, 60, 0.16)',
+    brand: SemanticDarkTokens.color.text.primary,
+    brandForeground: '#052418',
 
-    // Habit Progress & Success
-    success: '#34D399',
-    successForeground: '#090D16',
-    successMuted: 'rgba(52, 211, 153, 0.16)',
-    successBorder: 'rgba(52, 211, 153, 0.30)',
+    secondary: SemanticDarkTokens.color.action.secondary.bg,
+    secondaryForeground: SemanticDarkTokens.color.action.secondary.fg,
+    secondaryMuted: 'rgba(255, 255, 255, 0.08)',
 
-    // Status Colors
-    warning: '#FBBF24',
-    warningForeground: '#090D16',
-    warningMuted: 'rgba(251, 191, 36, 0.16)',
+    success: SemanticDarkTokens.color.state.success,
+    successForeground: '#052418',
+    successMuted: SemanticDarkTokens.color.state.successBg,
+    successBorder: 'rgba(91, 219, 139, 0.30)',
 
-    error: '#F87171',
-    errorForeground: Palette.white,
-    errorMuted: 'rgba(248, 113, 113, 0.16)',
+    warning: SemanticDarkTokens.color.state.warning,
+    warningForeground: '#052418',
+    warningMuted: SemanticDarkTokens.color.state.warningBg,
 
-    info: '#38BDF8',
-    infoForeground: '#090D16',
-    infoMuted: 'rgba(56, 189, 248, 0.16)',
+    error: SemanticDarkTokens.color.state.error,
+    errorForeground: '#FFFFFF',
+    errorMuted: SemanticDarkTokens.color.state.errorBg,
 
-    // Surfaces & Backgrounds
-    background: '#090D16',
-    surface: '#111827',
-    surfaceElevated: '#1E293B',
-    surfaceOverlay: 'rgba(9, 13, 22, 0.92)',
+    info: SemanticDarkTokens.color.state.info,
+    infoForeground: '#052418',
+    infoMuted: SemanticDarkTokens.color.state.infoBg,
 
-    // Secondary Background Elements
-    backgroundElement: '#1E293B',
-    backgroundSelected: '#334155',
+    background: SemanticDarkTokens.color.bg.app,
+    surface: SemanticDarkTokens.color.bg.surface,
+    surfaceElevated: SemanticDarkTokens.color.bg.surfaceAlt,
+    surfaceAlt: SemanticDarkTokens.color.bg.surfaceAlt,
+    surfaceOverlay: 'rgba(5, 36, 24, 0.95)',
 
-    // Text & Content
-    text: '#F8FAFC',
-    textSecondary: '#94A3B8',
-    textMuted: '#64748B',
-    textInverse: '#090D16',
+    backgroundElement: SemanticDarkTokens.color.bg.surfaceAlt,
+    backgroundSelected: 'rgba(207, 227, 214, 0.20)',
 
-    // Borders & Dividers
-    border: 'rgba(255, 255, 255, 0.12)',
-    borderSubtle: 'rgba(255, 255, 255, 0.06)',
-    borderFocus: '#F8FAFC',
+    text: SemanticDarkTokens.color.text.primary,
+    textSecondary: SemanticDarkTokens.color.text.secondary,
+    textMuted: SemanticDarkTokens.color.text.muted,
+    textInverse: SemanticDarkTokens.color.text.inverse,
 
-    // Glassmorphism
-    glassSurface: 'rgba(17, 24, 39, 0.70)',
-    glassSurfaceHeavy: 'rgba(17, 24, 39, 0.90)',
-    glassSurfaceSubtle: 'rgba(17, 24, 39, 0.45)',
-    glassBorder: 'rgba(255, 255, 255, 0.14)',
-    glassBorderSubtle: 'rgba(255, 255, 255, 0.08)',
+    border: SemanticDarkTokens.color.border.default,
+    borderSubtle: SemanticDarkTokens.color.border.subtle,
+    borderFocus: SemanticDarkTokens.color.border.focus,
 
-    // Ambient Atmosphere Orbs
-    ambientOrb1: '#1E1B4B',
-    ambientOrb2: '#1F2937',
-    ambientOrb3: '#0F172A',
+    glassSurface: 'rgba(7, 38, 27, 0.75)',
+    glassSurfaceHeavy: 'rgba(7, 38, 27, 0.92)',
+    glassSurfaceSubtle: 'rgba(7, 38, 27, 0.50)',
+    glassBorder: 'rgba(207, 227, 214, 0.15)',
+    glassBorderSubtle: 'rgba(207, 227, 214, 0.08)',
 
-    // Interactive States
-    disabled: 'rgba(148, 163, 184, 0.35)',
+    ambientOrb1: '#07261B',
+    ambientOrb2: '#0B3D2E',
+    ambientOrb3: '#052418',
+
+    disabled: 'rgba(207, 227, 214, 0.35)',
     disabledBackground: 'rgba(255, 255, 255, 0.05)',
-    ripple: 'rgba(248, 250, 252, 0.10)',
+    ripple: 'rgba(255, 255, 255, 0.10)',
   },
 };
 
@@ -220,6 +227,8 @@ export interface ThemeColors {
   primaryForeground: string;
   primaryMuted: string;
   primaryBorder: string;
+  brand: string;
+  brandForeground: string;
   secondary: string;
   secondaryForeground: string;
   secondaryMuted: string;
@@ -239,6 +248,7 @@ export interface ThemeColors {
   background: string;
   surface: string;
   surfaceElevated: string;
+  surfaceAlt: string;
   surfaceOverlay: string;
   backgroundElement: string;
   backgroundSelected: string;

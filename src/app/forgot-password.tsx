@@ -178,8 +178,8 @@ export default function ForgotPasswordScreen() {
               style={[
                 styles.underDevBadge,
                 {
-                  backgroundColor: theme.isDark ? 'rgba(245, 158, 11, 0.15)' : '#FEF3C7',
-                  borderColor: theme.isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A',
+                  backgroundColor: theme.colors.warningMuted,
+                  borderColor: theme.isDark ? theme.colors.warningMuted : theme.colors.border,
                 },
               ]}>
               <Ionicons name="construct-outline" size={13} color={theme.colors.warning} />

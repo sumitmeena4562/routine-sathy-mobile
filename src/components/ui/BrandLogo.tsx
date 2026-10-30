@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import {
-  Platform,
   StyleProp,
   StyleSheet,
   Text,
@@ -17,7 +16,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { RoutineSathyEmblem, RoutineSathyEmblemProps } from './RoutineSathyEmblem';
-import { ComponentTokens } from '@/theme/tokens.generated';
+import { ComponentTokens, PrimitiveTokens } from '@/theme/tokens.generated';
 
 export interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'hero' | 'heroLg';
@@ -170,19 +169,19 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   wordRoutine: {
+    fontFamily: PrimitiveTokens.font.family.extrabold,
     fontWeight: '800',
     letterSpacing: -0.5,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
   },
   wordSathy: {
+    fontFamily: PrimitiveTokens.font.family.extrabold,
     fontWeight: '800',
     letterSpacing: -0.5,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
   },
   tagline: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontWeight: '600',
     marginTop: 4,
-    fontFamily: Platform.select({ ios: 'System', android: 'Roboto', default: 'sans-serif' }),
   },
   taglineCentered: {
     textAlign: 'center',

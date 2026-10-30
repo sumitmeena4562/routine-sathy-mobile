@@ -2,6 +2,14 @@ import React, { useEffect } from 'react';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import {
+  useFonts,
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 
 import { RoutineThemeProvider } from '@/context/ThemeContext';
 import { OnboardingProvider } from '@/context/OnboardingContext';
@@ -12,11 +20,6 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootNavigator() {
   const theme = useTheme();
-
-  useEffect(() => {
-    // Dismiss native static splash screen smoothly
-    SplashScreen.hideAsync().catch(() => {});
-  }, []);
 
   // Map centralized tokens to React Navigation Theme
   const navigationTheme = {
@@ -53,6 +56,30 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+    PlusJakartaSans: PlusJakartaSans_400Regular,
+    'PlusJakartaSans-Regular': PlusJakartaSans_400Regular,
+    'PlusJakartaSans-Medium': PlusJakartaSans_500Medium,
+    'PlusJakartaSans-SemiBold': PlusJakartaSans_600SemiBold,
+    'PlusJakartaSans-Bold': PlusJakartaSans_700Bold,
+    'PlusJakartaSans-ExtraBold': PlusJakartaSans_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
     <RoutineThemeProvider>
       <OnboardingProvider>

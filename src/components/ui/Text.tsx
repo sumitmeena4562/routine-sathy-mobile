@@ -6,7 +6,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
-import { TypographyScale, TypographyVariant } from '@/theme/tokens.generated';
+import { PrimitiveTokens, TypographyScale, TypographyVariant } from '@/theme/tokens.generated';
 
 export interface TextProps extends RNTextProps {
   variant?: TypographyVariant;
@@ -67,6 +67,7 @@ export const Text: React.FC<TextProps> = ({
       style={[
         styles.base,
         {
+          fontFamily: variantStyle.fontFamily || PrimitiveTokens.font.family.regular,
           fontSize: variantStyle.fontSize,
           lineHeight: variantStyle.lineHeight,
           fontWeight: variantStyle.fontWeight,
@@ -85,7 +86,7 @@ export const Text: React.FC<TextProps> = ({
 
 const styles = StyleSheet.create({
   base: {
-    fontFamily: 'System',
+    fontFamily: PrimitiveTokens.font.family.regular,
     includeFontPadding: false,
   },
   tabular: {

@@ -16,11 +16,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  AmbientAtmosphere,
-  Button,
-  RoutineSathyEmblem,
-} from '@/components/ui';
-import { useTheme } from '@/hooks/use-theme';
+  BrandLandscapeIllustration,
+} from '@/components/illustrations';
+import { RoutineSathyEmblem } from '@/components/ui';
+import {
+  ComponentTokens,
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 
 /**
  * Official 4-Color Google 'G' vector logo.
@@ -50,7 +54,6 @@ function GoogleLogoIcon({ size = 20 }: { size?: number }) {
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
@@ -58,10 +61,10 @@ export default function WelcomeScreen() {
   const isCompact = windowHeight < 720 || windowWidth < 380;
   const isTablet = windowWidth >= 768;
 
-  const containerMaxWidth = isTablet ? 480 : 420;
+  const containerMaxWidth = isTablet ? 480 : 380;
   const horizontalPadding = isTablet ? 32 : isCompact ? 20 : 24;
-  const emblemSize = isCompact ? 64 : isTablet ? 84 : 76;
-  const buttonHeight = isCompact ? 50 : 54;
+  const emblemSize = isCompact ? 72 : isTablet ? 92 : 80;
+  const buttonHeight = isCompact ? 44 : ComponentTokens.button.heightMd;
 
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
 
@@ -96,12 +99,16 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <AmbientAtmosphere />
+    <View style={[styles.root, { backgroundColor: ComponentTokens.brandLandscape.skyTop }]}>
+      <StatusBar style="light" />
 
+      {/* 1. Signature Brand Landscape Background Canvas */}
+      <BrandLandscapeIllustration animated />
+
+      {/* 2. Scrollable Content Area */}
       <ScrollView
         showsVerticalScrollIndicator={false}
+        bounces={false}
         contentContainerStyle={[
           styles.scrollContainer,
           {
@@ -112,16 +119,15 @@ export default function WelcomeScreen() {
           },
         ]}>
         <View style={[styles.contentWrapper, { maxWidth: containerMaxWidth }]}>
-          {/* 1. Hero Brand Identity Section */}
+          {/* Hero Brand Identity Section */}
           <View style={styles.heroSection}>
-            <View style={{ marginBottom: 20 }}>
-              <RoutineSathyEmblem size={emblemSize + 24} withTile={true} />
+            <View style={styles.emblemContainer}>
+              <RoutineSathyEmblem size={emblemSize} withTile={true} />
             </View>
 
             <Text
               style={[
                 styles.brandTitle,
-                { color: theme.colors.text },
                 isCompact && styles.brandTitleCompact,
                 isTablet && styles.brandTitleTablet,
               ]}>
@@ -131,23 +137,21 @@ export default function WelcomeScreen() {
             <Text
               style={[
                 styles.brandTagline,
-                { color: theme.colors.textSecondary },
                 isCompact && styles.brandTaglineCompact,
               ]}>
-              Your Mindful Daily Rhythm
+              Small steps. Big changes.
             </Text>
 
             <Text
               style={[
                 styles.heroDescription,
-                { color: theme.colors.textSecondary },
                 isCompact && styles.heroDescriptionCompact,
               ]}>
-              Align your mornings, deep work flow, and evening recovery with natural biological rhythm.
+              Wake up early, drink water, get your work done.
             </Text>
           </View>
 
-          {/* 2. Authentication Actions Gateway */}
+          {/* Authentication Actions Gateway */}
           <View style={styles.actionsSection}>
             {/* Continue with Google */}
             <Pressable
@@ -160,13 +164,11 @@ export default function WelcomeScreen() {
                 {
                   height: buttonHeight,
                   borderRadius: buttonHeight / 2,
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
                 },
                 pressed && styles.buttonPressed,
               ]}>
-              <GoogleLogoIcon size={20} />
-              <Text style={[styles.socialButtonText, { color: theme.colors.text }]}>
+              <GoogleLogoIcon size={18} />
+              <Text style={styles.socialButtonText}>
                 {socialLoading === 'google' ? 'Connecting...' : 'Continue with Google'}
               </Text>
             </Pressable>
@@ -184,21 +186,15 @@ export default function WelcomeScreen() {
                   {
                     height: buttonHeight,
                     borderRadius: buttonHeight / 2,
-                    backgroundColor: theme.isDark ? '#FFFFFF' : '#000000',
-                    borderColor: 'transparent',
                   },
                   pressed && styles.buttonPressed,
                 ]}>
                 <Ionicons
                   name="logo-apple"
-                  size={21}
-                  color={theme.isDark ? '#000000' : '#FFFFFF'}
+                  size={18}
+                  color="#FFFFFF"
                 />
-                <Text
-                  style={[
-                    styles.socialButtonText,
-                    { color: theme.isDark ? '#000000' : '#FFFFFF' },
-                  ]}>
+                <Text style={[styles.socialButtonText, { color: '#FFFFFF' }]}>
                   {socialLoading === 'apple' ? 'Connecting...' : 'Continue with Apple'}
                 </Text>
               </Pressable>
@@ -206,64 +202,52 @@ export default function WelcomeScreen() {
 
             {/* Subtle Divider */}
             <View style={styles.dividerRow}>
-              <View
-                style={[
-                  styles.dividerLine,
-                  { backgroundColor: theme.colors.borderSubtle },
-                ]}
-              />
-              <Text style={[styles.dividerText, { color: theme.colors.textMuted }]}>
-                or
-              </Text>
-              <View
-                style={[
-                  styles.dividerLine,
-                  { backgroundColor: theme.colors.borderSubtle },
-                ]}
-              />
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
             </View>
 
             {/* Sign up with Email */}
-            <Button
-              title="Sign up with Email"
-              variant="primary"
-              size={isCompact ? 'md' : 'lg'}
-              pill
-              fullWidth
-              icon={<Ionicons name="mail-outline" size={19} color={theme.colors.primaryForeground} />}
+            <Pressable
               onPress={() => router.push('/signup')}
-              style={[styles.emailButton, { height: buttonHeight }]}
-            />
+              accessibilityRole="button"
+              accessibilityLabel="Sign up with Email"
+              style={({ pressed }) => [
+                styles.emailButton,
+                { height: buttonHeight, borderRadius: buttonHeight / 2 },
+                pressed && styles.buttonPressed,
+              ]}>
+              <Ionicons
+                name="mail-outline"
+                size={18}
+                color={SemanticDarkTokens.color.action.primary.fg}
+                style={styles.buttonIcon}
+              />
+              <Text style={styles.emailButtonText}>Sign up with Email</Text>
+            </Pressable>
 
             {/* Existing User Login Link */}
             <View style={styles.loginRow}>
-              <Text style={[styles.loginPrompt, { color: theme.colors.textSecondary }]}>
-                Already have an account?{' '}
-              </Text>
+              <Text style={styles.loginPrompt}>Already have an account? </Text>
               <Pressable
                 onPress={() => router.push('/login')}
-                hitSlop={10}
+                hitSlop={12}
                 accessibilityRole="button"
                 accessibilityLabel="Log In">
-                <Text style={[styles.loginLink, { color: theme.colors.text }]}>
-                  Log In
-                </Text>
+                <Text style={styles.loginLink}>Log In</Text>
               </Pressable>
             </View>
           </View>
 
-          {/* 3. Legal Footer */}
-          <Text style={[styles.legalText, { color: theme.colors.textMuted }]}>
-            By continuing, you agree to our{' '}
-            <Text style={[styles.legalLink, { color: theme.colors.textSecondary }]}>
-              Terms of Service
-            </Text>{' '}
-            and{' '}
-            <Text style={[styles.legalLink, { color: theme.colors.textSecondary }]}>
-              Privacy Policy
+          {/* Legal Footer in Clean Protected Container */}
+          <View style={styles.legalContainer}>
+            <Text style={styles.legalText}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.legalLink}>Terms of Service</Text>{' '}
+              and{' '}
+              <Text style={styles.legalLink}>Privacy Policy</Text>.
             </Text>
-            .
-          </Text>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -273,11 +257,14 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    position: 'relative',
+    overflow: 'hidden',
   },
   scrollContainer: {
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
+    zIndex: 10,
   },
   contentWrapper: {
     width: '100%',
@@ -288,54 +275,70 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 10,
-    marginBottom: 28,
+    paddingTop: PrimitiveTokens.space[2],
+    marginBottom: PrimitiveTokens.space[6],
   },
   emblemContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    marginBottom: 20,
+    marginBottom: PrimitiveTokens.space[5],
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    elevation: 8,
   },
   brandTitle: {
-    fontSize: 29,
-    fontWeight: '800',
-    letterSpacing: -0.7,
+    fontFamily: TypographyScale.h1.fontFamily,
+    fontSize: TypographyScale.h1.fontSize,
+    fontWeight: TypographyScale.h1.fontWeight,
+    letterSpacing: TypographyScale.h1.letterSpacing,
+    lineHeight: TypographyScale.h1.lineHeight,
     textAlign: 'center',
+    color: SemanticDarkTokens.color.text.primary,
+    textShadowColor: 'rgba(0, 0, 0, 0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   brandTitleCompact: {
-    fontSize: 25,
+    fontFamily: TypographyScale.h2.fontFamily,
+    fontSize: TypographyScale.h2.fontSize,
     letterSpacing: -0.5,
   },
   brandTitleTablet: {
+    fontFamily: TypographyScale.h1.fontFamily,
     fontSize: 34,
     letterSpacing: -0.8,
   },
   brandTagline: {
-    fontSize: 15,
+    fontFamily: PrimitiveTokens.font.family.semibold,
+    fontSize: TypographyScale.body.fontSize,
     fontWeight: '600',
     marginTop: 6,
     letterSpacing: -0.2,
     textAlign: 'center',
+    color: ComponentTokens.brandLandscape.brandMint,
   },
   brandTaglineCompact: {
-    fontSize: 13.5,
+    fontFamily: PrimitiveTokens.font.family.semibold,
+    fontSize: TypographyScale.bodySm.fontSize,
     marginTop: 4,
   },
   heroDescription: {
-    fontSize: 13.5,
+    fontFamily: TypographyScale.body.fontFamily,
+    fontSize: TypographyScale.bodySm.fontSize,
     lineHeight: 20,
     textAlign: 'center',
-    marginTop: 10,
+    marginTop: PrimitiveTokens.space[2],
     maxWidth: 320,
     letterSpacing: -0.1,
+    color: SemanticDarkTokens.color.text.secondary,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   heroDescriptionCompact: {
+    fontFamily: TypographyScale.bodySm.fontFamily,
     fontSize: 12.5,
     lineHeight: 18,
     marginTop: 6,
@@ -343,29 +346,35 @@ const styles = StyleSheet.create({
   },
   actionsSection: {
     width: '100%',
+    maxWidth: 320,
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   socialButton: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    gap: 12,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 2,
   },
   appleButton: {
-    shadowOpacity: 0.1,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.20)',
+    shadowOpacity: 0.05,
   },
   socialButtonText: {
-    fontSize: 15.5,
+    fontFamily: PrimitiveTokens.font.family.semibold,
+    fontSize: 14.5,
     fontWeight: '600',
     letterSpacing: -0.2,
+    color: SemanticDarkTokens.color.action.primary.fg,
   },
   buttonPressed: {
     opacity: 0.88,
@@ -375,44 +384,79 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    marginVertical: 4,
-    gap: 12,
+    marginVertical: 2,
+    gap: PrimitiveTokens.space[3],
   },
   dividerLine: {
     flex: 1,
     height: 1,
+    backgroundColor: SemanticDarkTokens.color.border.default,
   },
   dividerText: {
-    fontSize: 13,
+    fontFamily: PrimitiveTokens.font.family.medium,
+    fontSize: TypographyScale.caption.fontSize,
     fontWeight: '500',
     textTransform: 'lowercase',
+    color: 'rgba(207, 227, 214, 0.65)',
   },
   emailButton: {
     width: '100%',
+    backgroundColor: SemanticDarkTokens.color.action.primary.bg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.20,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  emailButtonText: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+    color: SemanticDarkTokens.color.action.primary.fg,
+  },
+  buttonIcon: {
+    marginRight: PrimitiveTokens.space[2],
   },
   loginRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 4,
   },
   loginPrompt: {
-    fontSize: 14.5,
+    fontFamily: PrimitiveTokens.font.family.regular,
+    fontSize: TypographyScale.bodySm.fontSize,
+    color: SemanticDarkTokens.color.text.secondary,
   },
   loginLink: {
-    fontSize: 14.5,
+    fontFamily: PrimitiveTokens.font.family.bold,
+    fontSize: TypographyScale.bodySm.fontSize,
     fontWeight: '700',
+    color: PrimitiveTokens.color.amber[400],
     textDecorationLine: 'underline',
   },
+  legalContainer: {
+    maxWidth: 320,
+    marginTop: 14,
+    paddingHorizontal: PrimitiveTokens.space[3],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   legalText: {
-    fontSize: 11.5,
-    lineHeight: 17,
+    fontFamily: PrimitiveTokens.font.family.regular,
+    fontSize: TypographyScale.captionSm.fontSize,
+    lineHeight: 18,
     textAlign: 'center',
-    marginTop: 24,
-    paddingHorizontal: 16,
-    maxWidth: 340,
+    color: 'rgba(207, 227, 214, 0.70)',
   },
   legalLink: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontWeight: '600',
+    color: ComponentTokens.brandLandscape.trail,
+    textDecorationLine: 'underline',
   },
 });

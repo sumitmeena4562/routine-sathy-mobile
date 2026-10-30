@@ -338,6 +338,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.97 }],
   },
   skipText: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontSize: TypographyScale.caption.fontSize,
     fontWeight: TypographyScale.caption.fontWeight,
     letterSpacing: -0.1,
@@ -367,6 +368,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: PrimitiveTokens.space[3],
   },
   slideTitle: {
+    fontFamily: TypographyScale.h2.fontFamily,
     fontSize: TypographyScale.h2.fontSize,
     fontWeight: TypographyScale.h2.fontWeight,
     textAlign: 'center',
@@ -379,11 +381,13 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   slideTitleCompact: {
+    fontFamily: TypographyScale.h3.fontFamily,
     fontSize: TypographyScale.h3.fontSize,
     lineHeight: TypographyScale.h3.lineHeight,
     marginBottom: PrimitiveTokens.space[2],
   },
   slideDescription: {
+    fontFamily: TypographyScale.body.fontFamily,
     fontSize: TypographyScale.body.fontSize,
     lineHeight: TypographyScale.body.lineHeight,
     textAlign: 'center',
@@ -395,6 +399,7 @@ const styles = StyleSheet.create({
     textShadowRadius: 3,
   },
   slideDescriptionCompact: {
+    fontFamily: TypographyScale.bodySm.fontFamily,
     fontSize: TypographyScale.bodySm.fontSize,
     lineHeight: TypographyScale.bodySm.lineHeight,
   },
@@ -438,6 +443,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   primaryPillButtonText: {
+    fontFamily: TypographyScale.bodyLg.fontFamily,
     fontSize: TypographyScale.bodyLg.fontSize,
     fontWeight: TypographyScale.bodyLg.fontWeight,
     letterSpacing: -0.2,

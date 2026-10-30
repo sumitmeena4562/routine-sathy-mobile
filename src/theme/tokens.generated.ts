@@ -4,7 +4,7 @@
  * ============================================================================
  * GENERATED, DO NOT EDIT DIRECTLY.
  * Source: design-tokens/tokens.json
- * Generated at: 2026-10-30T14:38:02.555Z
+ * Generated at: 2026-10-30T15:59:05.290Z
  * ============================================================================
  */
 
@@ -117,7 +117,12 @@ export const PrimitiveTokens = {
   },
   "font": {
     "family": {
-      "sans": "Plus Jakarta Sans, system-ui, sans-serif",
+      "sans": "PlusJakartaSans_400Regular",
+      "regular": "PlusJakartaSans_400Regular",
+      "medium": "PlusJakartaSans_500Medium",
+      "semibold": "PlusJakartaSans_600SemiBold",
+      "bold": "PlusJakartaSans_700Bold",
+      "extrabold": "PlusJakartaSans_800ExtraBold",
       "serif": "serif"
     },
     "size": {
@@ -452,64 +457,76 @@ export const ComponentTokens = {
 
 export const TypographyScale = {
   micro: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontSize: PrimitiveTokens.font.size.micro,
     lineHeight: Math.round(PrimitiveTokens.font.size.micro * 1.3),
     fontWeight: PrimitiveTokens.font.weight.semibold,
   },
   captionSm: {
+    fontFamily: PrimitiveTokens.font.family.medium,
     fontSize: PrimitiveTokens.font.size.captionSm,
     lineHeight: Math.round(PrimitiveTokens.font.size.captionSm * 1.35),
     fontWeight: PrimitiveTokens.font.weight.medium,
   },
   caption: {
+    fontFamily: PrimitiveTokens.font.family.medium,
     fontSize: PrimitiveTokens.font.size.caption,
     lineHeight: Math.round(PrimitiveTokens.font.size.caption * 1.4),
     fontWeight: PrimitiveTokens.font.weight.medium,
   },
   bodySm: {
+    fontFamily: PrimitiveTokens.font.family.regular,
     fontSize: PrimitiveTokens.font.size.bodySm,
     lineHeight: Math.round(PrimitiveTokens.font.size.bodySm * 1.45),
     fontWeight: PrimitiveTokens.font.weight.regular,
   },
   body: {
+    fontFamily: PrimitiveTokens.font.family.regular,
     fontSize: PrimitiveTokens.font.size.body,
     lineHeight: Math.round(PrimitiveTokens.font.size.body * 1.5),
     fontWeight: PrimitiveTokens.font.weight.regular,
   },
   bodyStrong: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontSize: PrimitiveTokens.font.size.body,
     lineHeight: Math.round(PrimitiveTokens.font.size.body * 1.5),
     fontWeight: PrimitiveTokens.font.weight.semibold,
   },
   bodyLg: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontSize: PrimitiveTokens.font.size.bodyLg,
     lineHeight: Math.round(PrimitiveTokens.font.size.bodyLg * 1.5),
     fontWeight: PrimitiveTokens.font.weight.semibold,
   },
   h4: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontSize: PrimitiveTokens.font.size.h4,
     lineHeight: Math.round(PrimitiveTokens.font.size.h4 * 1.35),
     fontWeight: PrimitiveTokens.font.weight.bold,
   },
   h3: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontSize: PrimitiveTokens.font.size.h3,
     lineHeight: Math.round(PrimitiveTokens.font.size.h3 * 1.3),
     fontWeight: PrimitiveTokens.font.weight.bold,
     letterSpacing: -0.3,
   },
   h2: {
+    fontFamily: PrimitiveTokens.font.family.extrabold,
     fontSize: PrimitiveTokens.font.size.h2,
     lineHeight: Math.round(PrimitiveTokens.font.size.h2 * 1.25),
     fontWeight: PrimitiveTokens.font.weight.extrabold,
     letterSpacing: -0.5,
   },
   h1: {
+    fontFamily: PrimitiveTokens.font.family.extrabold,
     fontSize: PrimitiveTokens.font.size.h1,
     lineHeight: Math.round(PrimitiveTokens.font.size.h1 * 1.2),
     fontWeight: PrimitiveTokens.font.weight.extrabold,
     letterSpacing: -0.7,
   },
   scoreDisplay: {
+    fontFamily: PrimitiveTokens.font.family.extrabold,
     fontSize: PrimitiveTokens.font.size.scoreDisplay,
     lineHeight: Math.round(PrimitiveTokens.font.size.scoreDisplay * 1.1),
     fontWeight: PrimitiveTokens.font.weight.extrabold,

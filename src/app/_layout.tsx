@@ -53,8 +53,8 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
-          animationDuration: 170,
+          animation: 'fade',
+          animationDuration: 150,
           animationTypeForReplace: 'push',
           freezeOnBlur: true,
           navigationBarHidden: true,

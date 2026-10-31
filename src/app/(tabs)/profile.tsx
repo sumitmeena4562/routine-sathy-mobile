@@ -55,8 +55,12 @@ export default function ProfileScreen() {
   const containerMaxWidth = isTablet ? 540 : 460;
   const horizontalPadding = isTablet ? 32 : 20;
 
-  // Circadian & Targets State
-  const [goals, setGoals] = useState<UserGoals | null>(null);
+  // Circadian & Targets State (Initialized with standard defaults for instantaneous zero-flicker render)
+  const [goals, setGoals] = useState<UserGoals>({
+    targetWakeUp: '06:00',
+    targetWater: 3.0,
+    targetStudy: 4.0,
+  });
   const [hasGoalsChanged, setHasGoalsChanged] = useState(false);
   const [savingGoals, setSavingGoals] = useState(false);
 
@@ -115,6 +119,18 @@ export default function ProfileScreen() {
     }
     initProfile();
   }, []);
+
+  // Sync reminder toggles if fresh user settings are fetched
+  useEffect(() => {
+    if (user?.settings) {
+      if (typeof user.settings.morningReminder === 'boolean') {
+        setMorningReminder(user.settings.morningReminder);
+      }
+      if (typeof user.settings.eveningReminder === 'boolean') {
+        setEveningReminder(user.settings.eveningReminder);
+      }
+    }
+  }, [user?.settings]);
 
   const triggerHaptic = useCallback(
     (type: 'light' | 'success' | 'warning') => {

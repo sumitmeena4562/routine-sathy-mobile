@@ -13,6 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
+import {
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 
 export type ToastType = 'success' | 'error' | 'info' | 'reminder';
 
@@ -26,16 +31,18 @@ export interface ToastProps {
 }
 
 /**
- * Clean iOS/macOS Notification Pill Toast
- * Styled with soft tinted concentric circular badge, two-line bold title + subtitle typography,
- * pure white stadium pill container, and diffuse ambient drop shadow.
+ * Modern Compact Toast Pill
+ * - Ultra-clean, slim ~40px stadium pill
+ * - Native design system dark forest / light theme harmony
+ * - Crisp inline vector indicator with concise copy
+ * - Interactive tap-to-dismiss with haptic feedback
  */
 export function Toast({
   visible,
   title,
   message,
   type = 'success',
-  duration = 3200,
+  duration = 2800,
   onDismiss,
 }: ToastProps) {
   const theme = useTheme();
@@ -46,9 +53,7 @@ export function Toast({
     if (!visible) return;
 
     if (Platform.OS !== 'web') {
-      if (type === 'success') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      } else if (type === 'error') {
+      if (type === 'error') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       } else {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -64,41 +69,24 @@ export function Toast({
 
   if (!visible) return null;
 
-  // Resolve visual configuration based on toast type
-  let iconName: keyof typeof Ionicons.glyphMap = 'checkmark-circle-outline';
-  let badgeBg = '#F5EEFD';       // Soft lavender (Build Complete style)
-  let badgeBorder = '#E9D5FF';
-  let iconColor = '#9333EA';     // Vibrant purple
-  let defaultTitle = 'Success';
+  // Resolve status icon and accent color based on toast type
+  let iconName: keyof typeof Ionicons.glyphMap = 'checkmark-circle';
+  let accentColor = theme.isDark ? '#34D399' : '#059669';
 
   if (type === 'error') {
-    iconName = 'alert-circle-outline';
-    badgeBg = '#FEF2F2';         // Soft rose
-    badgeBorder = '#FECACA';
-    iconColor = '#E11D48';       // Crimson rose
-    defaultTitle = 'Notice';
+    iconName = 'alert-circle';
+    accentColor = theme.isDark ? '#F87171' : '#DC2626';
   } else if (type === 'reminder') {
-    iconName = 'time-outline';
-    badgeBg = '#FFF4EB';         // Soft peach amber
-    badgeBorder = '#FED7AA';
-    iconColor = '#EA580C';       // Sunrise amber orange
-    defaultTitle = 'Reminder';
+    iconName = 'time';
+    accentColor = theme.isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[600];
   } else if (type === 'info') {
-    iconName = 'chatbubble-ellipses-outline';
-    badgeBg = '#EBF5FF';         // Soft sky blue
-    badgeBorder = '#BFDBFE';
-    iconColor = '#2563EB';       // Vibrant royal blue
-    defaultTitle = 'Notice';
-  } else {
-    // Success: Soft emerald mint or lilac
-    iconName = 'checkmark-circle-outline';
-    badgeBg = '#ECFDF5';
-    badgeBorder = '#A7F3D0';
-    iconColor = '#059669';
-    defaultTitle = 'Success';
+    iconName = 'information-circle';
+    accentColor = theme.isDark ? '#60A5FA' : '#2563EB';
   }
 
-  const displayTitle = title || defaultTitle;
+  const textColor = theme.isDark
+    ? SemanticDarkTokens.color.text.primary
+    : theme.colors.text;
 
   return (
     <View
@@ -106,56 +94,54 @@ export function Toast({
       style={[
         styles.overlay,
         {
-          top: Math.max(insets.top + (Platform.OS === 'android' ? 14 : 10), 20),
+          top: Math.max(insets.top + (Platform.OS === 'android' ? 12 : 8), 16),
         },
       ]}>
       <Animated.View
-        entering={FadeInUp.springify().damping(17).stiffness(150)}
-        exiting={FadeOutUp.duration(180)}
+        entering={FadeInUp.springify().damping(22).stiffness(220)}
+        exiting={FadeOutUp.duration(150)}
         style={[
           styles.pillContainer,
           {
-            backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
-            borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
-            maxWidth: Math.min(width - 32, 440),
+            backgroundColor: theme.isDark
+              ? 'rgba(7, 38, 27, 0.94)'
+              : '#FFFFFF',
+            borderColor: theme.isDark
+              ? 'rgba(207, 227, 214, 0.18)'
+              : 'rgba(11, 61, 46, 0.12)',
+            maxWidth: Math.min(width - 32, 400),
           },
         ]}>
         <Pressable
-          onPress={onDismiss}
+          onPress={() => {
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+            }
+            onDismiss();
+          }}
           style={styles.pressableRow}
           accessibilityRole="alert"
-          accessibilityLabel={`${displayTitle}: ${message}`}>
-          {/* Left Circular Tinted Badge */}
-          <View
-            style={[
-              styles.iconBadge,
-              {
-                backgroundColor: theme.isDark ? 'rgba(255, 255, 255, 0.06)' : badgeBg,
-                borderColor: theme.isDark ? 'rgba(255, 255, 255, 0.12)' : badgeBorder,
-              },
-            ]}>
-            <Ionicons name={iconName} size={21} color={iconColor} />
-          </View>
+          accessibilityLabel={`${title ? `${title}: ` : ''}${message}`}>
+          {/* Status Indicator Icon */}
+          <Ionicons name={iconName} size={17} color={accentColor} style={styles.icon} />
 
-          {/* Two-Line Typography Hierarchy */}
-          <View style={styles.textColumn}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.titleText,
-                { color: theme.isDark ? '#F8FAFC' : '#0F172A' },
-              ]}>
-              {displayTitle}
-            </Text>
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.messageText,
-                { color: theme.isDark ? '#94A3B8' : '#64748B' },
-              ]}>
+          {/* Compact Inline Message */}
+          <View style={styles.textContainer}>
+            <Text numberOfLines={2} style={[styles.messageText, { color: textColor }]}>
+              {title ? (
+                <Text style={styles.titlePrefix}>{title}: </Text>
+              ) : null}
               {message}
             </Text>
           </View>
+
+          {/* Dismiss Icon */}
+          <Ionicons
+            name="close"
+            size={14}
+            color={theme.isDark ? 'rgba(255, 255, 255, 0.40)' : 'rgba(11, 61, 46, 0.35)'}
+            style={styles.closeIcon}
+          />
         </Pressable>
       </Animated.View>
     </View>
@@ -173,46 +159,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   pillContainer: {
-    width: '100%',
-    borderRadius: 32,
+    alignSelf: 'center',
+    borderRadius: 999,
     borderWidth: 1,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.09,
-    shadowRadius: 20,
-    elevation: 8,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   },
   pressableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    gap: 8,
   },
-  iconBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
+  icon: {
+    flexShrink: 0,
   },
-  textColumn: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingRight: 6,
+  textContainer: {
+    flexShrink: 1,
   },
-  titleText: {
-    fontSize: 15,
+  titlePrefix: {
+    fontFamily: TypographyScale.body.fontFamily,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 20,
+    letterSpacing: -0.2,
   },
   messageText: {
+    fontFamily: TypographyScale.body.fontFamily,
     fontSize: 13,
-    fontWeight: '400',
-    letterSpacing: -0.1,
-    lineHeight: 18,
-    marginTop: 1,
+    fontWeight: '500',
+    letterSpacing: -0.15,
+    lineHeight: 17,
+  },
+  closeIcon: {
+    marginLeft: 2,
+    flexShrink: 0,
   },
 });

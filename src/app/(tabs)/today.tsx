@@ -1035,7 +1035,11 @@ export default function TodayScreen() {
                       accessibilityLabel="Decrease 250ml water"
                       style={({ pressed }) => [
                         styles.quickStepBtn,
-                        { backgroundColor: theme.colors.surfaceAlt },
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                          borderWidth: 1,
+                        },
                         pressed && { opacity: 0.6 },
                       ]}>
                       <Ionicons name="remove" size={13} color={theme.colors.textSecondary} />
@@ -1066,24 +1070,12 @@ export default function TodayScreen() {
                     style={({ pressed }) => [
                       styles.quickActionPill,
                       {
-                        backgroundColor: theme.isDark
-                          ? SemanticDarkTokens.color.bg.tileSky
-                          : SemanticLightTokens.color.bg.tileSky,
-                        borderColor: theme.isDark
-                          ? 'rgba(2, 132, 199, 0.35)'
-                          : PrimitiveTokens.color.sky[200],
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
                       },
                       pressed && { opacity: 0.75 },
                     ]}>
-                    <Text
-                      style={[
-                        styles.quickActionPillText,
-                        {
-                          color: theme.isDark
-                            ? PrimitiveTokens.color.sky[400]
-                            : PrimitiveTokens.color.sky[700],
-                        },
-                      ]}>
+                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
                       +500ml
                     </Text>
                   </Pressable>
@@ -1140,7 +1132,11 @@ export default function TodayScreen() {
                       accessibilityLabel="Decrease 30 minutes study"
                       style={({ pressed }) => [
                         styles.quickStepBtn,
-                        { backgroundColor: theme.colors.surfaceAlt },
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                          borderWidth: 1,
+                        },
                         pressed && { opacity: 0.6 },
                       ]}>
                       <Ionicons name="remove" size={13} color={theme.colors.textSecondary} />
@@ -1171,24 +1167,12 @@ export default function TodayScreen() {
                     style={({ pressed }) => [
                       styles.quickActionPill,
                       {
-                        backgroundColor: theme.isDark
-                          ? SemanticDarkTokens.color.bg.tileIndigo
-                          : SemanticLightTokens.color.bg.tileIndigo,
-                        borderColor: theme.isDark
-                          ? 'rgba(79, 70, 229, 0.35)'
-                          : PrimitiveTokens.color.indigo[200],
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
                       },
                       pressed && { opacity: 0.75 },
                     ]}>
-                    <Text
-                      style={[
-                        styles.quickActionPillText,
-                        {
-                          color: theme.isDark
-                            ? PrimitiveTokens.color.indigo[400]
-                            : PrimitiveTokens.color.indigo[700],
-                        },
-                      ]}>
+                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
                       +1h
                     </Text>
                   </Pressable>

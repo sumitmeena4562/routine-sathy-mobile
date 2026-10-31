@@ -1,7 +1,10 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
+import { NavigationBar } from 'expo-navigation-bar';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -15,6 +18,10 @@ import { RoutineThemeProvider } from '@/context/ThemeContext';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
+import { PrimitiveTokens } from '@/theme/tokens.generated';
+
+// Lock native Android substrate window background to Dark Forest (#052418)
+SystemUI.setBackgroundColorAsync(PrimitiveTokens.color.forest[950]).catch(() => {});
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -38,7 +45,13 @@ function RootNavigator() {
   return (
     <ThemeProvider value={navigationTheme}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false }}>
+      {Platform.OS === 'android' && <NavigationBar hidden={true} style="dark" />}
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          navigationBarHidden: true,
+          navigationBarColor: PrimitiveTokens.color.forest[950],
+        }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="onboarding" options={{ headerShown: false }} />
         <Stack.Screen name="welcome" options={{ headerShown: false }} />

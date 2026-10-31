@@ -40,7 +40,16 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "navigationBar": {
+        "backgroundColor": "#052418",
+        "barStyle": "light-content"
+      }
+    },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive",
+      "barStyle": "light-content",
+      "backgroundColor": "#052418"
     },
     "web": {
       "output": "server",
@@ -54,6 +63,14 @@
           "backgroundColor": "#0A3326",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 100
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "hidden": true,
+          "style": "dark",
+          "enforceContrast": false
         }
       ],
       "expo-secure-store",

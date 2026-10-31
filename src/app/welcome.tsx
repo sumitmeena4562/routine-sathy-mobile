@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { NavigationBar } from 'expo-navigation-bar';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -99,8 +100,9 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: ComponentTokens.brandLandscape.skyTop }]}>
+    <View style={[styles.root, { backgroundColor: PrimitiveTokens.color.forest[950] }]}>
       <StatusBar style="light" />
+      {Platform.OS === 'android' && <NavigationBar hidden={true} style="dark" />}
 
       {/* 1. Signature Brand Landscape Background Canvas */}
       <BrandLandscapeIllustration animated />

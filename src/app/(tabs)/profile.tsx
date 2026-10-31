@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -135,6 +135,20 @@ export default function ProfileScreen() {
       }
     },
     [hapticEnabled]
+  );
+
+  // Silently revalidate user goals when screen gains focus (if user is not actively editing)
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasGoalsChanged) {
+        routineService
+          .getUserGoals()
+          .then((res) => {
+            if (res) setGoals(res);
+          })
+          .catch(() => {});
+      }
+    }, [hasGoalsChanged])
   );
 
   // Adjust routine targets locally
@@ -399,7 +413,7 @@ export default function ProfileScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 28, 44),
+            paddingBottom: Math.max(insets.bottom + 96, 112),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },

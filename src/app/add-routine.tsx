@@ -429,7 +429,11 @@ export default function AddRoutineScreen() {
       ]);
 
       triggerHaptic('success');
-      router.replace('/(tabs)/today');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/today');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not save routine. Please try again.';
       setToast({ visible: true, type: 'error', message: msg });
@@ -473,7 +477,13 @@ export default function AddRoutineScreen() {
         ]}>
         <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
           <Pressable
-            onPress={() => router.replace('/(tabs)/today')}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/today');
+              }
+            }}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close"

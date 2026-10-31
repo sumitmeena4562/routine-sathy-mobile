@@ -169,14 +169,14 @@ export default function OnboardingScreen() {
       setCurrentIndex(nextIndex);
     } else {
       triggerHaptic('success');
-      await completeOnboarding();
+      completeOnboarding().catch(() => {});
       router.replace('/welcome');
     }
   }, [currentIndex, completeOnboarding, rawWidth, router]);
 
-  const handleSkip = useCallback(async () => {
+  const handleSkip = useCallback(() => {
     triggerHaptic('light');
-    await completeOnboarding();
+    completeOnboarding().catch(() => {});
     router.replace('/welcome');
   }, [completeOnboarding, router]);
 

@@ -54,7 +54,7 @@ function RootNavigator() {
         screenOptions={{
           headerShown: false,
           animation: 'slide_from_right',
-          animationDuration: 240,
+          animationDuration: 170,
           animationTypeForReplace: 'push',
           freezeOnBlur: true,
           navigationBarHidden: true,

@@ -412,6 +412,11 @@ export default function AddRoutineScreen() {
       }));
 
     try {
+      if (__DEV__) {
+        console.log('⚙️ [ADD ROUTINE] 1/2 Persisting updated habits and goals...');
+      }
+
+      // Step 1: First commit updated habits and goals to user document
       await Promise.all([
         routineService.updateUserHabits(syncedHabits),
         routineService.updateUserGoals({
@@ -419,14 +424,20 @@ export default function AddRoutineScreen() {
           targetWater,
           targetStudy,
         }),
-        routineService.saveRoutine({
-          date: getTodayDateString(),
-          wakeUpTime: todayWakeUpTime || undefined,
-          waterIntake: todayWaterLogged,
-          studyHours: todayStudyLogged,
-          activities,
-        }),
       ]);
+
+      if (__DEV__) {
+        console.log('💾 [ADD ROUTINE] 2/2 Saving routine (server calculates score against committed goals)...');
+      }
+
+      // Step 2: Save the routine so server's calcScore strictly reads the freshly updated goals
+      await routineService.saveRoutine({
+        date: getTodayDateString(),
+        wakeUpTime: todayWakeUpTime || undefined,
+        waterIntake: todayWaterLogged,
+        studyHours: todayStudyLogged,
+        activities,
+      });
 
       triggerHaptic('success');
       if (router.canGoBack()) {
@@ -435,6 +446,9 @@ export default function AddRoutineScreen() {
         router.replace('/(tabs)/today');
       }
     } catch (err: unknown) {
+      if (__DEV__) {
+        console.error('❌ [ADD ROUTINE ERROR]', err);
+      }
       const msg = err instanceof Error ? err.message : 'Could not save routine. Please try again.';
       setToast({ visible: true, type: 'error', message: msg });
       triggerHaptic('warning');

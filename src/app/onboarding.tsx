@@ -31,7 +31,7 @@ import {
   DeepFocusIllustration,
   NightRecoveryIllustration,
 } from '@/components/illustrations';
-import { BrandLogo } from '@/components/ui';
+import { BrandLogo, Button } from '@/components/ui';
 import { useOnboarding } from '@/context/OnboardingContext';
 import {
   ComponentTokens,
@@ -124,8 +124,15 @@ export default function OnboardingScreen() {
   const rawWidth = windowWidth > 0 ? windowWidth : 375;
   const rawHeight = windowHeight > 0 ? windowHeight : 812;
   const isCompact = rawHeight < 720 || rawWidth < 380;
-  const illustrationHeight = isCompact ? 180 : 220;
-  const illustrationWidth = Math.max(Math.min(rawWidth - 48, 320), 240);
+  const isTablet = rawWidth >= 768;
+
+  // Fluid responsive illustration scaling based on screen height
+  const illustrationHeight = Math.round(
+    Math.min(Math.max(rawHeight * 0.28, 160), 220)
+  );
+  const illustrationWidth = Math.round(
+    Math.min(Math.max(rawWidth * 0.72, 220), 320)
+  );
 
   // Shared scroll offset for fluid interactive dot animation
   const scrollX = useSharedValue(0);
@@ -179,10 +186,10 @@ export default function OnboardingScreen() {
     <View style={[styles.root, { backgroundColor: ComponentTokens.brandLandscape.skyTop }]}>
       <StatusBar style="light" />
 
-      {/* 1. Signature Brand Landscape Background Canvas */}
+      {/* Signature Brand Landscape Background Canvas */}
       <BrandLandscapeIllustration animated />
 
-      {/* 2. Top Header Bar with Brand Identity and Frosted Glass Skip Action */}
+      {/* Top Header Bar with Brand Identity and Frosted Glass Skip Action */}
       <View
         style={[
           styles.topBar,
@@ -191,8 +198,8 @@ export default function OnboardingScreen() {
               Platform.OS === 'android'
                 ? Math.max(insets.top, RNStatusBar.currentHeight ?? 36) + 10
                 : Math.max(insets.top, 20) + 8,
-            paddingLeft: insets.left + PrimitiveTokens.space[6],
-            paddingRight: insets.right + PrimitiveTokens.space[6],
+            paddingLeft: insets.left + (isCompact ? 18 : 24),
+            paddingRight: insets.right + (isCompact ? 18 : 24),
           },
         ]}>
         <BrandLogo size="sm" tone="dark" layout="horizontal" />
@@ -213,7 +220,7 @@ export default function OnboardingScreen() {
         )}
       </View>
 
-      {/* 3. Main Swipeable Carousel */}
+      {/* Main Swipeable Carousel */}
       <Animated.FlatList
         ref={flatListRef as any}
         data={SLIDES}
@@ -261,14 +268,15 @@ export default function OnboardingScreen() {
         )}
       />
 
-      {/* 4. Bottom Docked Section: Sunrise Amber Expanding Dots + Pill CTA */}
+      {/* Bottom Docked Section: Sunrise Amber Expanding Dots + Pill CTA */}
       <View
         style={[
           styles.bottomControls,
           {
-            paddingBottom: Math.max(insets.bottom, PrimitiveTokens.space[4]) + PrimitiveTokens.space[3],
-            paddingLeft: insets.left + PrimitiveTokens.space[6],
-            paddingRight: insets.right + PrimitiveTokens.space[6],
+            maxWidth: isTablet ? 420 : 380,
+            paddingBottom: Math.max(insets.bottom + 12, 24),
+            paddingLeft: insets.left + (isCompact ? 20 : 24),
+            paddingRight: insets.right + (isCompact ? 20 : 24),
           },
         ]}>
         {/* Smooth Animated Expanding Pill Dots */}
@@ -283,25 +291,24 @@ export default function OnboardingScreen() {
           ))}
         </View>
 
-        {/* Sunrise Amber Pill CTA Button */}
-        <Pressable
+        {/* Design System 48px Sunrise Amber Pill Button */}
+        <Button
+          title={isLastSlide ? 'Get Started' : 'Next'}
           onPress={handleNext}
-          accessibilityRole="button"
-          accessibilityLabel={isLastSlide ? 'Get Started' : 'Next slide'}
-          style={({ pressed }) => [
-            styles.primaryPillButton,
-            pressed && styles.buttonPressed,
-          ]}>
-          <Text style={styles.primaryPillButtonText}>
-            {isLastSlide ? 'Get Started' : 'Next'}
-          </Text>
-          <Ionicons
-            name={isLastSlide ? 'sparkles' : 'arrow-forward'}
-            size={18}
-            color={SemanticDarkTokens.color.action.primary.fg}
-            style={styles.buttonIcon}
-          />
-        </Pressable>
+          variant="primary"
+          size="md"
+          pill
+          fullWidth
+          icon={
+            <Ionicons
+              name={isLastSlide ? 'sparkles' : 'arrow-forward'}
+              size={18}
+              color={SemanticDarkTokens.color.action.primary.fg}
+            />
+          }
+          iconPosition="right"
+          style={styles.pillButton}
+        />
       </View>
     </View>
   );
@@ -352,12 +359,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: LayoutTokens.space.sectionGap,
+    paddingHorizontal: 24,
   },
   illustrationWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: LayoutTokens.space.sectionGap,
+    marginBottom: 20,
     marginTop: PrimitiveTokens.space[2],
   },
   textContainer: {
@@ -405,10 +412,9 @@ const styles = StyleSheet.create({
   },
   bottomControls: {
     width: '100%',
-    maxWidth: 440,
     alignSelf: 'center',
     alignItems: 'center',
-    gap: PrimitiveTokens.space[5],
+    gap: 16,
     zIndex: 20,
   },
   paginationRow: {
@@ -428,33 +434,8 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
-  primaryPillButton: {
-    width: '100%',
-    height: ComponentTokens.button.heightLg,
-    borderRadius: LayoutTokens.radius.button,
-    backgroundColor: SemanticDarkTokens.color.action.primary.bg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: PrimitiveTokens.color.amber[400],
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.38,
-    shadowRadius: 14,
-    elevation: 5,
-  },
-  primaryPillButtonText: {
-    fontFamily: TypographyScale.bodyLg.fontFamily,
-    fontSize: TypographyScale.bodyLg.fontSize,
-    fontWeight: TypographyScale.bodyLg.fontWeight,
-    letterSpacing: -0.2,
-    color: SemanticDarkTokens.color.action.primary.fg,
-  },
-  buttonIcon: {
-    marginLeft: PrimitiveTokens.space[2],
-  },
-  buttonPressed: {
-    backgroundColor: SemanticDarkTokens.color.action.primary.pressed,
-    transform: [{ scale: 0.985 }],
-    opacity: 0.95,
+  pillButton: {
+    height: ComponentTokens.button.heightMd,
+    borderRadius: ComponentTokens.button.heightMd / 2,
   },
 });

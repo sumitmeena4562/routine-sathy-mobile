@@ -1,49 +1,40 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
+  TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  AmbientAtmosphere,
+  AuthScreenLayout,
   Button,
-  RoutineSathyEmblem,
   TextField,
-  Toast,
 } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/hooks/use-theme';
+import {
+  ComponentTokens,
+  PrimitiveTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 
 export default function SignUpScreen() {
   const router = useRouter();
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const { register } = useAuth();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-
-  // Responsive device breakpoints
-  const isCompact = windowHeight < 720 || windowWidth < 380;
-  const isTablet = windowWidth >= 768;
-
-  const containerMaxWidth = isTablet ? 480 : 420;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
-  const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -55,7 +46,7 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
-    type: 'success' | 'error';
+    type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
@@ -135,202 +126,36 @@ export default function SignUpScreen() {
         type: 'error',
         message: msg,
       });
+      triggerHaptic('warning');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <AmbientAtmosphere />
-
-      {/* Floating Animated Toast Notification */}
-      {toast && (
-        <Toast
-          visible={toast.visible}
-          type={toast.type}
-          message={toast.message}
-          onDismiss={() => setToast(null)}
-        />
-      )}
-
-      {/* Top Header Bar with Consistent Horizontal Alignment */}
-      <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
-            paddingLeft: insets.left + horizontalPadding,
-            paddingRight: insets.right + horizontalPadding,
-          },
-        ]}>
-        <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={({ pressed }) => [
-              styles.backButton,
-              {
-                backgroundColor: theme.colors.backgroundElement,
-                borderColor: theme.colors.borderSubtle,
-              },
-              pressed && styles.pressed,
-            ]}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-          </Pressable>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              maxWidth: containerMaxWidth,
-              paddingBottom: Math.max(insets.bottom + 24, 36),
-              paddingLeft: insets.left + horizontalPadding,
-              paddingRight: insets.right + horizontalPadding,
-            },
-          ]}>
-          {/* Symmetrical Brand Header */}
-          <View style={[styles.headerContainer, isCompact && styles.headerContainerCompact]}>
-            <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={emblemSize} />
-            </View>
-
-            <Text
-              style={[
-                styles.title,
-                { color: theme.colors.text },
-                isCompact && styles.titleCompact,
-                isTablet && styles.titleTablet,
-              ]}>
-              Create an Account
-            </Text>
-
-            <Text
-              style={[
-                styles.subtitle,
-                { color: theme.colors.textSecondary },
-                isCompact && styles.subtitleCompact,
-              ]}>
-              Begin your mindful daily rhythm and build lasting daily habits with Routine Sathy.
-            </Text>
-          </View>
-
-          {/* Form Fields with Adaptive Gap */}
-          <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
-            <TextField
-              label="Full Name"
-              placeholder="e.g. Sumit Meena"
-              value={name}
-              onChangeText={(text) => {
-                setName(text);
-                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
-              }}
-              autoCapitalize="words"
-              errorMessage={errors.name}
-              leftIcon={
-                <Ionicons
-                  name="person-outline"
-                  size={19}
-                  color={errors.name ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="Email Address"
-              placeholder="name@example.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              errorMessage={errors.email}
-              leftIcon={
-                <Ionicons
-                  name="mail-outline"
-                  size={19}
-                  color={errors.email ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="Password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-              }}
-              isPassword
-              autoCapitalize="none"
-              helperText="Must contain at least 8 characters"
-              errorMessage={errors.password}
-              leftIcon={
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={19}
-                  color={errors.password ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="Confirm Password"
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (errors.confirmPassword) {
-                  setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
-                }
-              }}
-              isPassword
-              autoCapitalize="none"
-              errorMessage={errors.confirmPassword}
-              leftIcon={
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={19}
-                  color={errors.confirmPassword ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-          </View>
-
-          {/* Terms & Privacy Note */}
-          <Text style={[styles.termsText, { color: theme.colors.textMuted }]}>
-            By continuing, you agree to our{' '}
-            <Text style={[styles.termsLink, { color: theme.colors.text }]}>
-              Terms of Service
-            </Text>{' '}
-            and{' '}
-            <Text style={[styles.termsLink, { color: theme.colors.text }]}>
-              Privacy Policy
-            </Text>
-            .
-          </Text>
-
+    <AuthScreenLayout
+      title="Create an Account"
+      subtitle="Begin your mindful daily rhythm and build lasting daily habits."
+      fallbackRoute="/welcome"
+      toast={
+        toast
+          ? {
+              visible: toast.visible,
+              type: toast.type,
+              message: toast.message,
+              onDismiss: () => setToast(null),
+            }
+          : null
+      }
+      footer={
+        <View style={styles.footerContainer}>
           {/* Submit CTA */}
           <Button
             title="Create Account"
             onPress={handleSignUp}
             loading={loading}
             variant="primary"
-            size={isCompact ? 'md' : 'lg'}
+            size="md"
             pill
             fullWidth
             style={styles.submitButton}
@@ -338,130 +163,191 @@ export default function SignUpScreen() {
 
           {/* Bottom Switch to Login */}
           <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
+            <Text style={styles.footerText}>
               Already have an account?{' '}
             </Text>
             <Pressable
-              onPress={() => router.replace('/login')}
-              hitSlop={10}
+              onPress={() => {
+                triggerHaptic('light');
+                router.replace('/login');
+              }}
+              hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Go to Login">
-              <Text style={[styles.footerLink, { color: theme.colors.text }]}>
+              <Text style={styles.footerLink}>
                 Log In
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+      }>
+      {/* Form Fields Area */}
+      <View style={styles.formContainer}>
+        <TextField
+          label="Full Name"
+          placeholder="e.g. Sumit Meena"
+          value={name}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setName(text);
+            if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
+          }}
+          autoCapitalize="words"
+          autoComplete="name"
+          returnKeyType="next"
+          onSubmitEditing={() => emailRef.current?.focus()}
+          errorMessage={errors.name}
+          leftIcon={
+            <Ionicons
+              name="person-outline"
+              size={19}
+              color={errors.name ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={emailRef}
+          label="Email Address"
+          placeholder="name@example.com"
+          value={email}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          errorMessage={errors.email}
+          leftIcon={
+            <Ionicons
+              name="mail-outline"
+              size={19}
+              color={errors.email ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={passwordRef}
+          label="Password"
+          placeholder="At least 8 characters"
+          value={password}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+          }}
+          isPassword
+          autoCapitalize="none"
+          autoComplete="new-password"
+          returnKeyType="next"
+          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+          helperText="Must contain at least 8 characters"
+          errorMessage={errors.password}
+          leftIcon={
+            <Ionicons
+              name="lock-closed-outline"
+              size={19}
+              color={errors.password ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={confirmPasswordRef}
+          label="Confirm Password"
+          placeholder="Re-enter your password"
+          value={confirmPassword}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setConfirmPassword(text);
+            if (errors.confirmPassword) {
+              setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+            }
+          }}
+          isPassword
+          autoCapitalize="none"
+          autoComplete="new-password"
+          returnKeyType="go"
+          onSubmitEditing={handleSignUp}
+          errorMessage={errors.confirmPassword}
+          leftIcon={
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={19}
+              color={errors.confirmPassword ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        {/* Terms & Privacy Note */}
+        <Text style={styles.termsText}>
+          By continuing, you agree to our{' '}
+          <Text style={styles.termsLink}>
+            Terms of Service
+          </Text>{' '}
+          and{' '}
+          <Text style={styles.termsLink}>
+            Privacy Policy
+          </Text>
+          .
+        </Text>
+      </View>
+    </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  topBar: {
-    zIndex: 10,
-    height: 48,
-    justifyContent: 'center',
-  },
-  topBarInner: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.96 }],
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    width: '100%',
-    alignSelf: 'center',
-    paddingTop: 8,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerContainerCompact: {
-    marginBottom: 16,
-  },
-  emblemWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    lineHeight: 34,
-    textAlign: 'center',
-  },
-  titleCompact: {
-    fontSize: 23,
-    lineHeight: 29,
-  },
-  titleTablet: {
-    fontSize: 31,
-    lineHeight: 38,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-    letterSpacing: -0.1,
-    textAlign: 'center',
-    maxWidth: 340,
-  },
-  subtitleCompact: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 6,
-  },
   formContainer: {
     width: '100%',
+    gap: 12,
   },
   termsText: {
-    fontSize: 12,
+    fontFamily: PrimitiveTokens.font.family.regular,
+    fontSize: TypographyScale.captionSm.fontSize,
     lineHeight: 18,
     textAlign: 'center',
-    marginTop: 18,
-    marginBottom: 14,
-    paddingHorizontal: 12,
+    marginTop: 6,
+    paddingHorizontal: 8,
+    color: 'rgba(207, 227, 214, 0.70)',
   },
   termsLink: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontWeight: '600',
+    color: ComponentTokens.brandLandscape.trail,
+    textDecorationLine: 'underline',
+  },
+  footerContainer: {
+    width: '100%',
   },
   submitButton: {
-    marginTop: 4,
+    height: ComponentTokens.button.heightMd,
+    borderRadius: ComponentTokens.button.heightMd / 2,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 16,
   },
   footerText: {
+    fontFamily: PrimitiveTokens.font.family.regular,
     fontSize: 14,
+    color: 'rgba(207, 227, 214, 0.70)',
   },
   footerLink: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontSize: 14,
     fontWeight: '700',
+    color: PrimitiveTokens.color.amber[400],
     textDecorationLine: 'underline',
   },
 });

@@ -1,48 +1,37 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
+  TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  AmbientAtmosphere,
+  AuthScreenLayout,
   Button,
-  RoutineSathyEmblem,
   TextField,
-  Toast,
 } from '@/components/ui';
 import { authService } from '@/services/auth';
-import { useTheme } from '@/hooks/use-theme';
+import {
+  ComponentTokens,
+  PrimitiveTokens,
+} from '@/theme/tokens.generated';
 
 export default function ResetPasswordOtpScreen() {
   const router = useRouter();
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const { email, devOtp } = useLocalSearchParams<{ email?: string; devOtp?: string }>();
-
-  // Responsive device breakpoints
-  const isCompact = windowHeight < 720 || windowWidth < 380;
-  const isTablet = windowWidth >= 768;
-
-  const containerMaxWidth = isTablet ? 480 : 420;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
-  const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
   const [otp, setOtp] = useState(devOtp || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  const newPasswordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   const [errors, setErrors] = useState<{
     otp?: string;
@@ -149,7 +138,6 @@ export default function ResetPasswordOtpScreen() {
         message: response.message || 'Password reset successfully! Please log in.',
       });
 
-      // Redirect smoothly to login
       setTimeout(() => {
         router.replace('/login');
       }, 1600);
@@ -201,194 +189,29 @@ export default function ResetPasswordOtpScreen() {
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <AmbientAtmosphere />
-
-      {/* Floating Animated Toast */}
-      {toast && (
-        <Toast
-          visible={toast.visible}
-          type={toast.type}
-          message={toast.message}
-          onDismiss={() => setToast(null)}
-        />
-      )}
-
-      {/* Top Header Bar */}
-      <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
-            paddingLeft: insets.left + horizontalPadding,
-            paddingRight: insets.right + horizontalPadding,
-          },
-        ]}>
-        <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
-          <Pressable
-            onPress={() => router.replace('/forgot-password')}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={({ pressed }) => [
-              styles.backButton,
-              {
-                backgroundColor: theme.colors.backgroundElement,
-                borderColor: theme.colors.borderSubtle,
-              },
-              pressed && styles.pressed,
-            ]}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-          </Pressable>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              maxWidth: containerMaxWidth,
-              paddingBottom: Math.max(insets.bottom + 24, 36),
-              paddingLeft: insets.left + horizontalPadding,
-              paddingRight: insets.right + horizontalPadding,
-            },
-          ]}>
-          {/* Symmetrical Brand Header */}
-          <View style={[styles.headerContainer, isCompact && styles.headerContainerCompact]}>
-            <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={emblemSize} />
-            </View>
-
-            <Text
-              style={[
-                styles.title,
-                { color: theme.colors.text },
-                isCompact && styles.titleCompact,
-                isTablet && styles.titleTablet,
-              ]}>
-              Verify &amp; Reset
-            </Text>
-
-            <Text
-              style={[
-                styles.subtitle,
-                { color: theme.colors.textSecondary },
-                isCompact && styles.subtitleCompact,
-              ]}>
-              Enter the 6-digit code sent to{' '}
-              <Text style={{ fontWeight: '700', color: theme.colors.text }}>
-                {email || 'your email'}
-              </Text>
-              .
-            </Text>
-          </View>
-
-          {/* Form Fields */}
-          <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
-            <TextField
-              label="6-Digit Verification Code"
-              placeholder="123456"
-              value={otp}
-              onChangeText={(text) => {
-                const cleaned = text.replace(/[^0-9]/g, '').slice(0, 6);
-                setOtp(cleaned);
-                if (errors.otp) setErrors((prev) => ({ ...prev, otp: undefined }));
-              }}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoCapitalize="none"
-              errorMessage={errors.otp}
-              inputStyle={styles.otpInputText}
-              leftIcon={
-                <Ionicons
-                  name="keypad-outline"
-                  size={19}
-                  color={errors.otp ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="New Password"
-              placeholder="At least 8 characters"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-              }}
-              isPassword
-              autoCapitalize="none"
-              helperText="Must contain at least 8 characters"
-              errorMessage={errors.password}
-              leftIcon={
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={19}
-                  color={errors.password ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="Confirm New Password"
-              placeholder="Re-enter your new password"
-              value={confirmPassword}
-              onChangeText={(text) => {
-                setConfirmPassword(text);
-                if (errors.confirmPassword) {
-                  setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
-                }
-              }}
-              isPassword
-              autoCapitalize="none"
-              errorMessage={errors.confirmPassword}
-              leftIcon={
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={19}
-                  color={errors.confirmPassword ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-          </View>
-
-          {/* Resend OTP Row */}
-          <View style={styles.resendRow}>
-            <Text style={[styles.resendText, { color: theme.colors.textSecondary }]}>
-              Didn&apos;t get the code?{' '}
-            </Text>
-            {countdown > 0 ? (
-              <Text style={[styles.countdownText, { color: theme.colors.textMuted }]}>
-                Resend in {countdown}s
-              </Text>
-            ) : (
-              <Pressable
-                onPress={handleResendOtp}
-                disabled={resending}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel="Resend code">
-                <Text style={[styles.resendLink, { color: theme.colors.secondary }]}>
-                  {resending ? 'Sending...' : 'Resend Code'}
-                </Text>
-              </Pressable>
-            )}
-          </View>
-
+    <AuthScreenLayout
+      title="Verify & Reset"
+      subtitle={`Enter the 6-digit code sent to ${email || 'your email'}.`}
+      fallbackRoute="/forgot-password"
+      toast={
+        toast
+          ? {
+              visible: toast.visible,
+              type: toast.type,
+              message: toast.message,
+              onDismiss: () => setToast(null),
+            }
+          : null
+      }
+      footer={
+        <View style={styles.footerContainer}>
           {/* Submit CTA */}
           <Button
             title="Reset Password"
             onPress={handleResetPassword}
             loading={loading}
             variant="primary"
-            size={isCompact ? 'md' : 'lg'}
+            size="md"
             pill
             fullWidth
             style={styles.submitButton}
@@ -396,103 +219,139 @@ export default function ResetPasswordOtpScreen() {
 
           {/* Bottom Back to Login */}
           <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
+            <Text style={styles.footerText}>
               Remember your password?{' '}
             </Text>
             <Pressable
-              onPress={() => router.replace('/login')}
+              onPress={() => {
+                triggerHaptic('light');
+                router.replace('/login');
+              }}
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Go to Login">
-              <Text style={[styles.footerLink, { color: theme.colors.text }]}>
+              <Text style={styles.footerLink}>
                 Log In
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+      }>
+      {/* Form Fields */}
+      <View style={styles.formContainer}>
+        <TextField
+          label="6-Digit Verification Code"
+          placeholder="123456"
+          value={otp}
+          tone="dark"
+          disabled={loading || resending}
+          onChangeText={(text) => {
+            const cleaned = text.replace(/[^0-9]/g, '').slice(0, 6);
+            setOtp(cleaned);
+            if (errors.otp) setErrors((prev) => ({ ...prev, otp: undefined }));
+          }}
+          keyboardType="number-pad"
+          maxLength={6}
+          autoCapitalize="none"
+          returnKeyType="next"
+          onSubmitEditing={() => newPasswordRef.current?.focus()}
+          errorMessage={errors.otp}
+          inputStyle={styles.otpInputText}
+          leftIcon={
+            <Ionicons
+              name="keypad-outline"
+              size={19}
+              color={errors.otp ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={newPasswordRef}
+          label="New Password"
+          placeholder="At least 8 characters"
+          value={password}
+          tone="dark"
+          disabled={loading || resending}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+          }}
+          isPassword
+          autoCapitalize="none"
+          autoComplete="new-password"
+          returnKeyType="next"
+          onSubmitEditing={() => confirmPasswordRef.current?.focus()}
+          helperText="Must contain at least 8 characters"
+          errorMessage={errors.password}
+          leftIcon={
+            <Ionicons
+              name="lock-closed-outline"
+              size={19}
+              color={errors.password ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={confirmPasswordRef}
+          label="Confirm New Password"
+          placeholder="Re-enter your new password"
+          value={confirmPassword}
+          tone="dark"
+          disabled={loading || resending}
+          onChangeText={(text) => {
+            setConfirmPassword(text);
+            if (errors.confirmPassword) {
+              setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+            }
+          }}
+          isPassword
+          autoCapitalize="none"
+          autoComplete="new-password"
+          returnKeyType="go"
+          onSubmitEditing={handleResetPassword}
+          errorMessage={errors.confirmPassword}
+          leftIcon={
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={19}
+              color={errors.confirmPassword ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        {/* Resend OTP Row */}
+        <View style={styles.resendRow}>
+          <Text style={styles.resendText}>
+            Didn&apos;t get the code?{' '}
+          </Text>
+          {countdown > 0 ? (
+            <Text style={styles.countdownText}>
+              Resend in {countdown}s
+            </Text>
+          ) : (
+            <Pressable
+              onPress={handleResendOtp}
+              disabled={resending}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Resend code">
+              <Text style={styles.resendLink}>
+                {resending ? 'Sending...' : 'Resend Code'}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  topBar: {
-    zIndex: 10,
-    height: 48,
-    justifyContent: 'center',
-  },
-  topBarInner: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.96 }],
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    width: '100%',
-    alignSelf: 'center',
-    paddingTop: 8,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerContainerCompact: {
-    marginBottom: 16,
-  },
-  emblemWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    lineHeight: 34,
-    textAlign: 'center',
-  },
-  titleCompact: {
-    fontSize: 23,
-    lineHeight: 29,
-  },
-  titleTablet: {
-    fontSize: 31,
-    lineHeight: 38,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-    letterSpacing: -0.1,
-    textAlign: 'center',
-    maxWidth: 320,
-  },
-  subtitleCompact: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 6,
-  },
   formContainer: {
     width: '100%',
+    gap: 12,
   },
   otpInputText: {
     letterSpacing: 4,
@@ -502,35 +361,50 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
+    marginTop: 8,
     marginBottom: 4,
   },
   resendText: {
-    fontSize: 13.5,
+    fontFamily: PrimitiveTokens.font.family.regular,
+    fontSize: 13,
+    color: 'rgba(207, 227, 214, 0.70)',
   },
   countdownText: {
-    fontSize: 13.5,
+    fontFamily: PrimitiveTokens.font.family.semibold,
+    fontSize: 13,
     fontWeight: '600',
+    color: 'rgba(207, 227, 214, 0.45)',
   },
   resendLink: {
-    fontSize: 13.5,
+    fontFamily: PrimitiveTokens.font.family.bold,
+    fontSize: 13,
     fontWeight: '700',
+    color: PrimitiveTokens.color.amber[400],
+    textDecorationLine: 'underline',
+  },
+  footerContainer: {
+    width: '100%',
   },
   submitButton: {
-    marginTop: 16,
+    height: ComponentTokens.button.heightMd,
+    borderRadius: ComponentTokens.button.heightMd / 2,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 22,
+    marginTop: 18,
   },
   footerText: {
+    fontFamily: PrimitiveTokens.font.family.regular,
     fontSize: 14,
+    color: 'rgba(207, 227, 214, 0.70)',
   },
   footerLink: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontSize: 14,
     fontWeight: '700',
+    color: PrimitiveTokens.color.amber[400],
     textDecorationLine: 'underline',
   },
 });

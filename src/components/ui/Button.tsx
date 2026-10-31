@@ -14,6 +14,7 @@ import {
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
+import { PrimitiveTokens } from '@/theme/tokens.generated';
 
 export type ButtonVariant =
   | 'primary'
@@ -227,6 +228,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   text: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontWeight: '700',
     letterSpacing: -0.2,
   },

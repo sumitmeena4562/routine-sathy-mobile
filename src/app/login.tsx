@@ -1,48 +1,37 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
+  TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 
 import {
-  AmbientAtmosphere,
+  AuthScreenLayout,
   Button,
-  RoutineSathyEmblem,
   TextField,
-  Toast,
 } from '@/components/ui';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/hooks/use-theme';
+import {
+  ComponentTokens,
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 import { getTodayDateString, routineService } from '@/services/routine';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const theme = useTheme();
-  const insets = useSafeAreaInsets();
   const { login } = useAuth();
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-
-  // Responsive device breakpoints
-  const isCompact = windowHeight < 720 || windowWidth < 380;
-  const isTablet = windowWidth >= 768;
-
-  const containerMaxWidth = isTablet ? 480 : 420;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 24;
-  const emblemSize = isCompact ? 44 : isTablet ? 56 : 50;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const passwordRef = useRef<TextInput>(null);
 
   const [errors, setErrors] = useState<{
     email?: string;
@@ -129,169 +118,36 @@ export default function LoginScreen() {
         type: 'error',
         message: msg,
       });
+      triggerHaptic('warning');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <StatusBar style={theme.isDark ? 'light' : 'dark'} />
-      <AmbientAtmosphere />
-
-      {/* Floating Animated Toast Notification */}
-      {toast && (
-        <Toast
-          visible={toast.visible}
-          type={toast.type}
-          message={toast.message}
-          onDismiss={() => setToast(null)}
-        />
-      )}
-
-      {/* Top Header Bar with Consistent Horizontal Alignment */}
-      <View
-        style={[
-          styles.topBar,
-          {
-            paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
-            paddingLeft: insets.left + horizontalPadding,
-            paddingRight: insets.right + horizontalPadding,
-          },
-        ]}>
-        <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
-          <Pressable
-            onPress={() => router.back()}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Go back"
-            style={({ pressed }) => [
-              styles.backButton,
-              {
-                backgroundColor: theme.colors.backgroundElement,
-                borderColor: theme.colors.borderSubtle,
-              },
-              pressed && styles.pressed,
-            ]}>
-            <Ionicons name="arrow-back" size={20} color={theme.colors.text} />
-          </Pressable>
-        </View>
-      </View>
-
-      <KeyboardAvoidingView
-        style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              maxWidth: containerMaxWidth,
-              paddingBottom: Math.max(insets.bottom + 24, 36),
-              paddingLeft: insets.left + horizontalPadding,
-              paddingRight: insets.right + horizontalPadding,
-            },
-          ]}>
-          {/* Symmetrical Brand Header */}
-          <View style={[styles.headerContainer, isCompact && styles.headerContainerCompact]}>
-            <View style={styles.emblemWrapper}>
-              <RoutineSathyEmblem size={emblemSize} />
-            </View>
-
-            <Text
-              style={[
-                styles.title,
-                { color: theme.colors.text },
-                isCompact && styles.titleCompact,
-                isTablet && styles.titleTablet,
-              ]}>
-              Welcome Back
-            </Text>
-
-            <Text
-              style={[
-                styles.subtitle,
-                { color: theme.colors.textSecondary },
-                isCompact && styles.subtitleCompact,
-              ]}>
-              Sign in to continue your mindful circadian rhythm and habits.
-            </Text>
-          </View>
-
-          {/* Form Fields with Adaptive Gap */}
-          <View style={[styles.formContainer, { gap: isCompact ? 12 : 16 }]}>
-            <TextField
-              label="Email Address"
-              placeholder="name@example.com"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              errorMessage={errors.email}
-              leftIcon={
-                <Ionicons
-                  name="mail-outline"
-                  size={19}
-                  color={errors.email ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-
-            <TextField
-              label="Password"
-              placeholder="Enter your password"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-              }}
-              isPassword
-              autoCapitalize="none"
-              returnKeyType="go"
-              onSubmitEditing={handleLogin}
-              errorMessage={errors.password}
-              leftIcon={
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={19}
-                  color={errors.password ? theme.colors.error : theme.colors.textSecondary}
-                />
-              }
-            />
-          </View>
-
-          {/* Forgot Password */}
-          <View style={styles.forgotPasswordContainer}>
-            <Pressable
-              onPress={() => {
-                triggerHaptic('light');
-                setToast({
-                  visible: true,
-                  type: 'info',
-                  message: 'Forgot Password is under development. Coming soon!',
-                });
-              }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel="Forgot Password">
-              <Text style={[styles.forgotPasswordText, { color: theme.colors.secondary }]}>
-                Forgot password?
-              </Text>
-            </Pressable>
-          </View>
-
+    <AuthScreenLayout
+      title="Welcome Back"
+      subtitle="Sign in to continue your mindful daily rhythm and habits."
+      fallbackRoute="/welcome"
+      toast={
+        toast
+          ? {
+              visible: toast.visible,
+              type: toast.type,
+              message: toast.message,
+              onDismiss: () => setToast(null),
+            }
+          : null
+      }
+      footer={
+        <View style={styles.footerContainer}>
           {/* Submit CTA */}
           <Button
             title="Sign In"
             onPress={handleLogin}
             loading={loading}
             variant="primary"
-            size={isCompact ? 'md' : 'lg'}
+            size="md"
             pill
             fullWidth
             style={styles.submitButton}
@@ -299,128 +155,136 @@ export default function LoginScreen() {
 
           {/* Bottom Switch to Sign Up */}
           <View style={styles.footerRow}>
-            <Text style={[styles.footerText, { color: theme.colors.textSecondary }]}>
-              {"Don't have an account? "}
+            <Text style={styles.footerText}>
+              Don&apos;t have an account?{' '}
             </Text>
             <Pressable
-              onPress={() => router.replace('/signup')}
-              hitSlop={10}
+              onPress={() => {
+                triggerHaptic('light');
+                router.replace('/signup');
+              }}
+              hitSlop={12}
               accessibilityRole="button"
               accessibilityLabel="Go to Sign Up">
-              <Text style={[styles.footerLink, { color: theme.colors.text }]}>
+              <Text style={styles.footerLink}>
                 Sign Up
               </Text>
             </Pressable>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+        </View>
+      }>
+      {/* Form Inputs Area */}
+      <View style={styles.formContainer}>
+        <TextField
+          label="Email Address"
+          placeholder="name@example.com"
+          value={email}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (errors.email) setErrors((prev) => ({ ...prev, email: undefined }));
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoComplete="email"
+          returnKeyType="next"
+          onSubmitEditing={() => passwordRef.current?.focus()}
+          errorMessage={errors.email}
+          leftIcon={
+            <Ionicons
+              name="mail-outline"
+              size={19}
+              color={errors.email ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        <TextField
+          ref={passwordRef}
+          label="Password"
+          placeholder="Enter your password"
+          value={password}
+          tone="dark"
+          disabled={loading}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+          }}
+          isPassword
+          autoCapitalize="none"
+          autoComplete="password"
+          returnKeyType="go"
+          onSubmitEditing={handleLogin}
+          errorMessage={errors.password}
+          leftIcon={
+            <Ionicons
+              name="lock-closed-outline"
+              size={19}
+              color={errors.password ? '#F87171' : 'rgba(207, 227, 214, 0.65)'}
+            />
+          }
+        />
+
+        {/* Forgot Password Link */}
+        <View style={styles.forgotPasswordContainer}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light');
+              router.push('/forgot-password');
+            }}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Forgot Password">
+            <Text style={styles.forgotPasswordText}>
+              Forgot password?
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+    </AuthScreenLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  topBar: {
-    zIndex: 10,
-    height: 48,
-    justifyContent: 'center',
-  },
-  topBarInner: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: {
-    opacity: 0.75,
-    transform: [{ scale: 0.96 }],
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    width: '100%',
-    alignSelf: 'center',
-    paddingTop: 8,
-  },
-  headerContainer: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  headerContainerCompact: {
-    marginBottom: 16,
-  },
-  emblemWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  title: {
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    lineHeight: 34,
-    textAlign: 'center',
-  },
-  titleCompact: {
-    fontSize: 23,
-    lineHeight: 29,
-  },
-  titleTablet: {
-    fontSize: 31,
-    lineHeight: 38,
-  },
-  subtitle: {
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-    letterSpacing: -0.1,
-    textAlign: 'center',
-    maxWidth: 320,
-  },
-  subtitleCompact: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 6,
-  },
   formContainer: {
     width: '100%',
+    gap: 14,
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginTop: 10,
-    marginBottom: 18,
+    marginTop: 2,
+    marginBottom: 4,
   },
   forgotPasswordText: {
+    fontFamily: PrimitiveTokens.font.family.semibold,
     fontSize: 13,
     fontWeight: '600',
+    color: PrimitiveTokens.color.amber[400],
+  },
+  footerContainer: {
+    width: '100%',
   },
   submitButton: {
-    marginTop: 4,
+    height: ComponentTokens.button.heightMd,
+    borderRadius: ComponentTokens.button.heightMd / 2,
   },
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 18,
   },
   footerText: {
-    fontSize: 14,
+    fontFamily: PrimitiveTokens.font.family.regular,
+    fontSize: TypographyScale.bodySm.fontSize,
+    color: SemanticDarkTokens.color.text.secondary,
   },
   footerLink: {
-    fontSize: 14,
+    fontFamily: PrimitiveTokens.font.family.bold,
+    fontSize: TypographyScale.bodySm.fontSize,
     fontWeight: '700',
+    color: PrimitiveTokens.color.amber[400],
     textDecorationLine: 'underline',
   },
 });

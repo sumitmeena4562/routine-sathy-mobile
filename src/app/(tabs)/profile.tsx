@@ -120,17 +120,7 @@ export default function ProfileScreen() {
     initProfile();
   }, []);
 
-  // Sync reminder toggles if fresh user settings are fetched
-  useEffect(() => {
-    if (user?.settings) {
-      if (typeof user.settings.morningReminder === 'boolean') {
-        setMorningReminder(user.settings.morningReminder);
-      }
-      if (typeof user.settings.eveningReminder === 'boolean') {
-        setEveningReminder(user.settings.eveningReminder);
-      }
-    }
-  }, [user?.settings]);
+
 
   const triggerHaptic = useCallback(
     (type: 'light' | 'success' | 'warning') => {
@@ -228,7 +218,12 @@ export default function ProfileScreen() {
           eveningReminder: key === 'evening' ? val : eveningReminder,
         });
       } catch {
-        // Background sync
+        setToast({
+          visible: true,
+          title: 'Sync Notice',
+          type: 'error',
+          message: 'Could not sync reminder preference with cloud.',
+        });
       }
     }
   };
@@ -1074,10 +1069,10 @@ export default function ProfileScreen() {
                   {
                     backgroundColor: theme.isDark
                       ? 'rgba(239, 68, 68, 0.15)'
-                      : '#FEF2F2',
+                      : PrimitiveTokens.color.rose[50],
                     borderColor: theme.isDark
                       ? 'rgba(239, 68, 68, 0.35)'
-                      : '#FECACA',
+                      : PrimitiveTokens.color.rose[200],
                   },
                 ]}>
                 <Ionicons

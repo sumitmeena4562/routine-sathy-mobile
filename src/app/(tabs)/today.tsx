@@ -998,8 +998,12 @@ export default function TodayScreen() {
 
                 {/* Wake-up Status / Action Button */}
                 {routine?.wakeUpTime ? (
-                  <View
-                    style={[
+                  <Pressable
+                    onPress={() => router.push('/add-routine')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Wake-up logged at ${formatWakeTimeDisplay(routine?.wakeUpTime)}, tap to edit`}
+                    style={({ pressed }) => [
                       styles.loggedPill,
                       wakeGoalMet
                         ? {
@@ -1012,6 +1016,7 @@ export default function TodayScreen() {
                             borderColor: theme.colors.borderSubtle,
                             borderWidth: 1,
                           },
+                      pressed && { opacity: 0.75 },
                     ]}>
                     <Ionicons
                       name={wakeGoalMet ? 'checkmark' : 'time-outline'}
@@ -1025,7 +1030,7 @@ export default function TodayScreen() {
                       ]}>
                       {formatWakeTimeDisplay(routine?.wakeUpTime)}
                     </Text>
-                  </View>
+                  </Pressable>
                 ) : (
                   <Pressable
                     onPress={() => handleLogWakeUp()}

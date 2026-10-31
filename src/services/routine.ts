@@ -55,6 +55,17 @@ export const routineService = {
   },
 
   /**
+   * Updates or saves custom habit definitions for the user.
+   */
+  async updateUserHabits(habits: HabitItem[]): Promise<HabitItem[]> {
+    const response = await api.put<{ success: boolean; habits: HabitItem[] }>(
+      '/auth/habits',
+      { habits }
+    );
+    return response.data.habits || [];
+  },
+
+  /**
    * Retrieves default targets/goals for the user.
    */
   async getUserGoals(): Promise<UserGoals> {

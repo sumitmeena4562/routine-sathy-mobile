@@ -31,7 +31,17 @@ import { useThemeContext } from '@/context/ThemeContext';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth';
 import { routineService } from '@/services/routine';
+import {
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  SemanticLightTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 import { UserGoals } from '@/types/routine';
+import { Storage } from '@/utils/storage';
+
+const STORAGE_KEY_HAPTIC = 'routine_sathy_haptic_enabled';
+const STORAGE_KEY_SOUND = 'routine_sathy_sound_enabled';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -57,12 +67,8 @@ export default function ProfileScreen() {
   const [eveningReminder, setEveningReminder] = useState(
     user?.settings?.eveningReminder ?? true
   );
-  const [hapticEnabled, setHapticEnabled] = useState(
-    user?.settings?.vibration ?? true
-  );
-  const [soundEnabled, setSoundEnabled] = useState(
-    user?.settings?.soundEffects ?? false
-  );
+  const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(false);
 
   // Modals
   const [editProfileModal, setEditProfileModal] = useState(false);
@@ -84,19 +90,30 @@ export default function ProfileScreen() {
     message: string;
   } | null>(null);
 
-  // Load user goals
+  // Load user goals and persistent sensory preferences
   useEffect(() => {
-    async function loadGoals() {
+    async function initProfile() {
       try {
-        const goalsRes = await routineService.getUserGoals();
+        const [goalsRes, storedHaptic, storedSound] = await Promise.all([
+          routineService.getUserGoals(),
+          Storage.getItem(STORAGE_KEY_HAPTIC),
+          Storage.getItem(STORAGE_KEY_SOUND),
+        ]);
+
         if (goalsRes) {
           setGoals(goalsRes);
+        }
+        if (storedHaptic !== null) {
+          setHapticEnabled(storedHaptic === 'true');
+        }
+        if (storedSound !== null) {
+          setSoundEnabled(storedSound === 'true');
         }
       } catch {
         // Fallback default
       }
     }
-    loadGoals();
+    initProfile();
   }, []);
 
   const triggerHaptic = useCallback(
@@ -171,7 +188,7 @@ export default function ProfileScreen() {
     }
   };
 
-  // Toggle Reminder Settings and sync with backend
+  // Toggle Reminder & Sensory Settings
   const handleToggleSetting = async (
     key: 'morning' | 'evening' | 'haptic' | 'sound',
     val: boolean
@@ -179,16 +196,24 @@ export default function ProfileScreen() {
     triggerHaptic('light');
     if (key === 'morning') setMorningReminder(val);
     if (key === 'evening') setEveningReminder(val);
-    if (key === 'haptic') setHapticEnabled(val);
-    if (key === 'sound') setSoundEnabled(val);
+    if (key === 'haptic') {
+      setHapticEnabled(val);
+      Storage.setItem(STORAGE_KEY_HAPTIC, String(val)).catch(() => {});
+    }
+    if (key === 'sound') {
+      setSoundEnabled(val);
+      Storage.setItem(STORAGE_KEY_SOUND, String(val)).catch(() => {});
+    }
 
-    try {
-      await authService.updateSettings({
-        morningReminder: key === 'morning' ? val : morningReminder,
-        eveningReminder: key === 'evening' ? val : eveningReminder,
-      });
-    } catch {
-      // Background sync
+    if (key === 'morning' || key === 'evening') {
+      try {
+        await authService.updateSettings({
+          morningReminder: key === 'morning' ? val : morningReminder,
+          eveningReminder: key === 'evening' ? val : eveningReminder,
+        });
+      } catch {
+        // Background sync
+      }
     }
   };
 
@@ -205,7 +230,12 @@ export default function ProfileScreen() {
       await refreshUser();
       setEditProfileModal(false);
       triggerHaptic('success');
-      setToast({ visible: true, title: 'Profile Updated', type: 'success', message: 'Your name was saved successfully.' });
+      setToast({
+        visible: true,
+        title: 'Profile Updated',
+        type: 'success',
+        message: 'Your name was saved successfully.',
+      });
     } catch {
       setToast({
         visible: true,
@@ -218,15 +248,15 @@ export default function ProfileScreen() {
     }
   };
 
-  // Change password submit
+  // Change password submit (8 characters minimum to match backend contract)
   const handleChangePassword = async () => {
     setPasswordError('');
     if (!currentPassword) {
       setPasswordError('Please enter your current password.');
       return;
     }
-    if (newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters.');
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -297,6 +327,27 @@ export default function ProfileScreen() {
     return name.slice(0, 2).toUpperCase();
   };
 
+  // Dynamic Tile Backgrounds based on Theme
+  const amberTileBg = theme.isDark
+    ? SemanticDarkTokens.color.bg.tileAmber
+    : SemanticLightTokens.color.bg.tileAmber;
+  const mintTileBg = theme.isDark
+    ? SemanticDarkTokens.color.bg.tileMint
+    : SemanticLightTokens.color.bg.tileMint;
+  const skyTileBg = theme.isDark
+    ? SemanticDarkTokens.color.bg.tileSky
+    : SemanticLightTokens.color.bg.tileSky;
+  const indigoTileBg = theme.isDark
+    ? SemanticDarkTokens.color.bg.tileIndigo
+    : SemanticLightTokens.color.bg.tileIndigo;
+
+  const eyebrowColor = theme.isDark
+    ? PrimitiveTokens.color.fern[300]
+    : PrimitiveTokens.color.forest[600];
+  const switchActiveTrack = theme.isDark
+    ? PrimitiveTokens.color.fern[300]
+    : PrimitiveTokens.color.forest[600];
+
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
@@ -320,10 +371,11 @@ export default function ProfileScreen() {
             paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 10),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
+            borderBottomColor: theme.colors.borderSubtle,
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
-          <Text style={styles.eyebrow}>ACCOUNT &amp; SETTINGS</Text>
+          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>ACCOUNT &amp; SETTINGS</Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Profile
           </Text>
@@ -353,7 +405,15 @@ export default function ProfileScreen() {
                   {getInitials(user?.name)}
                 </Text>
               </View>
-              <View style={styles.avatarOnlineDot} />
+              <View
+                style={[
+                  styles.avatarOnlineDot,
+                  {
+                    backgroundColor: theme.colors.success,
+                    borderColor: theme.colors.surface,
+                  },
+                ]}
+              />
             </View>
 
             {/* Name, Email, and Role Badge */}
@@ -364,9 +424,25 @@ export default function ProfileScreen() {
               <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]} numberOfLines={1}>
                 {user?.email || '—'}
               </Text>
-              <View style={styles.roleChip}>
-                <Ionicons name="shield-checkmark" size={12} color="#D97706" />
-                <Text style={styles.roleChipText}>
+              <View style={[styles.roleChip, { backgroundColor: amberTileBg }]}>
+                <Ionicons
+                  name="shield-checkmark"
+                  size={12}
+                  color={
+                    theme.isDark
+                      ? PrimitiveTokens.color.amber[400]
+                      : PrimitiveTokens.color.amber[700]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.roleChipText,
+                    {
+                      color: theme.isDark
+                        ? PrimitiveTokens.color.amber[400]
+                        : PrimitiveTokens.color.amber[700],
+                    },
+                  ]}>
                   {user?.role === 'admin' ? 'Admin' : 'Member'}
                 </Text>
               </View>
@@ -384,8 +460,8 @@ export default function ProfileScreen() {
               style={({ pressed }) => [
                 styles.editPillBtn,
                 {
-                  backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                  borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                  backgroundColor: theme.colors.surfaceAlt,
+                  borderColor: theme.colors.borderSubtle,
                 },
                 pressed && { opacity: 0.75 },
               ]}>
@@ -400,8 +476,16 @@ export default function ProfileScreen() {
             ======================================================== */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#FFF7ED' }]}>
-              <Ionicons name="flag" size={16} color="#D97706" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: amberTileBg }]}>
+              <Ionicons
+                name="flag"
+                size={16}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.amber[400]
+                    : PrimitiveTokens.color.amber[600]
+                }
+              />
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
@@ -416,16 +500,29 @@ export default function ProfileScreen() {
           {/* Wake-up Time Stepper */}
           <View style={styles.targetRow}>
             <View style={styles.targetInfo}>
-              <Ionicons name="sunny-outline" size={17} color="#F59E0B" style={styles.targetIcon} />
+              <Ionicons
+                name="sunny-outline"
+                size={17}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.amber[400]
+                    : PrimitiveTokens.color.amber[600]
+                }
+                style={styles.targetIcon}
+              />
               <View>
                 <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Wake-up Time</Text>
-                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>Morning biological start</Text>
+                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
+                  Morning biological start
+                </Text>
               </View>
             </View>
             <View style={styles.stepperContainer}>
               <Pressable
                 onPress={() => adjustGoalWake(-15)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Decrease wake-up time by 15 minutes"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="remove" size={14} color={theme.colors.text} />
               </Pressable>
               <Text style={[styles.stepperValText, { color: theme.colors.text }]}>
@@ -433,7 +530,9 @@ export default function ProfileScreen() {
               </Text>
               <Pressable
                 onPress={() => adjustGoalWake(15)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Increase wake-up time by 15 minutes"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="add" size={14} color={theme.colors.text} />
               </Pressable>
             </View>
@@ -444,16 +543,29 @@ export default function ProfileScreen() {
           {/* Water Goal Stepper */}
           <View style={styles.targetRow}>
             <View style={styles.targetInfo}>
-              <Ionicons name="water-outline" size={17} color="#0284C7" style={styles.targetIcon} />
+              <Ionicons
+                name="water-outline"
+                size={17}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.sky[400]
+                    : PrimitiveTokens.color.sky[600]
+                }
+                style={styles.targetIcon}
+              />
               <View>
                 <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Water Intake</Text>
-                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>Daily hydration goal</Text>
+                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
+                  Daily hydration goal
+                </Text>
               </View>
             </View>
             <View style={styles.stepperContainer}>
               <Pressable
                 onPress={() => adjustGoalWater(-0.5)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Decrease water goal by 0.5 liters"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="remove" size={14} color={theme.colors.text} />
               </Pressable>
               <Text style={[styles.stepperValText, { color: theme.colors.text }]}>
@@ -461,7 +573,9 @@ export default function ProfileScreen() {
               </Text>
               <Pressable
                 onPress={() => adjustGoalWater(0.5)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Increase water goal by 0.5 liters"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="add" size={14} color={theme.colors.text} />
               </Pressable>
             </View>
@@ -472,16 +586,29 @@ export default function ProfileScreen() {
           {/* Deep Work / Study Stepper */}
           <View style={styles.targetRow}>
             <View style={styles.targetInfo}>
-              <Ionicons name="book-outline" size={17} color="#7C3AED" style={styles.targetIcon} />
+              <Ionicons
+                name="book-outline"
+                size={17}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.indigo[400]
+                    : PrimitiveTokens.color.indigo[600]
+                }
+                style={styles.targetIcon}
+              />
               <View>
                 <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Deep Focus</Text>
-                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>Dedicated daily study block</Text>
+                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
+                  Dedicated daily study block
+                </Text>
               </View>
             </View>
             <View style={styles.stepperContainer}>
               <Pressable
                 onPress={() => adjustGoalStudy(-0.5)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Decrease focus study goal by 30 minutes"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="remove" size={14} color={theme.colors.text} />
               </Pressable>
               <Text style={[styles.stepperValText, { color: theme.colors.text }]}>
@@ -489,11 +616,55 @@ export default function ProfileScreen() {
               </Text>
               <Pressable
                 onPress={() => adjustGoalStudy(0.5)}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.backgroundElement }]}>
+                accessibilityRole="button"
+                accessibilityLabel="Increase focus study goal by 30 minutes"
+                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
                 <Ionicons name="add" size={14} color={theme.colors.text} />
               </Pressable>
             </View>
           </View>
+
+          <View style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]} />
+
+          {/* Mindful Habits Navigation Shortcut */}
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light');
+              router.push('/add-routine');
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Manage Mindful Habits"
+            style={({ pressed }) => [
+              styles.habitsShortcutRow,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.borderSubtle,
+              },
+              pressed && { opacity: 0.75 },
+            ]}>
+            <View style={styles.habitsShortcutLeft}>
+              <View style={[styles.habitsShortcutIconCircle, { backgroundColor: mintTileBg }]}>
+                <Ionicons
+                  name="sparkles"
+                  size={15}
+                  color={
+                    theme.isDark
+                      ? PrimitiveTokens.color.fern[300]
+                      : PrimitiveTokens.color.forest[600]
+                  }
+                />
+              </View>
+              <View style={styles.habitsShortcutTextCol}>
+                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>
+                  Mindful Habits
+                </Text>
+                <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
+                  Configure workout, meditation &amp; custom habits
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={17} color={theme.colors.textMuted} />
+          </Pressable>
 
           {/* Save Targets Button (Visible only when modified) */}
           {hasGoalsChanged && (
@@ -516,8 +687,16 @@ export default function ProfileScreen() {
             ======================================================== */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#F0FDF4' }]}>
-              <Ionicons name="notifications" size={16} color="#059669" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: mintTileBg }]}>
+              <Ionicons
+                name="notifications"
+                size={16}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.fern[300]
+                    : PrimitiveTokens.color.forest[600]
+                }
+              />
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
@@ -542,7 +721,7 @@ export default function ProfileScreen() {
             <Switch
               value={morningReminder}
               onValueChange={(val) => handleToggleSetting('morning', val)}
-              trackColor={{ false: '#CBD5E1', true: '#10B981' }}
+              trackColor={{ false: theme.colors.borderSubtle, true: switchActiveTrack }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -562,7 +741,7 @@ export default function ProfileScreen() {
             <Switch
               value={eveningReminder}
               onValueChange={(val) => handleToggleSetting('evening', val)}
-              trackColor={{ false: '#CBD5E1', true: '#10B981' }}
+              trackColor={{ false: theme.colors.borderSubtle, true: switchActiveTrack }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -582,7 +761,7 @@ export default function ProfileScreen() {
             <Switch
               value={hapticEnabled}
               onValueChange={(val) => handleToggleSetting('haptic', val)}
-              trackColor={{ false: '#CBD5E1', true: '#10B981' }}
+              trackColor={{ false: theme.colors.borderSubtle, true: switchActiveTrack }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -602,7 +781,7 @@ export default function ProfileScreen() {
             <Switch
               value={soundEnabled}
               onValueChange={(val) => handleToggleSetting('sound', val)}
-              trackColor={{ false: '#CBD5E1', true: '#10B981' }}
+              trackColor={{ false: theme.colors.borderSubtle, true: switchActiveTrack }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -613,8 +792,16 @@ export default function ProfileScreen() {
             ======================================================== */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#F0F9FF' }]}>
-              <Ionicons name="moon" size={16} color="#0284C7" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: skyTileBg }]}>
+              <Ionicons
+                name="moon"
+                size={16}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.sky[400]
+                    : PrimitiveTokens.color.sky[600]
+                }
+              />
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
@@ -644,19 +831,17 @@ export default function ProfileScreen() {
                     triggerHaptic('light');
                     setPreference(mode);
                   }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Set theme to ${label}`}
                   style={({ pressed }) => [
                     styles.themeOption,
                     {
                       backgroundColor: active
                         ? theme.colors.primary
-                        : theme.isDark
-                        ? '#1E293B'
-                        : '#F8FAFC',
+                        : theme.colors.surfaceAlt,
                       borderColor: active
                         ? theme.colors.primary
-                        : theme.isDark
-                        ? '#334155'
-                        : '#E2E8F0',
+                        : theme.colors.borderSubtle,
                     },
                     pressed && { opacity: 0.8 },
                   ]}>
@@ -683,8 +868,16 @@ export default function ProfileScreen() {
             ======================================================== */}
         <Card style={styles.sectionCard}>
           <View style={styles.sectionHeader}>
-            <View style={[styles.sectionIconCircle, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="shield" size={16} color="#4F46E5" />
+            <View style={[styles.sectionIconCircle, { backgroundColor: indigoTileBg }]}>
+              <Ionicons
+                name="shield"
+                size={16}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.indigo[400]
+                    : PrimitiveTokens.color.indigo[600]
+                }
+              />
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
@@ -706,11 +899,13 @@ export default function ProfileScreen() {
               setConfirmPassword('');
               setPasswordModal(true);
             }}
+            accessibilityRole="button"
+            accessibilityLabel="Change Password"
             style={({ pressed }) => [
               styles.securityRow,
               {
-                backgroundColor: theme.isDark ? '#1E293B' : '#F8FAFC',
-                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.borderSubtle,
               },
               pressed && { opacity: 0.75 },
             ]}>
@@ -738,7 +933,7 @@ export default function ProfileScreen() {
                 Routine Sathy
               </Text>
               <Text style={[styles.appVersion, { color: theme.colors.textSecondary }]}>
-                Version 1.0.2 • Up to date
+                Version 1.0.2 • Circadian Architecture
               </Text>
             </View>
           </View>
@@ -788,7 +983,7 @@ export default function ProfileScreen() {
               styles.modalCard,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                borderColor: theme.colors.borderSubtle,
               },
             ]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
@@ -846,20 +1041,49 @@ export default function ProfileScreen() {
               styles.modalCard,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                borderColor: theme.colors.borderSubtle,
               },
             ]}>
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Change Password
             </Text>
             <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              Enter your current password and pick a new secure password.
+              Enter your current password and pick a new password (min. 8 characters).
             </Text>
 
             {passwordError ? (
-              <View style={styles.modalErrorBox}>
-                <Ionicons name="alert-circle" size={15} color="#DC2626" />
-                <Text style={styles.modalErrorText}>{passwordError}</Text>
+              <View
+                style={[
+                  styles.modalErrorBox,
+                  {
+                    backgroundColor: theme.isDark
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : '#FEF2F2',
+                    borderColor: theme.isDark
+                      ? 'rgba(239, 68, 68, 0.35)'
+                      : '#FECACA',
+                  },
+                ]}>
+                <Ionicons
+                  name="alert-circle"
+                  size={15}
+                  color={
+                    theme.isDark
+                      ? PrimitiveTokens.color.rose[400]
+                      : PrimitiveTokens.color.rose[600]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.modalErrorText,
+                    {
+                      color: theme.isDark
+                        ? PrimitiveTokens.color.rose[400]
+                        : PrimitiveTokens.color.rose[600],
+                    },
+                  ]}>
+                  {passwordError}
+                </Text>
               </View>
             ) : null}
 
@@ -876,7 +1100,7 @@ export default function ProfileScreen() {
               label="New Password"
               value={newPassword}
               onChangeText={setNewPassword}
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
               secureTextEntry
               containerStyle={{ marginBottom: 12 }}
             />
@@ -919,21 +1143,22 @@ const styles = StyleSheet.create({
   headerBar: {
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(226, 232, 240, 0.6)',
   },
   headerBarInner: {
     width: '100%',
     alignSelf: 'center',
   },
   eyebrow: {
-    fontSize: 11,
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '800',
-    color: '#D97706',
-    letterSpacing: 1.2,
-    marginBottom: 4,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
   title: {
-    fontSize: 27,
+    fontSize: 24,
+    fontFamily: TypographyScale.h2.fontFamily,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -965,6 +1190,7 @@ const styles = StyleSheet.create({
   },
   avatarInitials: {
     fontSize: 20,
+    fontFamily: TypographyScale.h3.fontFamily,
     fontWeight: '800',
     letterSpacing: -0.5,
   },
@@ -975,9 +1201,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 7,
-    backgroundColor: '#10B981',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
   },
   userInfoCol: {
     flex: 1,
@@ -985,11 +1209,13 @@ const styles = StyleSheet.create({
   },
   userName: {
     fontSize: 17,
+    fontFamily: TypographyScale.h4.fontFamily,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   userEmail: {
     fontSize: 13,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 2,
   },
   roleChip: {
@@ -998,15 +1224,14 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 5,
     alignSelf: 'flex-start',
-    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
   },
   roleChipText: {
     fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '700',
-    color: '#D97706',
   },
   editPillBtn: {
     flexDirection: 'row',
@@ -1019,6 +1244,7 @@ const styles = StyleSheet.create({
   },
   editPillBtnText: {
     fontSize: 12.5,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '600',
   },
   // Grouped Section Cards
@@ -1044,11 +1270,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
+    fontFamily: TypographyScale.h4.fontFamily,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   sectionSubtitle: {
     fontSize: 12.5,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 1,
   },
   divider: {
@@ -1073,10 +1301,12 @@ const styles = StyleSheet.create({
   },
   targetLabel: {
     fontSize: 14.5,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '600',
   },
   targetSub: {
     fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 1,
   },
   stepperContainer: {
@@ -1093,9 +1323,35 @@ const styles = StyleSheet.create({
   },
   stepperValText: {
     fontSize: 14,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '700',
     minWidth: 54,
     textAlign: 'center',
+  },
+  habitsShortcutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  habitsShortcutLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  habitsShortcutIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  habitsShortcutTextCol: {
+    flex: 1,
   },
   saveGoalsWrapper: {
     marginTop: 16,
@@ -1113,10 +1369,12 @@ const styles = StyleSheet.create({
   },
   toggleTitle: {
     fontSize: 14.5,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '600',
   },
   toggleSub: {
     fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 2,
   },
   // Theme Options
@@ -1136,6 +1394,7 @@ const styles = StyleSheet.create({
   },
   themeOptionText: {
     fontSize: 13,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '600',
   },
   // Security Row
@@ -1155,10 +1414,12 @@ const styles = StyleSheet.create({
   },
   securityRowTitle: {
     fontSize: 14,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '600',
   },
   securityRowSub: {
     fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 1,
   },
   // App Info
@@ -1173,10 +1434,12 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 14.5,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '700',
   },
   appVersion: {
     fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 2,
   },
   logoutWrapper: {
@@ -1208,11 +1471,13 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
+    fontFamily: TypographyScale.h3.fontFamily,
     fontWeight: '800',
     letterSpacing: -0.4,
   },
   modalSubtitle: {
     fontSize: 13.5,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     marginTop: 4,
     marginBottom: 20,
     lineHeight: 18,
@@ -1221,16 +1486,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
     borderWidth: 1,
-    borderColor: '#FECACA',
     padding: 10,
     borderRadius: 12,
     marginBottom: 16,
   },
   modalErrorText: {
-    color: '#DC2626',
     fontSize: 12.5,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     fontWeight: '500',
     flex: 1,
   },

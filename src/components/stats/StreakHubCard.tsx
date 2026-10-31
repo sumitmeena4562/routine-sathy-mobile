@@ -106,7 +106,7 @@ export function StreakHubCard({
                   styles.connectorLine,
                   {
                     backgroundColor:
-                      isDone && isNextDone
+                      (index < weekDays.length - 1 ? isDone && isNextDone : isDone)
                         ? theme.colors.success
                         : theme.colors.borderSubtle,
                   },

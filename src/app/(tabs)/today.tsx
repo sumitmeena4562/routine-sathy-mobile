@@ -35,6 +35,7 @@ import {
   TypographyScale,
 } from '@/theme/tokens.generated';
 import {
+  HabitItem,
   RoutineActivity,
   RoutineData,
   RoutineStats,

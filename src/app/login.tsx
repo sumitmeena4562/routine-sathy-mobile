@@ -22,7 +22,6 @@ import {
   SemanticDarkTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
-import { getTodayDateString, routineService } from '@/services/routine';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -85,20 +84,8 @@ export default function LoginScreen() {
         message: response.message || 'Logged in successfully! Welcome back.',
       });
 
-      let nextRoute: '/(tabs)/today' | '/add-routine' = '/(tabs)/today';
-      try {
-        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500));
-        const routinePromise = routineService.getTodayRoutine(getTodayDateString());
-        const todayRoutine = await Promise.race([routinePromise, timeoutPromise]);
-        if (!todayRoutine) {
-          nextRoute = '/add-routine';
-        }
-      } catch {
-        nextRoute = '/(tabs)/today';
-      }
-
       setTimeout(() => {
-        router.replace(nextRoute);
+        router.replace('/(tabs)/today');
       }, 300);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Invalid credentials. Please try again.';

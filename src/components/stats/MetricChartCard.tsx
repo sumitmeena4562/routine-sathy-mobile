@@ -345,12 +345,12 @@ export function MetricChartCard({
                   styles.chartArea,
                   selectedRange === 'month' && styles.chartAreaMonth,
                 ]}>
-                {/* Horizontal Dashed Goal Line */}
+                {/* Horizontal Dashed Goal Line aligned pixel-perfect to pill tracks */}
                 <View
                   style={[
                     styles.goalLine,
                     {
-                      bottom: `${(currentConfig.goal / currentConfig.max) * 100}%`,
+                      bottom: 28 + Math.round((currentConfig.goal / currentConfig.max) * 90),
                       borderColor: theme.colors.borderSubtle,
                     },
                   ]}

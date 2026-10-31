@@ -136,23 +136,23 @@ export default function StatsScreen() {
   const [th, tm] = targetWakeUpStr.split(':').map(Number);
   const targetWakeMins = (th || 0) * 60 + (tm || 0);
 
-  // 1. Generate 7 days for the Sunrise Streak Path (always current week, Mon-Sun or Sun-Sat)
-  const currentDayIndex = today.getDay(); // 0 = Sun, 1 = Mon ...
+  // 1. Generate 7 days for the Sunrise Streak Path (last 6 days leading up to Today)
   const streakWeekDays: StreakDayItem[] = [];
-  for (let i = 0; i < 7; i++) {
+  for (let i = 6; i >= 0; i--) {
     const d = new Date(today);
-    d.setDate(today.getDate() - (currentDayIndex - i));
+    d.setDate(today.getDate() - i);
     const dStr = formatLocalDate(d);
     const r = routinesByDate.get(dStr);
     const scoreVal = r?.score ?? statsScoresMap.get(dStr) ?? 0;
     streakWeekDays.push({
-      day: WEEKDAY_NAMES[d.getDay()],
+      day: i === 0 ? 'Today' : WEEKDAY_NAMES[d.getDay()],
       score: scoreVal,
-      isToday: dStr === todayStr,
+      isToday: i === 0,
     });
   }
 
   // 2. Generate Days for the Chart (Week or Month view)
+  const currentDayIndex = today.getDay();
   const chartDays: ChartDayItem[] = [];
   let weekLabel = 'This Week';
 
@@ -295,13 +295,33 @@ export default function StatsScreen() {
 
   const isEmpty = (stats?.totalDays || 0) === 0 && history.length === 0;
 
+  const formatModalDate = (dStr: string, isToday: boolean, dayName: string) => {
+    if (isToday) {
+      return 'TODAY, ' + today.toLocaleString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    }
+    const [y, m, d] = dStr.split('-').map(Number);
+    const dateObj = new Date(y, (m || 1) - 1, d || 1);
+    const mName = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    return `${dayName.toUpperCase()}, ${mName} ${d}`;
+  };
+
+  const formatTimeAMPM = (timeStr?: string | null): string | undefined => {
+    if (!timeStr) return undefined;
+    const [hStr, mStr] = timeStr.split(':');
+    const h = parseInt(hStr, 10);
+    const m = mStr || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 || 12;
+    return `${displayH}:${m} ${ampm}`;
+  };
+
   // Handler when user taps any day in chart or heatmap
   const handleOpenDayModal = (day: ChartDayItem) => {
     setSelectedDayDetail({
       dayName: day.dayName,
-      dateStr: `${day.dayName}, ${day.dateStr}`,
+      dateStr: formatModalDate(day.dateStr, day.isToday, day.dayName),
       score: day.score,
-      wakeUpTime: day.wakeUpTime,
+      wakeUpTime: day.wakeUpTime ? formatTimeAMPM(day.wakeUpTime) : undefined,
       wakePts: day.wakePts,
       waterIntake: day.waterIntake,
       waterPts: day.waterPts,
@@ -311,10 +331,44 @@ export default function StatsScreen() {
   };
 
   const handleOpenHeatmapDayModal = (dayNumber: number) => {
-    const match = chartDays.find((d) => d.dayNumber === dayNumber);
-    if (match) {
-      handleOpenDayModal(match);
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const d = new Date(year, month, dayNumber);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    const isTodayDay = dStr === todayStr;
+
+    const water = r?.waterIntake ?? 0;
+    const study = r?.studyHours ?? 0;
+    const wake = r?.wakeUpTime;
+
+    const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
+    const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
+    let wakePts = 0;
+    if (wake) {
+      const [h, m] = wake.split(':').map(Number);
+      const mins = (h || 0) * 60 + (m || 0);
+      if (mins <= targetWakeMins) {
+        wakePts = 30;
+      } else if (mins < targetWakeMins + 240) {
+        wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
+      }
     }
+
+    const score = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
+    const dayName = isTodayDay ? 'Today' : WEEKDAY_NAMES[d.getDay()];
+
+    setSelectedDayDetail({
+      dayName,
+      dateStr: formatModalDate(dStr, isTodayDay, dayName),
+      score,
+      wakeUpTime: wake ? formatTimeAMPM(wake) : undefined,
+      wakePts,
+      waterIntake: water,
+      waterPts,
+      studyHours: study,
+      studyPts,
+    });
   };
 
   return (
@@ -433,9 +487,19 @@ export default function StatsScreen() {
 
             {/* 4. Sathy Companion Reflection Card */}
             <SathyInsightCard
-              bestDayName={bestDayItem?.dayName}
-              bestScore={bestDayItem?.score}
-              bestWakeTime={bestDayItem?.wakeUpTime || undefined}
+              bestDayName={
+                bestDayItem && bestDayItem.score > 0
+                  ? bestDayItem.isToday
+                    ? 'today'
+                    : bestDayItem.dayName
+                  : undefined
+              }
+              bestScore={bestDayItem && bestDayItem.score > 0 ? bestDayItem.score : undefined}
+              bestWakeTime={
+                bestDayItem && bestDayItem.score > 0
+                  ? formatTimeAMPM(bestDayItem.wakeUpTime)
+                  : undefined
+              }
               isEmpty={isEmpty}
             />
           </View>

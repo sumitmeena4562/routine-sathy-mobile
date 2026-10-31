@@ -717,6 +717,15 @@ export default function TodayScreen() {
     }
   }, [score, loading]);
 
+  const handleReplayCelebration = useCallback(() => {
+    if (!isScorePerfect) return;
+    triggerHaptic('success');
+    setShowCelebration(false);
+    setTimeout(() => {
+      setShowCelebration(true);
+    }, 40);
+  }, [isScorePerfect]);
+
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
@@ -820,12 +829,7 @@ export default function TodayScreen() {
           <View style={styles.dashboard}>
             {/* 1. Today's 100 Score Hero Card */}
             <Pressable
-              onPress={() => {
-                if (isScorePerfect) {
-                  triggerHaptic('success');
-                  setShowCelebration(true);
-                }
-              }}
+              onPress={handleReplayCelebration}
               accessibilityRole={isScorePerfect ? 'button' : undefined}
               accessibilityLabel={
                 isScorePerfect

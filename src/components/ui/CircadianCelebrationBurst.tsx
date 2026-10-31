@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -128,6 +128,15 @@ export function CircadianCelebrationBurst({
   const bannerScale = useSharedValue(0);
   const bannerOpacity = useSharedValue(0);
 
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  const notifyComplete = () => {
+    onCompleteRef.current?.();
+  };
+
   useEffect(() => {
     if (!visible) {
       progress.value = 0;
@@ -150,8 +159,8 @@ export function CircadianCelebrationBurst({
         easing: Easing.out(Easing.cubic),
       },
       (finished) => {
-        if (finished && onComplete) {
-          runOnJS(onComplete)();
+        if (finished) {
+          runOnJS(notifyComplete)();
         }
       }
     );
@@ -169,7 +178,7 @@ export function CircadianCelebrationBurst({
       withTiming(1, { duration: 250 }),
       withDelay(1150, withTiming(0, { duration: 350 }))
     );
-  }, [visible, progress, bannerScale, bannerOpacity, onComplete]);
+  }, [visible, progress, bannerScale, bannerOpacity]);
 
   const bannerAnimStyle = useAnimatedStyle(() => {
     'worklet';
@@ -238,7 +247,9 @@ const styles = StyleSheet.create({
   },
   origin: {
     position: 'absolute',
-    top: '34%',
+    top: '30%',
+    left: 0,
+    right: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -252,7 +263,8 @@ const styles = StyleSheet.create({
   },
   banner: {
     position: 'absolute',
-    top: '22%',
+    top: '18%',
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,

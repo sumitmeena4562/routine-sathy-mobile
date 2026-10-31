@@ -124,6 +124,59 @@ function getHabitBrandMeta(name: string, isDark: boolean): {
 }
 
 /**
+ * Distributes fractional score points into integers using the Largest Remainder Method
+ * so that the sum of the components (wake + water + study) strictly equals totalScore.
+ */
+function distributeScorePoints(
+  rawWake: number,
+  rawWater: number,
+  rawStudy: number,
+  totalScore: number
+): { wake: number; water: number; study: number } {
+  if (totalScore <= 0) {
+    return { wake: 0, water: 0, study: 0 };
+  }
+
+  const items = [
+    { key: 'wake' as const, max: 30, floor: Math.floor(rawWake), rem: rawWake - Math.floor(rawWake) },
+    { key: 'water' as const, max: 30, floor: Math.floor(rawWater), rem: rawWater - Math.floor(rawWater) },
+    { key: 'study' as const, max: 40, floor: Math.floor(rawStudy), rem: rawStudy - Math.floor(rawStudy) },
+  ];
+
+  const currentSum = items[0].floor + items[1].floor + items[2].floor;
+  let needed = totalScore - currentSum;
+
+  const result = {
+    wake: items[0].floor,
+    water: items[1].floor,
+    study: items[2].floor,
+  };
+
+  // Sort by largest remainder descending
+  const sorted = [...items].sort((a, b) => b.rem - a.rem);
+
+  for (const item of sorted) {
+    if (needed > 0 && result[item.key] < item.max) {
+      result[item.key] += 1;
+      needed -= 1;
+    }
+  }
+
+  // Safety for edge case where totalScore was clamped below floor sum
+  if (needed < 0) {
+    const revSorted = [...items].sort((a, b) => a.rem - b.rem);
+    for (const item of revSorted) {
+      if (needed < 0 && result[item.key] > 0) {
+        result[item.key] -= 1;
+        needed += 1;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * Continuous / Progressive Score Formula (Wake 30 · Water 30 · Study 40).
  * Matches landing page specification.
  */
@@ -168,11 +221,15 @@ function calcScoreBreakdown(
   }
 
   const totalScore = Math.max(0, Math.min(100, Math.round(wakePts + waterPts + studyPts)));
+  const distributed = distributeScorePoints(wakePts, waterPts, studyPts, totalScore);
 
   return {
-    wakePts,
-    waterPts,
-    studyPts,
+    rawWakePts: wakePts,
+    rawWaterPts: waterPts,
+    rawStudyPts: studyPts,
+    wakePts: distributed.wake,
+    waterPts: distributed.water,
+    studyPts: distributed.study,
     totalScore,
     targetWakeUp: targetWakeUpStr,
     targetWater,
@@ -691,12 +748,7 @@ export default function TodayScreen() {
                     styles.heroProgressFill,
                     {
                       width: `${scoreProgress * 100}%`,
-                      backgroundColor:
-                        score >= 80
-                          ? theme.colors.success
-                          : score >= 40
-                            ? theme.colors.primary
-                            : theme.colors.error,
+                      backgroundColor: theme.colors.success,
                     },
                   ]}
                 />
@@ -709,7 +761,7 @@ export default function TodayScreen() {
                     🌅 Wake
                   </Text>
                   <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {Math.round(breakdown.wakePts)}/30
+                    {breakdown.wakePts}/30
                   </Text>
                 </View>
 
@@ -718,7 +770,7 @@ export default function TodayScreen() {
                     💧 Water
                   </Text>
                   <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {Math.round(breakdown.waterPts)}/30
+                    {breakdown.waterPts}/30
                   </Text>
                 </View>
 
@@ -727,7 +779,7 @@ export default function TodayScreen() {
                     📚 Study
                   </Text>
                   <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {Math.round(breakdown.studyPts)}/40
+                    {breakdown.studyPts}/40
                   </Text>
                 </View>
               </View>
@@ -779,7 +831,7 @@ export default function TodayScreen() {
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
                       {routine.wakeUpTime
-                        ? `Logged at ${routine.wakeUpTime} (${Math.round(breakdown.wakePts)}/30 pts)`
+                        ? `Logged at ${routine.wakeUpTime} (${breakdown.wakePts}/30 pts)`
                         : `Target: ${breakdown.targetWakeUp} · 0/30 pts`}
                     </Text>
                   </View>
@@ -857,7 +909,7 @@ export default function TodayScreen() {
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
                       {(routine.waterIntake ?? 0).toFixed(1)}L / {breakdown.targetWater}L ·{' '}
-                      {Math.round(breakdown.waterPts)}/30 pts
+                      {breakdown.waterPts}/30 pts
                     </Text>
                   </View>
                 </View>
@@ -962,7 +1014,7 @@ export default function TodayScreen() {
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
                       {(routine.studyHours ?? 0).toFixed(1)}h / {breakdown.targetStudy}h ·{' '}
-                      {Math.round(breakdown.studyPts)}/40 pts
+                      {breakdown.studyPts}/40 pts
                     </Text>
                   </View>
                 </View>

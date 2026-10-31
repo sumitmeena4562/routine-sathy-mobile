@@ -14,6 +14,8 @@ import {
   TypographyScale,
 } from '@/theme/tokens.generated';
 
+import { UserGoals } from '@/types/routine';
+
 export type MetricType = 'score' | 'water' | 'study' | 'wake';
 export type RangeType = 'week' | 'month' | 'year';
 
@@ -44,6 +46,7 @@ export interface MetricChartCardProps {
   isTableMode: boolean;
   onToggleTableMode: () => void;
   onSelectDay: (day: ChartDayItem) => void;
+  userGoals?: UserGoals | null;
   isEmpty?: boolean;
 }
 
@@ -59,11 +62,16 @@ export function MetricChartCard({
   isTableMode,
   onToggleTableMode,
   onSelectDay,
+  userGoals,
   isEmpty = false,
 }: MetricChartCardProps) {
   const theme = useTheme();
 
-  // Metric configurations matching the prototype
+  const targetWater = userGoals?.targetWater ?? 3.0;
+  const targetStudy = userGoals?.targetStudy ?? 4.0;
+  const targetWakeUp = userGoals?.targetWakeUp ?? '06:00';
+
+  // Metric configurations matching the prototype and user goals
   const metricConfigs = {
     score: {
       color: theme.colors.success,
@@ -76,18 +84,18 @@ export function MetricChartCard({
     },
     water: {
       color: theme.isDark ? PrimitiveTokens.color.sky[400] : '#0284C7',
-      max: 3.5,
-      goal: 3.0,
-      goalLabel: 'Goal: 3.0L',
+      max: Math.max(3.5, targetWater + 0.5),
+      goal: targetWater,
+      goalLabel: `Goal: ${targetWater.toFixed(1)}L`,
       title: 'Water (litres)',
       getValue: (d: ChartDayItem) => d.waterIntake,
       getLabel: (d: ChartDayItem) => (d.waterIntake > 0 ? `${d.waterIntake.toFixed(1)}L` : '—'),
     },
     study: {
       color: theme.isDark ? PrimitiveTokens.color.indigo[400] : '#6366F1',
-      max: 5.5,
-      goal: 4.0,
-      goalLabel: 'Goal: 4.0h',
+      max: Math.max(5.5, targetStudy + 1.5),
+      goal: targetStudy,
+      goalLabel: `Goal: ${targetStudy.toFixed(1)}h`,
       title: 'Study (hours)',
       getValue: (d: ChartDayItem) => d.studyHours,
       getLabel: (d: ChartDayItem) => (d.studyHours > 0 ? `${d.studyHours.toFixed(1)}h` : '—'),
@@ -96,7 +104,7 @@ export function MetricChartCard({
       color: theme.isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[600],
       max: 30,
       goal: 30,
-      goalLabel: 'Goal: 6:00 AM (30 pts)',
+      goalLabel: `Goal: ${targetWakeUp} (30 pts)`,
       title: 'Wake-up consistency',
       getValue: (d: ChartDayItem) => d.wakePts,
       getLabel: (d: ChartDayItem) => d.wakeUpTime || '—',
@@ -706,3 +714,4 @@ const styles = StyleSheet.create({
     color: '#052418',
   },
 });
+

@@ -17,8 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import {
   AmbientAtmosphere,
-  Button,
-  Card,
   HabitCheckControl,
   SathyCompanionCard,
   StreakPath,
@@ -299,6 +297,62 @@ function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0):
   });
 }
 
+/**
+ * Builds the merged activities list:
+ * - Uses active habits configured in the user profile (enabled !== false).
+ * - Matches completion values from today's saved routine if present.
+ * - Filters out any habits that the user has explicitly disabled.
+ */
+function computeDisplayActivities(
+  userHabits: HabitItem[],
+  routine: RoutineData | null
+): RoutineActivity[] {
+  const rawHabits = userHabits && userHabits.length > 0
+    ? userHabits
+    : [
+        { id: 'workout', name: 'Workout / Exercise', enabled: true },
+        { id: 'meditation', name: 'Meditation / Mindfulness', enabled: true },
+        { id: 'reading', name: 'Reading', enabled: false },
+      ];
+
+  const activeHabits = rawHabits.filter((h) => h.enabled !== false);
+  const seenKeys = new Set<string>();
+  const list: RoutineActivity[] = [];
+
+  for (const habit of activeHabits) {
+    const key = cleanHabitName(habit.name).toLowerCase();
+    seenKeys.add(key);
+
+    const saved = routine?.activities?.find(
+      (a) => a.activityId === habit.id || cleanHabitName(a.name).toLowerCase() === key
+    );
+
+    list.push({
+      activityId: habit.id,
+      name: habit.name,
+      value: Boolean(saved?.value),
+    });
+  }
+
+  // Also include any extra saved routine activity that isn't explicitly disabled
+  if (routine?.activities) {
+    for (const act of routine.activities) {
+      const key = cleanHabitName(act.name).toLowerCase();
+      if (!seenKeys.has(key)) {
+        const isExplicitlyDisabled = rawHabits.some(
+          (h) => h.enabled === false && (h.id === act.activityId || cleanHabitName(h.name).toLowerCase() === key)
+        );
+        if (!isExplicitlyDisabled) {
+          seenKeys.add(key);
+          list.push(act);
+        }
+      }
+    }
+  }
+
+  return list;
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -314,6 +368,7 @@ export default function TodayScreen() {
   const [routine, setRoutine] = useState<RoutineData | null>(null);
   const [goals, setGoals] = useState<UserGoals | null>(null);
   const [stats, setStats] = useState<RoutineStats | null>(null);
+  const [userHabits, setUserHabits] = useState<HabitItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{
@@ -324,20 +379,24 @@ export default function TodayScreen() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [routineRes, goalsRes, statsRes] = await Promise.allSettled([
+      const [routineRes, goalsRes, statsRes, habitsRes] = await Promise.allSettled([
         routineService.getTodayRoutine(getTodayDateString()),
         routineService.getUserGoals(),
         routineService.getRoutineStats(),
+        routineService.getUserHabits(),
       ]);
 
       if (routineRes.status === 'fulfilled') {
         setRoutine(routineRes.value);
       }
-      if (goalsRes.status === 'fulfilled') {
+      if (goalsRes.status === 'fulfilled' && goalsRes.value) {
         setGoals(goalsRes.value);
       }
-      if (statsRes.status === 'fulfilled') {
+      if (statsRes.status === 'fulfilled' && statsRes.value) {
         setStats(statsRes.value);
+      }
+      if (habitsRes.status === 'fulfilled' && habitsRes.value) {
+        setUserHabits(habitsRes.value);
       }
     } catch {
       // Fallback gracefully
@@ -358,27 +417,51 @@ export default function TodayScreen() {
     fetchData();
   }, [fetchData]);
 
-  // Quick Action: Add Water (+250ml or +500ml)
+  const displayActivities = computeDisplayActivities(userHabits, routine);
+  const totalHabits = displayActivities.length;
+  const completedHabits = displayActivities.filter((a) => Boolean(a.value)).length;
+
+  // Real formula breakdown (Wake 30 · Water 30 · Study 40)
+  const breakdown = calcScoreBreakdown(
+    routine?.wakeUpTime,
+    routine?.waterIntake ?? 0,
+    routine?.studyHours ?? 0,
+    goals
+  );
+
+  // Quick Action: Add Water (+250ml or +500ml or -250ml)
   const handleQuickAddWater = async (deltaLiters: number) => {
-    if (!routine) return;
     triggerHaptic('medium');
 
-    const currentWater = routine.waterIntake ?? 0;
+    const currentDate = routine?.date || getTodayDateString();
+    const currentWater = routine?.waterIntake ?? 0;
     const nextWater = Math.max(0, Math.min(8.0, Math.round((currentWater + deltaLiters) * 100) / 100));
 
-    const updated = {
-      ...routine,
+    const updatedActivities = displayActivities;
+    const nextWakeUp = routine?.wakeUpTime || undefined;
+    const nextStudy = routine?.studyHours ?? 0;
+
+    const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
+
+    const optimisticRoutine: RoutineData = {
+      _id: routine?._id || '',
+      user: routine?.user || (user?._id ?? ''),
+      date: currentDate,
+      wakeUpTime: nextWakeUp,
       waterIntake: nextWater,
+      studyHours: nextStudy,
+      activities: updatedActivities,
+      score: nextBreakdown.totalScore,
     };
-    setRoutine(updated);
+    setRoutine(optimisticRoutine);
 
     try {
       const saved = await routineService.saveRoutine({
-        date: routine.date,
-        wakeUpTime: routine.wakeUpTime,
+        date: currentDate,
+        wakeUpTime: nextWakeUp,
         waterIntake: nextWater,
-        studyHours: routine.studyHours,
-        activities: routine.activities,
+        studyHours: nextStudy,
+        activities: updatedActivities,
       });
       setRoutine(saved);
       if (deltaLiters > 0) {
@@ -398,27 +481,39 @@ export default function TodayScreen() {
     }
   };
 
-  // Quick Action: Add Study & Focus (+30m or +1h)
+  // Quick Action: Add Study & Focus (+30m or +1h or -30m)
   const handleQuickAddStudy = async (deltaHours: number) => {
-    if (!routine) return;
     triggerHaptic('medium');
 
-    const currentStudy = routine.studyHours ?? 0;
+    const currentDate = routine?.date || getTodayDateString();
+    const currentStudy = routine?.studyHours ?? 0;
     const nextStudy = Math.max(0, Math.min(14.0, Math.round((currentStudy + deltaHours) * 10) / 10));
 
-    const updated = {
-      ...routine,
+    const updatedActivities = displayActivities;
+    const nextWakeUp = routine?.wakeUpTime || undefined;
+    const nextWater = routine?.waterIntake ?? 0;
+
+    const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
+
+    const optimisticRoutine: RoutineData = {
+      _id: routine?._id || '',
+      user: routine?.user || (user?._id ?? ''),
+      date: currentDate,
+      wakeUpTime: nextWakeUp,
+      waterIntake: nextWater,
       studyHours: nextStudy,
+      activities: updatedActivities,
+      score: nextBreakdown.totalScore,
     };
-    setRoutine(updated);
+    setRoutine(optimisticRoutine);
 
     try {
       const saved = await routineService.saveRoutine({
-        date: routine.date,
-        wakeUpTime: routine.wakeUpTime,
-        waterIntake: routine.waterIntake,
+        date: currentDate,
+        wakeUpTime: nextWakeUp,
+        waterIntake: nextWater,
         studyHours: nextStudy,
-        activities: routine.activities,
+        activities: updatedActivities,
       });
       setRoutine(saved);
       if (deltaHours > 0) {
@@ -438,9 +533,8 @@ export default function TodayScreen() {
     }
   };
 
-  // Quick Action: Log Wake-up (current time or target time)
+  // Quick Action: Log Wake-up (current time or custom)
   const handleLogWakeUp = async (timeStr?: string) => {
-    if (!routine) return;
     triggerHaptic('medium');
 
     let wakeTime = timeStr;
@@ -451,25 +545,38 @@ export default function TodayScreen() {
       wakeTime = `${h}:${m}`;
     }
 
-    const updated = {
-      ...routine,
+    const currentDate = routine?.date || getTodayDateString();
+    const currentWater = routine?.waterIntake ?? 0;
+    const currentStudy = routine?.studyHours ?? 0;
+    const updatedActivities = displayActivities;
+
+    const nextBreakdown = calcScoreBreakdown(wakeTime, currentWater, currentStudy, goals);
+
+    const optimisticRoutine: RoutineData = {
+      _id: routine?._id || '',
+      user: routine?.user || (user?._id ?? ''),
+      date: currentDate,
       wakeUpTime: wakeTime,
+      waterIntake: currentWater,
+      studyHours: currentStudy,
+      activities: updatedActivities,
+      score: nextBreakdown.totalScore,
     };
-    setRoutine(updated);
+    setRoutine(optimisticRoutine);
 
     try {
       const saved = await routineService.saveRoutine({
-        date: routine.date,
+        date: currentDate,
         wakeUpTime: wakeTime,
-        waterIntake: routine.waterIntake,
-        studyHours: routine.studyHours,
-        activities: routine.activities,
+        waterIntake: currentWater,
+        studyHours: currentStudy,
+        activities: updatedActivities,
       });
       setRoutine(saved);
       setToast({
         visible: true,
         type: 'success',
-        message: `Wake-up logged at ${wakeTime} (+30 pts)`,
+        message: `Wake-up logged at ${formatWakeTimeDisplay(wakeTime)}`,
       });
     } catch {
       setToast({
@@ -481,32 +588,45 @@ export default function TodayScreen() {
     }
   };
 
+  // Quick Action: Toggle Habit Completion
   const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
-    if (!routine) return;
-
     triggerHaptic(!currentVal ? 'medium' : 'light');
 
-    const updatedActivities: RoutineActivity[] = routine.activities.map((act) => {
+    const updatedActivities = displayActivities.map((act) => {
       if (act.activityId === activityId) {
         return { ...act, value: !currentVal };
       }
       return act;
     });
 
-    setRoutine({
-      ...routine,
+    const currentDate = routine?.date || getTodayDateString();
+    const currentWakeUp = routine?.wakeUpTime || undefined;
+    const currentWater = routine?.waterIntake ?? 0;
+    const currentStudy = routine?.studyHours ?? 0;
+
+    const nextBreakdown = calcScoreBreakdown(currentWakeUp, currentWater, currentStudy, goals);
+
+    const optimisticRoutine: RoutineData = {
+      _id: routine?._id || '',
+      user: routine?.user || (user?._id ?? ''),
+      date: currentDate,
+      wakeUpTime: currentWakeUp,
+      waterIntake: currentWater,
+      studyHours: currentStudy,
       activities: updatedActivities,
-    });
+      score: nextBreakdown.totalScore,
+    };
+    setRoutine(optimisticRoutine);
 
     try {
-      const updated = await routineService.saveRoutine({
-        date: routine.date,
-        wakeUpTime: routine.wakeUpTime,
-        waterIntake: routine.waterIntake,
-        studyHours: routine.studyHours,
+      const saved = await routineService.saveRoutine({
+        date: currentDate,
+        wakeUpTime: currentWakeUp,
+        waterIntake: currentWater,
+        studyHours: currentStudy,
         activities: updatedActivities,
       });
-      setRoutine(updated);
+      setRoutine(saved);
     } catch {
       setToast({
         visible: true,
@@ -525,30 +645,6 @@ export default function TodayScreen() {
 
   const firstName = user?.name ? user.name.split(' ')[0] : 'there';
   const greeting = getTimeGreeting();
-
-  // Deduplicate activities by name for clean presentation
-  const seenHabitNames = new Set<string>();
-  const displayActivities: RoutineActivity[] = [];
-  if (routine?.activities) {
-    for (const act of routine.activities) {
-      const key = act.name.trim().toLowerCase();
-      if (!seenHabitNames.has(key)) {
-        seenHabitNames.add(key);
-        displayActivities.push(act);
-      }
-    }
-  }
-
-  const totalHabits = displayActivities.length;
-  const completedHabits = displayActivities.filter((a) => Boolean(a.value)).length;
-
-  // Real formula breakdown (Wake 30 · Water 30 · Study 40)
-  const breakdown = calcScoreBreakdown(
-    routine?.wakeUpTime,
-    routine?.waterIntake ?? 0,
-    routine?.studyHours ?? 0,
-    goals
-  );
 
   const wakeGoalMet = Boolean(routine?.wakeUpTime && breakdown.wakePts >= 30);
   const waterGoalMet = (routine?.waterIntake ?? 0) >= breakdown.targetWater;
@@ -607,24 +703,22 @@ export default function TodayScreen() {
             </Text>
           </View>
 
-          {routine && (
-            <Pressable
-              onPress={() => router.push('/add-routine')}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Edit Habits"
-              style={({ pressed }) => [
-                styles.editBtn,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-                pressed && { opacity: 0.75 },
-              ]}>
-              <Ionicons name="options-outline" size={15} color={theme.colors.text} />
-              <Text style={[styles.editText, { color: theme.colors.text }]}>Edit Habits</Text>
-            </Pressable>
-          )}
+          <Pressable
+            onPress={() => router.push('/add-routine')}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Edit Habits"
+            style={({ pressed }) => [
+              styles.editBtn,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+              pressed && { opacity: 0.75 },
+            ]}>
+            <Ionicons name="options-outline" size={15} color={theme.colors.text} />
+            <Text style={[styles.editText, { color: theme.colors.text }]}>Edit Habits</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -653,59 +747,9 @@ export default function TodayScreen() {
               Aligning today&apos;s rhythm...
             </Text>
           </View>
-        ) : !routine ? (
-          /* ========================================================
-             CASE A: EMPTY STATE - NO ROUTINE SET
-             ======================================================== */
-          <Card
-            style={[
-              styles.emptyCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}>
-            <View
-              style={[
-                styles.emptyIconCircle,
-                {
-                  backgroundColor: theme.isDark
-                    ? SemanticDarkTokens.color.bg.tileAmber
-                    : SemanticLightTokens.color.bg.tileAmber,
-                },
-              ]}>
-              <Ionicons
-                name="sunny"
-                size={32}
-                color={
-                  theme.isDark
-                    ? PrimitiveTokens.color.amber[400]
-                    : PrimitiveTokens.color.amber[600]
-                }
-              />
-            </View>
-
-            <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
-              No routine set for today
-            </Text>
-
-            <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-              Set your wake-up time, water intake, and mindful habits to align your biological clock.
-            </Text>
-
-            <Button
-              title="Plan Today's Routine"
-              onPress={() => router.push('/add-routine')}
-              variant="primary"
-              size="lg"
-              pill
-              fullWidth
-              style={styles.emptyButton}
-            />
-          </Card>
         ) : (
           /* ========================================================
-             CASE B: BESPOKE TODAY ROUTINE DASHBOARD
+             TODAY ROUTINE DASHBOARD
              ======================================================== */
           <View style={styles.dashboard}>
             {/* 1. Today's 100 Score Hero Card */}
@@ -945,7 +989,7 @@ export default function TodayScreen() {
                       Wake-up
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {routine.wakeUpTime
+                      {routine?.wakeUpTime
                         ? `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · ${breakdown.wakePts}/30 pts`
                         : `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · 0/30 pts`}
                     </Text>
@@ -953,7 +997,7 @@ export default function TodayScreen() {
                 </View>
 
                 {/* Wake-up Status / Action Button */}
-                {routine.wakeUpTime ? (
+                {routine?.wakeUpTime ? (
                   <View
                     style={[
                       styles.loggedPill,
@@ -979,7 +1023,7 @@ export default function TodayScreen() {
                         styles.loggedPillText,
                         { color: wakeGoalMet ? theme.colors.success : theme.colors.textSecondary },
                       ]}>
-                      {formatWakeTimeDisplay(routine.wakeUpTime)}
+                      {formatWakeTimeDisplay(routine?.wakeUpTime)}
                     </Text>
                   </View>
                 ) : (
@@ -1037,7 +1081,7 @@ export default function TodayScreen() {
                       Water Intake
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {(routine.waterIntake ?? 0).toFixed(1)}L / {breakdown.targetWater}L ·{' '}
+                      {(routine?.waterIntake ?? 0).toFixed(1)}L / {breakdown.targetWater}L ·{' '}
                       {breakdown.waterPts}/30 pts
                     </Text>
                   </View>
@@ -1045,7 +1089,7 @@ export default function TodayScreen() {
 
                 {/* Quick Water Buttons (+250ml / +500ml) */}
                 <View style={styles.quickBtnsRow}>
-                  {(routine.waterIntake ?? 0) > 0 && (
+                  {(routine?.waterIntake ?? 0) > 0 && (
                     <Pressable
                       onPress={() => handleQuickAddWater(-0.25)}
                       hitSlop={8}
@@ -1134,7 +1178,7 @@ export default function TodayScreen() {
                       Study & Focus
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {(routine.studyHours ?? 0).toFixed(1)}h / {breakdown.targetStudy}h ·{' '}
+                      {(routine?.studyHours ?? 0).toFixed(1)}h / {breakdown.targetStudy}h ·{' '}
                       {breakdown.studyPts}/40 pts
                     </Text>
                   </View>
@@ -1142,7 +1186,7 @@ export default function TodayScreen() {
 
                 {/* Quick Study Buttons (+30m / +1h) */}
                 <View style={styles.quickBtnsRow}>
-                  {(routine.studyHours ?? 0) > 0 && (
+                  {(routine?.studyHours ?? 0) > 0 && (
                     <Pressable
                       onPress={() => handleQuickAddStudy(-0.5)}
                       hitSlop={8}
@@ -1299,16 +1343,16 @@ export default function TodayScreen() {
             <SathyCompanionCard
               score={score}
               userName={user?.name || 'Sumit'}
-              wakeUpTime={routine.wakeUpTime}
-              waterIntake={routine.waterIntake}
+              wakeUpTime={routine?.wakeUpTime ?? undefined}
+              waterIntake={routine?.waterIntake ?? 0}
               targetWater={breakdown.targetWater}
-              studyHours={routine.studyHours}
+              studyHours={routine?.studyHours ?? 0}
               targetStudy={breakdown.targetStudy}
             />
 
             {/* 5. 7-Day Sunrise Streak Path (Filling bottom space) */}
             <StreakPath
-              streakCount={stats?.currentStreak || 1}
+              streakCount={stats?.currentStreak || (stats?.totalDays && stats.totalDays > 0 ? 1 : 0)}
               days={weekStreakDays}
             />
           </View>

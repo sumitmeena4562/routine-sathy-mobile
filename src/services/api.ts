@@ -98,7 +98,20 @@ api.interceptors.request.use(
         console.log(`   Query:`, JSON.stringify(config.params));
       }
       if (config.data) {
-        console.log(`   Payload:`, JSON.stringify(config.data, null, 2));
+        let loggedData = config.data;
+        if (typeof loggedData === 'string') {
+          try {
+            const parsed = JSON.parse(loggedData);
+            if (parsed && typeof parsed === 'object' && 'password' in parsed) {
+              loggedData = { ...parsed, password: '••••••••' };
+            }
+          } catch {
+            // Keep original
+          }
+        } else if (typeof loggedData === 'object' && loggedData !== null && 'password' in loggedData) {
+          loggedData = { ...loggedData, password: '••••••••' };
+        }
+        console.log(`   Payload:`, typeof loggedData === 'object' ? JSON.stringify(loggedData, null, 2) : loggedData);
       }
     }
 
@@ -122,7 +135,18 @@ api.interceptors.response.use(
       const url = response.config.url || '';
       console.log(`✅ [API RES] ${response.status} ${method} ${url} (${duration})`);
       if (response.data) {
-        console.log(`   Data:`, JSON.stringify(response.data, null, 2));
+        if (Array.isArray(response.data)) {
+          console.log(`   Data: [Array with ${response.data.length} items]`);
+        } else if (typeof response.data === 'object' && response.data !== null) {
+          const json = JSON.stringify(response.data);
+          if (json.length > 500) {
+            console.log(`   Data: ${json.slice(0, 500)}... (truncated)`);
+          } else {
+            console.log(`   Data:`, json);
+          }
+        } else {
+          console.log(`   Data:`, response.data);
+        }
       }
     }
     return response;

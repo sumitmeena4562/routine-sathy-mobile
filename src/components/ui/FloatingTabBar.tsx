@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import {
-  LayoutChangeEvent,
   Platform,
   Pressable,
   StyleProp,
@@ -167,9 +166,8 @@ export function FloatingTabBar({
   const { width: windowWidth } = useWindowDimensions();
 
   const isTablet = windowWidth >= 768;
-  const initialWidth =
+  const capsuleWidth =
     customCapsuleWidth ?? (isTablet ? 420 : Math.min(windowWidth - 32, 380));
-  const [capsuleWidth, setCapsuleWidth] = useState(initialWidth);
 
   // Total horizontal space available for tabs inside the capsule
   const innerWidth = Math.max(0, capsuleWidth - CAPSULE_PAD_H * 2);
@@ -188,13 +186,6 @@ export function FloatingTabBar({
       });
     }
   }, [state.index, tabWidth, translateX]);
-
-  const onContainerLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    if (width > 0 && Math.abs(width - capsuleWidth) > 1) {
-      setCapsuleWidth(width);
-    }
-  }, [capsuleWidth]);
 
   // Elevation distance above phone gesture / home indicator
   const bottomOffset =
@@ -234,12 +225,11 @@ export function FloatingTabBar({
       style={[styles.floatingWrapper, { bottom: bottomOffset }, style]}
       pointerEvents="box-none">
       <View
-        onLayout={onContainerLayout}
         style={[
           styles.capsule,
           webBackdropStyle,
           {
-            width: initialWidth,
+            width: capsuleWidth,
             backgroundColor: theme.isDark
               ? 'rgba(7, 38, 27, 0.92)'
               : 'rgba(255, 255, 255, 0.95)',

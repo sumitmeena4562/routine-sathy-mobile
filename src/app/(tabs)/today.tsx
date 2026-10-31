@@ -1202,7 +1202,13 @@ export default function TodayScreen() {
               <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
                 TODAY&apos;S HABITS
               </Text>
-              <Text style={[styles.sectionCountText, { color: theme.colors.success }]}>
+              <Text
+                style={[
+                  styles.sectionCountText,
+                  {
+                    color: completedHabits > 0 ? theme.colors.success : theme.colors.textMuted,
+                  },
+                ]}>
                 {completedHabits} of {totalHabits} completed
               </Text>
             </View>

@@ -82,33 +82,28 @@ export default function StatsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Cache optimization: avoid duplicate API roundtrips if focused within 30 seconds
-  const lastFetchTimeRef = useRef<number>(0);
+  // Stable reference to avoid redundant re-renders and stale closures
+  const statsRef = useRef<RoutineStats | null>(null);
+  statsRef.current = stats;
 
-  const fetchStats = useCallback(
-    async (force = false) => {
-      const now = Date.now();
-      if (!force && stats && now - lastFetchTimeRef.current < 30000) {
-        return;
+  // Stale-While-Revalidate (SWR): Instant UI from memory + silent background fresh sync
+  const fetchStats = useCallback(async (isManualRefresh = false) => {
+    try {
+      if (!statsRef.current && !isManualRefresh) {
+        setLoading(true);
       }
-
-      try {
-        if (!stats) setLoading(true);
-        setHasError(false);
-        const data = await routineService.getRoutineStats();
-        setStats(data);
-        lastFetchTimeRef.current = Date.now();
-      } catch {
-        if (!stats) {
-          setHasError(true);
-        }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
+      setHasError(false);
+      const data = await routineService.getRoutineStats();
+      setStats(data);
+    } catch {
+      if (!statsRef.current) {
+        setHasError(true);
       }
-    },
-    [stats]
-  );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -189,7 +184,7 @@ export default function StatsScreen() {
           <View style={styles.errorContainer}>
             <Ionicons name="cloud-offline-outline" size={32} color={theme.colors.textMuted} />
             <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
-              Couldn't load progress
+              Couldn&apos;t load progress
             </Text>
             <Text style={[styles.errorSubtitle, { color: theme.colors.textSecondary }]}>
               Check your connection and tap below to retry.
@@ -235,7 +230,10 @@ export default function StatsScreen() {
 
                 <View style={styles.streakCountCol}>
                   <View style={styles.streakNumberRow}>
-                    <Text style={[styles.streakCount, { color: theme.colors.text }]}>
+                    <Text
+                      style={[styles.streakCount, { color: theme.colors.text }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit>
                       {currentStreak}
                     </Text>
                     <Text style={[styles.streakDaysUnit, { color: theme.colors.textSecondary }]}>
@@ -264,11 +262,17 @@ export default function StatsScreen() {
                   styles.metricsStrip,
                   { borderTopColor: theme.colors.borderSubtle },
                 ]}>
-                <View style={styles.metricItem}>
+                <View
+                  style={styles.metricItem}
+                  accessible={true}
+                  accessibilityLabel={`Best streak: ${stats?.maxStreak || 0} days`}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
                     BEST STREAK
                   </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.metricNumber, { color: theme.colors.text }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
                     {stats?.maxStreak || 0}
                     <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
                   </Text>
@@ -281,11 +285,17 @@ export default function StatsScreen() {
                   ]}
                 />
 
-                <View style={styles.metricItem}>
+                <View
+                  style={styles.metricItem}
+                  accessible={true}
+                  accessibilityLabel={`Average score: ${stats?.avgScore ? Math.round(stats.avgScore) : 0} percent`}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
                     AVG SCORE
                   </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.metricNumber, { color: theme.colors.text }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
                     {stats?.avgScore ? Math.round(stats.avgScore) : 0}
                     <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
                   </Text>
@@ -298,11 +308,17 @@ export default function StatsScreen() {
                   ]}
                 />
 
-                <View style={styles.metricItem}>
+                <View
+                  style={styles.metricItem}
+                  accessible={true}
+                  accessibilityLabel={`Total days logged: ${stats?.totalDays || 0} days`}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
                     TOTAL LOGGED
                   </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
+                  <Text
+                    style={[styles.metricNumber, { color: theme.colors.text }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
                     {stats?.totalDays || 0}
                     <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
                   </Text>
@@ -350,7 +366,12 @@ export default function StatsScreen() {
                             : 'transparent';
 
                     return (
-                      <View key={day.date} style={styles.trendBarCol}>
+                      <View
+                        key={day.date}
+                        style={styles.trendBarCol}
+                        accessible={true}
+                        accessibilityRole="image"
+                        accessibilityLabel={`${isToday ? 'Today' : day.dayName}: ${day.score > 0 ? `${day.score} percent score` : 'no score logged'}`}>
                         {/* Score Label above Bar */}
                         <Text
                           style={[

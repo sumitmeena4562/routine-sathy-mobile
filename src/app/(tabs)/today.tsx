@@ -50,6 +50,29 @@ function getTimeGreeting(): string {
   return 'Good evening';
 }
 
+function formatWakeTimeDisplay(timeStr?: string | null): string {
+  if (!timeStr) return '--:--';
+  const [hStr, mStr] = timeStr.split(':');
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return timeStr;
+  const m = mStr ? mStr.padStart(2, '0') : '00';
+  const period = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return `${h}:${m} ${period}`;
+}
+
+function formatGoalTimeDisplay(timeStr?: string | null): string {
+  if (!timeStr) return '6:00';
+  const [hStr, mStr] = timeStr.split(':');
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return timeStr;
+  const m = mStr ? mStr.padStart(2, '0') : '00';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return m === '00' ? `${h}:00` : `${h}:${m}`;
+}
+
 function cleanHabitName(name: string): string {
   const lower = name.toLowerCase();
   if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
@@ -771,12 +794,12 @@ export default function TodayScreen() {
                 />
               </View>
 
-              {/* Daily Anchors Progress: Wake · Water · Study (Actual vs Target) */}
+              {/* Formula Points Breakdown: +8 · +27 · +40 */}
               <View style={styles.breakdownRow}>
                 {/* 1. Wake */}
                 <View
                   style={[
-                    styles.breakdownItem,
+                    styles.breakdownChip,
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: wakeGoalMet
@@ -787,26 +810,24 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
-                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                  <Text
+                    style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
+                    numberOfLines={1}>
                     🌅 Wake
                   </Text>
                   <Text
                     style={[
-                      styles.breakdownVal,
+                      styles.breakdownChipVal,
                       { color: wakeGoalMet ? theme.colors.success : theme.colors.text },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {routine?.wakeUpTime
-                      ? `${routine.wakeUpTime} / ${breakdown.targetWakeUp}`
-                      : `--:-- / ${breakdown.targetWakeUp}`}
+                    ]}>
+                    +{breakdown.wakePts}
                   </Text>
                 </View>
 
                 {/* 2. Water */}
                 <View
                   style={[
-                    styles.breakdownItem,
+                    styles.breakdownChip,
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: waterGoalMet
@@ -817,24 +838,24 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
-                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                  <Text
+                    style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
+                    numberOfLines={1}>
                     💧 Water
                   </Text>
                   <Text
                     style={[
-                      styles.breakdownVal,
+                      styles.breakdownChipVal,
                       { color: waterGoalMet ? theme.colors.success : theme.colors.text },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {`${(routine?.waterIntake ?? 0).toFixed(1)} / ${breakdown.targetWater}L`}
+                    ]}>
+                    +{breakdown.waterPts}
                   </Text>
                 </View>
 
                 {/* 3. Study */}
                 <View
                   style={[
-                    styles.breakdownItem,
+                    styles.breakdownChip,
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: studyGoalMet
@@ -845,17 +866,17 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
-                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                  <Text
+                    style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
+                    numberOfLines={1}>
                     📚 Study
                   </Text>
                   <Text
                     style={[
-                      styles.breakdownVal,
+                      styles.breakdownChipVal,
                       { color: studyGoalMet ? theme.colors.success : theme.colors.text },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {`${(routine?.studyHours ?? 0).toFixed(1)} / ${breakdown.targetStudy}h`}
+                    ]}>
+                    +{breakdown.studyPts}
                   </Text>
                 </View>
               </View>
@@ -907,8 +928,8 @@ export default function TodayScreen() {
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
                       {routine.wakeUpTime
-                        ? `Logged at ${routine.wakeUpTime} (${breakdown.wakePts}/30 pts)`
-                        : `Target: ${breakdown.targetWakeUp} · 0/30 pts`}
+                        ? `Logged at ${formatWakeTimeDisplay(routine.wakeUpTime)} (${breakdown.wakePts}/30 pts)`
+                        : `Target: ${formatGoalTimeDisplay(breakdown.targetWakeUp)} · 0/30 pts`}
                     </Text>
                   </View>
                 </View>
@@ -926,7 +947,7 @@ export default function TodayScreen() {
                     ]}>
                     <Ionicons name="checkmark" size={13} color={theme.colors.success} />
                     <Text style={[styles.loggedPillText, { color: theme.colors.success }]}>
-                      {routine.wakeUpTime}
+                      {formatWakeTimeDisplay(routine.wakeUpTime)}
                     </Text>
                   </View>
                 ) : (
@@ -1438,23 +1459,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: PrimitiveTokens.space[2],
   },
-  breakdownItem: {
+  breakdownChip: {
     flex: 1,
-    paddingVertical: PrimitiveTokens.space['2'],
-    paddingHorizontal: PrimitiveTokens.space['1_5'],
-    borderRadius: PrimitiveTokens.radius.lg,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    paddingHorizontal: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    gap: PrimitiveTokens.space[1],
   },
-  breakdownTag: {
+  breakdownChipTag: {
     fontSize: TypographyScale.captionSm.fontSize,
     fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '700',
-    marginBottom: PrimitiveTokens.space['0_5'],
+    fontWeight: '600',
   },
-  breakdownVal: {
-    fontSize: TypographyScale.caption.fontSize,
-    fontFamily: TypographyScale.caption.fontFamily,
+  breakdownChipVal: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '800',
   },
   /* Section Headings */

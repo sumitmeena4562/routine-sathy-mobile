@@ -20,7 +20,6 @@ import {
   Button,
   Card,
   HabitCheckControl,
-  SathyChatModal,
   SathyCompanionCard,
   StreakPath,
   Toast,
@@ -234,7 +233,6 @@ export default function TodayScreen() {
   const [stats, setStats] = useState<RoutineStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [sathyChatVisible, setSathyChatVisible] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     type: 'success' | 'error' | 'info';
@@ -1135,7 +1133,6 @@ export default function TodayScreen() {
               targetWater={breakdown.targetWater}
               studyHours={routine.studyHours}
               targetStudy={breakdown.targetStudy}
-              onOpenChat={() => setSathyChatVisible(true)}
             />
 
             {/* 5. 7-Day Sunrise Streak Path (Filling bottom space) */}
@@ -1146,22 +1143,6 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
-
-      {/* Sathy Companion Chat Modal */}
-      <SathyChatModal
-        visible={sathyChatVisible}
-        onClose={() => setSathyChatVisible(false)}
-        userName={user?.name || 'Sumit'}
-        score={score}
-        waterIntake={routine?.waterIntake ?? 0}
-        targetWater={breakdown.targetWater}
-        studyHours={routine?.studyHours ?? 0}
-        targetStudy={breakdown.targetStudy}
-        wakeUpTime={routine?.wakeUpTime}
-        onAddWater={(amt) => handleQuickAddWater(amt)}
-        onAddStudy={(hrs) => handleQuickAddStudy(hrs)}
-        onLogWakeUp={(time) => handleLogWakeUp(time)}
-      />
     </View>
   );
 }

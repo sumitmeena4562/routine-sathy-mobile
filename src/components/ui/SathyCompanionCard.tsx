@@ -1,11 +1,9 @@
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -14,7 +12,6 @@ import {
   SemanticLightTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
-import { triggerHaptic } from '@/utils/haptics';
 import { RoutineSathyEmblem } from './RoutineSathyEmblem';
 
 export interface SathyCompanionCardProps {
@@ -25,7 +22,6 @@ export interface SathyCompanionCardProps {
   targetWater?: number;
   studyHours?: number;
   targetStudy?: number;
-  onOpenChat: () => void;
 }
 
 export function SathyCompanionCard({
@@ -36,7 +32,6 @@ export function SathyCompanionCard({
   targetWater = 3.0,
   studyHours = 0,
   targetStudy = 4.0,
-  onOpenChat,
 }: SathyCompanionCardProps) {
   const theme = useTheme();
   const firstName = userName ? userName.split(' ')[0] : 'there';
@@ -58,11 +53,6 @@ export function SathyCompanionCard({
   } else {
     message = `Good progress, ${firstName}! 🌿 Aaj ka rhythm bilkul on-track hai. Tap quick actions to reach your daily 100.`;
   }
-
-  const handlePressChat = () => {
-    triggerHaptic('light');
-    onOpenChat();
-  };
 
   return (
     <View
@@ -115,77 +105,21 @@ export function SathyCompanionCard({
             </Text>
           </View>
         </View>
-
-        {/* Small Chat Bubble Icon Button */}
-        <Pressable
-          onPress={handlePressChat}
-          accessibilityRole="button"
-          accessibilityLabel="Open Sathy Chat"
-          style={({ pressed }) => [
-            styles.chatIconBtn,
-            {
-              backgroundColor: theme.isDark
-                ? SemanticDarkTokens.color.bg.tileMint
-                : SemanticLightTokens.color.bg.tileMint,
-            },
-            pressed && { opacity: 0.75 },
-          ]}>
-          <Ionicons
-            name="chatbubble-ellipses-outline"
-            size={18}
-            color={theme.colors.success}
-          />
-        </Pressable>
       </View>
 
       {/* Sathy Message Bubble */}
-      <Pressable
-        onPress={handlePressChat}
-        style={({ pressed }) => [
+      <View
+        style={[
           styles.messageBubble,
           {
             backgroundColor: theme.colors.surfaceAlt,
             borderColor: theme.colors.borderSubtle,
           },
-          pressed && { opacity: 0.85 },
         ]}>
         <Text style={[styles.messageText, { color: theme.colors.text }]}>
           {message}
         </Text>
-      </Pressable>
-
-      {/* Footer Quick Action Bar */}
-      <Pressable
-        onPress={handlePressChat}
-        accessibilityRole="button"
-        accessibilityLabel="Talk with Sathy"
-        style={({ pressed }) => [
-          styles.chatActionBtn,
-          {
-            borderColor: theme.colors.borderSubtle,
-          },
-          pressed && { opacity: 0.75 },
-        ]}>
-        <Ionicons
-          name="sparkles-outline"
-          size={14}
-          color={theme.isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.forest[600]}
-        />
-        <Text
-          style={[
-            styles.chatActionBtnText,
-            {
-              color: theme.isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.forest[600],
-            },
-          ]}>
-          Talk with Sathy
-        </Text>
-        <Ionicons
-          name="chevron-forward"
-          size={14}
-          color={theme.colors.textSecondary}
-        />
-      </Pressable>
+      </View>
     </View>
   );
 }
@@ -241,39 +175,14 @@ const styles = StyleSheet.create({
     fontFamily: TypographyScale.captionSm.fontFamily,
     marginTop: 1,
   },
-  chatIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   messageBubble: {
     padding: PrimitiveTokens.space[3],
     borderRadius: PrimitiveTokens.radius.lg,
     borderWidth: 1,
-    marginBottom: PrimitiveTokens.space['2_5'],
   },
   messageText: {
     fontSize: TypographyScale.bodySm.fontSize,
     fontFamily: TypographyScale.bodySm.fontFamily,
     lineHeight: TypographyScale.bodySm.lineHeight,
   },
-  chatActionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: PrimitiveTokens.space[2],
-    paddingHorizontal: PrimitiveTokens.space['2_5'],
-    borderRadius: PrimitiveTokens.radius.md,
-    borderWidth: 1,
-  },
-  chatActionBtnText: {
-    fontSize: TypographyScale.caption.fontSize,
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontWeight: '700',
-    flex: 1,
-    marginLeft: PrimitiveTokens.space['1_5'],
-  },
 });
-

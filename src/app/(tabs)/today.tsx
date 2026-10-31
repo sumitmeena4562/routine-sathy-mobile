@@ -806,10 +806,19 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
+                  <Ionicons
+                    name="sunny"
+                    size={12}
+                    color={
+                      theme.isDark
+                        ? PrimitiveTokens.color.amber[400]
+                        : PrimitiveTokens.color.amber[700]
+                    }
+                  />
                   <Text
                     style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
                     numberOfLines={1}>
-                    🌅 Wake
+                    Wake
                   </Text>
                   <Text
                     style={[
@@ -834,10 +843,19 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
+                  <Ionicons
+                    name="water"
+                    size={12}
+                    color={
+                      theme.isDark
+                        ? PrimitiveTokens.color.sky[400]
+                        : PrimitiveTokens.color.sky[600]
+                    }
+                  />
                   <Text
                     style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
                     numberOfLines={1}>
-                    💧 Water
+                    Water
                   </Text>
                   <Text
                     style={[
@@ -862,10 +880,19 @@ export default function TodayScreen() {
                       borderWidth: 1,
                     },
                   ]}>
+                  <Ionicons
+                    name="book"
+                    size={12}
+                    color={
+                      theme.isDark
+                        ? PrimitiveTokens.color.indigo[400]
+                        : PrimitiveTokens.color.indigo[600]
+                    }
+                  />
                   <Text
                     style={[styles.breakdownChipTag, { color: theme.colors.textMuted }]}
                     numberOfLines={1}>
-                    📚 Study
+                    Study
                   </Text>
                   <Text
                     style={[

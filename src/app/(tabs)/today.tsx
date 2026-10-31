@@ -735,7 +735,7 @@ export default function TodayScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 84, 96),
+            paddingBottom: Math.max(insets.bottom + 96, 112),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },

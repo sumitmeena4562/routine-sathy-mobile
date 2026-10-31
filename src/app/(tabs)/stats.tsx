@@ -420,7 +420,7 @@ export default function StatsScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 36, 44),
+            paddingBottom: Math.max(insets.bottom + 96, 112),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -84,7 +84,9 @@ export default function StatsScreen() {
 
   // Stable reference to avoid redundant re-renders and stale closures
   const statsRef = useRef<RoutineStats | null>(null);
-  statsRef.current = stats;
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
 
   // Stale-While-Revalidate (SWR): Instant UI from memory + silent background fresh sync
   const fetchStats = useCallback(async (isManualRefresh = false) => {

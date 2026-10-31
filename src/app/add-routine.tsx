@@ -28,7 +28,7 @@ import { HabitItem, RoutineActivity } from '@/types/routine';
 const DEFAULT_HABITS: HabitItem[] = [
   { id: 'workout', name: 'Workout', type: 'boolean', icon: 'barbell-outline', enabled: true },
   { id: 'meditation', name: 'Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
-  { id: 'reading', name: 'Reading', type: 'boolean', icon: 'book-outline', enabled: true },
+  { id: 'reading', name: 'Reading', type: 'boolean', icon: 'glasses-outline', enabled: true },
 ];
 
 /**
@@ -54,9 +54,16 @@ function getHabitBrandMeta(name: string): {
       tileBg: '#ECFDF5',
     };
   }
-  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
+  if (lower.includes('read') || lower.includes('book')) {
     return {
-      icon: 'book',
+      icon: 'glasses',
+      iconColor: '#0284C7', // Pure Sky Flow
+      tileBg: '#F0F9FF',
+    };
+  }
+  if (lower.includes('study') || lower.includes('focus')) {
+    return {
+      icon: 'school',
       iconColor: '#4F46E5', // Deep Insight Indigo
       tileBg: '#EEF2FF',
     };

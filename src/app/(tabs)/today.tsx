@@ -62,17 +62,6 @@ function formatWakeTimeDisplay(timeStr?: string | null): string {
   return `${h}:${m} ${period}`;
 }
 
-function formatGoalTimeDisplay(timeStr?: string | null): string {
-  if (!timeStr) return '6:00';
-  const [hStr, mStr] = timeStr.split(':');
-  let h = parseInt(hStr, 10);
-  if (isNaN(h)) return timeStr;
-  const m = mStr ? mStr.padStart(2, '0') : '00';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return m === '00' ? `${h}:00` : `${h}:${m}`;
-}
-
 function cleanHabitName(name: string): string {
   const lower = name.toLowerCase();
   if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
@@ -81,7 +70,7 @@ function cleanHabitName(name: string): string {
   if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
     return 'Meditation';
   }
-  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
+  if (lower.includes('read') || lower.includes('book')) {
     return 'Reading';
   }
   return name.replace(/\s*\/\s*.*$/, '');
@@ -111,9 +100,16 @@ function getHabitBrandMeta(name: string, isDark: boolean): {
       tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
     };
   }
-  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
+  if (lower.includes('read') || lower.includes('book')) {
     return {
-      icon: 'book',
+      icon: 'glasses',
+      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
+    };
+  }
+  if (lower.includes('study') || lower.includes('focus') || lower.includes('course')) {
+    return {
+      icon: 'school',
       iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
       tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
     };
@@ -928,25 +924,43 @@ export default function TodayScreen() {
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
                       {routine.wakeUpTime
-                        ? `Logged at ${formatWakeTimeDisplay(routine.wakeUpTime)} (${breakdown.wakePts}/30 pts)`
-                        : `Target: ${formatGoalTimeDisplay(breakdown.targetWakeUp)} · 0/30 pts`}
+                        ? `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · ${breakdown.wakePts}/30 pts`
+                        : `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · 0/30 pts`}
                     </Text>
                   </View>
                 </View>
 
-                {/* Wake-up Action Button */}
+                {/* Wake-up Status / Action Button */}
                 {routine.wakeUpTime ? (
                   <View
                     style={[
                       styles.loggedPill,
-                      {
-                        backgroundColor: theme.isDark
-                          ? SemanticDarkTokens.color.state.successBg
-                          : SemanticLightTokens.color.state.successBg,
-                      },
+                      wakeGoalMet
+                        ? {
+                            backgroundColor: theme.isDark
+                              ? SemanticDarkTokens.color.state.successBg
+                              : SemanticLightTokens.color.state.successBg,
+                            borderColor: theme.isDark
+                              ? 'rgba(91, 219, 139, 0.35)'
+                              : PrimitiveTokens.color.fern[200],
+                            borderWidth: 1,
+                          }
+                        : {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.borderSubtle,
+                            borderWidth: 1,
+                          },
                     ]}>
-                    <Ionicons name="checkmark" size={13} color={theme.colors.success} />
-                    <Text style={[styles.loggedPillText, { color: theme.colors.success }]}>
+                    <Ionicons
+                      name={wakeGoalMet ? 'checkmark' : 'time-outline'}
+                      size={13}
+                      color={wakeGoalMet ? theme.colors.success : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.loggedPillText,
+                        { color: wakeGoalMet ? theme.colors.success : theme.colors.textSecondary },
+                      ]}>
                       {formatWakeTimeDisplay(routine.wakeUpTime)}
                     </Text>
                   </View>

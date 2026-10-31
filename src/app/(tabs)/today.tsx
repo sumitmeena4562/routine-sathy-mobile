@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import {
   AmbientAtmosphere,
+  CircadianCelebrationBurst,
   HabitCheckControl,
   SathyCompanionCard,
   StreakPath,
@@ -376,8 +377,13 @@ export default function TodayScreen() {
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const prevScoreRef = useRef<number | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (__DEV__) {
+      console.log('🔄 [TODAY] Fetching today routine, goals, stats & habits...');
+    }
     try {
       const [routineRes, goalsRes, statsRes, habitsRes] = await Promise.allSettled([
         routineService.getTodayRoutine(getTodayDateString()),
@@ -388,7 +394,20 @@ export default function TodayScreen() {
 
       if (routineRes.status === 'fulfilled') {
         setRoutine(routineRes.value);
+        if (__DEV__) {
+          console.log('📦 [TODAY] Routine Loaded:', {
+            date: routineRes.value?.date,
+            score: routineRes.value?.score ?? 0,
+            wakeUpTime: routineRes.value?.wakeUpTime ?? null,
+            waterIntake: `${routineRes.value?.waterIntake ?? 0}L`,
+            studyHours: `${routineRes.value?.studyHours ?? 0}h`,
+            activitiesDone: routineRes.value?.activities?.filter((a) => Boolean(a.value)).length ?? 0,
+          });
+        }
+      } else if (__DEV__) {
+        console.warn('⚠️ [TODAY] Routine fetch rejected:', routineRes.reason);
       }
+
       if (goalsRes.status === 'fulfilled' && goalsRes.value) {
         setGoals(goalsRes.value);
       }
@@ -398,8 +417,10 @@ export default function TodayScreen() {
       if (habitsRes.status === 'fulfilled' && habitsRes.value) {
         setUserHabits(habitsRes.value);
       }
-    } catch {
-      // Fallback gracefully
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [TODAY] Error in fetchData:', err);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -443,6 +464,10 @@ export default function TodayScreen() {
 
     const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
 
+    if (__DEV__) {
+      console.log(`💧 [USER ACTION] Water tap: ${deltaLiters > 0 ? '+' : ''}${Math.round(deltaLiters * 1000)}ml | ${currentWater}L -> ${nextWater}L | New Score: ${nextBreakdown.totalScore}`);
+    }
+
     const optimisticRoutine: RoutineData = {
       _id: routine?._id || '',
       user: routine?.user || (user?._id ?? ''),
@@ -471,7 +496,10 @@ export default function TodayScreen() {
           message: `+${Math.round(deltaLiters * 1000)}ml water logged (${nextWater.toFixed(1)}L)`,
         });
       }
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [USER ACTION ERROR] Water save failed:', err);
+      }
       setToast({
         visible: true,
         type: 'error',
@@ -494,6 +522,10 @@ export default function TodayScreen() {
     const nextWater = routine?.waterIntake ?? 0;
 
     const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
+
+    if (__DEV__) {
+      console.log(`📚 [USER ACTION] Study tap: ${deltaHours > 0 ? '+' : ''}${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} | ${currentStudy}h -> ${nextStudy}h | New Score: ${nextBreakdown.totalScore}`);
+    }
 
     const optimisticRoutine: RoutineData = {
       _id: routine?._id || '',
@@ -523,7 +555,10 @@ export default function TodayScreen() {
           message: `+${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} study logged (${nextStudy.toFixed(1)}h)`,
         });
       }
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [USER ACTION ERROR] Study save failed:', err);
+      }
       setToast({
         visible: true,
         type: 'error',
@@ -552,6 +587,10 @@ export default function TodayScreen() {
 
     const nextBreakdown = calcScoreBreakdown(wakeTime, currentWater, currentStudy, goals);
 
+    if (__DEV__) {
+      console.log(`☀️ [USER ACTION] Log Wake-up: ${wakeTime} | Target: ${breakdown.targetWakeUp} | Wake Pts: ${nextBreakdown.wakePts}/30 | New Score: ${nextBreakdown.totalScore}`);
+    }
+
     const optimisticRoutine: RoutineData = {
       _id: routine?._id || '',
       user: routine?.user || (user?._id ?? ''),
@@ -578,7 +617,10 @@ export default function TodayScreen() {
         type: 'success',
         message: `Wake-up logged at ${formatWakeTimeDisplay(wakeTime)}`,
       });
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [USER ACTION ERROR] Wake-up save failed:', err);
+      }
       setToast({
         visible: true,
         type: 'error',
@@ -606,6 +648,11 @@ export default function TodayScreen() {
 
     const nextBreakdown = calcScoreBreakdown(currentWakeUp, currentWater, currentStudy, goals);
 
+    if (__DEV__) {
+      const targetHabit = displayActivities.find((a) => a.activityId === activityId);
+      console.log(`✅ [USER ACTION] Toggle Habit: "${targetHabit?.name || activityId}" -> ${!currentVal ? 'COMPLETED' : 'INCOMPLETE'} | New Score: ${nextBreakdown.totalScore}`);
+    }
+
     const optimisticRoutine: RoutineData = {
       _id: routine?._id || '',
       user: routine?.user || (user?._id ?? ''),
@@ -627,7 +674,10 @@ export default function TodayScreen() {
         activities: updatedActivities,
       });
       setRoutine(saved);
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [USER ACTION ERROR] Habit toggle save failed:', err);
+      }
       setToast({
         visible: true,
         type: 'error',
@@ -657,10 +707,26 @@ export default function TodayScreen() {
 
   const weekStreakDays = generateWeekDays(stats?.last7DaysScores, score);
 
+  // Celebrate 100-Point Circadian Mastery transition
+  useEffect(() => {
+    if (prevScoreRef.current !== null && prevScoreRef.current < 100 && score >= 100) {
+      setShowCelebration(true);
+    }
+    if (!loading) {
+      prevScoreRef.current = score;
+    }
+  }, [score, loading]);
+
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
       <StatusBar style={theme.isDark ? 'light' : 'dark'} />
       <AmbientAtmosphere />
+
+      {/* 100-Point Circadian Mastery Celebration Burst */}
+      <CircadianCelebrationBurst
+        visible={showCelebration}
+        onComplete={() => setShowCelebration(false)}
+      />
 
       {toast && (
         <Toast
@@ -753,12 +819,28 @@ export default function TodayScreen() {
              ======================================================== */
           <View style={styles.dashboard}>
             {/* 1. Today's 100 Score Hero Card */}
-            <View
+            <Pressable
+              onPress={() => {
+                if (isScorePerfect) {
+                  triggerHaptic('success');
+                  setShowCelebration(true);
+                }
+              }}
+              accessibilityRole={isScorePerfect ? 'button' : undefined}
+              accessibilityLabel={
+                isScorePerfect
+                  ? "Today's score: 100 out of 100. Circadian mastery achieved. Tap to replay celebration."
+                  : `Today's score: ${score} out of 100.`
+              }
               style={[
                 styles.heroCard,
                 {
                   backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
+                  borderColor: isScorePerfect
+                    ? theme.isDark
+                      ? PrimitiveTokens.color.amber[400]
+                      : PrimitiveTokens.color.amber[500]
+                    : theme.colors.border,
                 },
               ]}>
               <View style={styles.heroTopRow}>
@@ -942,7 +1024,7 @@ export default function TodayScreen() {
                   </Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
 
             {/* 2. Interactive Daily Anchors (Wake-up, Water, Study & Focus) */}
             <View style={styles.sectionHeadingRow}>

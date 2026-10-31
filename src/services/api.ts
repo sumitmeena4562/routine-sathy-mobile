@@ -76,9 +76,11 @@ export const api = axios.create({
   },
 });
 
-// Request Interceptor: Attach JWT Token automatically if present
+// Request Interceptor: Attach JWT Token automatically if present & log request
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    (config as any)._requestStartTime = Date.now();
+
     try {
       const token = await Storage.getItem(AUTH_TOKEN_STORAGE_KEY);
       if (token && config.headers) {
@@ -87,15 +89,56 @@ api.interceptors.request.use(
     } catch {
       // Continue without token
     }
+
+    if (__DEV__) {
+      const method = (config.method || 'GET').toUpperCase();
+      const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
+      console.log(`\n🌐 [API REQ] ${method} ${fullUrl}`);
+      if (config.params) {
+        console.log(`   Query:`, JSON.stringify(config.params));
+      }
+      if (config.data) {
+        console.log(`   Payload:`, JSON.stringify(config.data, null, 2));
+      }
+    }
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    if (__DEV__) {
+      console.error('❌ [API REQ ERROR]', error);
+    }
+    return Promise.reject(error);
+  }
 );
 
-// Response Interceptor: Format error message cleanly
+// Response Interceptor: Format error message cleanly & log response
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (__DEV__) {
+      const startTime = (response.config as any)?._requestStartTime;
+      const duration = startTime ? `${Date.now() - startTime}ms` : '';
+      const method = (response.config.method || 'GET').toUpperCase();
+      const url = response.config.url || '';
+      console.log(`✅ [API RES] ${response.status} ${method} ${url} (${duration})`);
+      if (response.data) {
+        console.log(`   Data:`, JSON.stringify(response.data, null, 2));
+      }
+    }
+    return response;
+  },
   (error: AxiosError<{ message?: string }>) => {
+    if (__DEV__) {
+      const method = (error.config?.method || 'GET').toUpperCase();
+      const url = error.config?.url || '';
+      const status = error.response?.status || 'ERR';
+      console.error(`❌ [API ERR] ${status} ${method} ${url}`);
+      console.error(`   Message:`, error.message);
+      if (error.response?.data) {
+        console.error(`   Error Data:`, JSON.stringify(error.response.data, null, 2));
+      }
+    }
+
     let errorMessage = 'An unexpected error occurred. Please try again.';
 
     if (error.response?.data?.message) {

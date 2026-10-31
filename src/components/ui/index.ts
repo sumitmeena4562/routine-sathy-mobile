@@ -27,3 +27,4 @@ export * from './Toast';
 export * from './AuthScreenLayout';
 export * from './SathyCompanionCard';
 export * from './FloatingTabBar';
+export * from './CircadianCelebrationBurst';

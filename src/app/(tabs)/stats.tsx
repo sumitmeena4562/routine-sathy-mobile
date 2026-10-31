@@ -83,16 +83,47 @@ export default function StatsScreen() {
       }
       setHasError(false);
 
+      if (__DEV__) {
+        console.log('📊 [STATS] Fetching stats, 40-day history, and goals...');
+      }
+
       const [statsData, historyData, goalsData] = await Promise.all([
-        routineService.getRoutineStats().catch(() => null),
-        routineService.getRoutineHistory(1, 40).catch(() => []),
-        routineService.getUserGoals().catch(() => null),
+        routineService.getRoutineStats().catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load stats:', err);
+          return null;
+        }),
+        routineService.getRoutineHistory(1, 40).catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load history:', err);
+          return [];
+        }),
+        routineService.getUserGoals().catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load goals:', err);
+          return null;
+        }),
       ]);
 
-      if (statsData) setStats(statsData);
-      if (historyData) setHistory(historyData);
+      if (statsData) {
+        setStats(statsData);
+        if (__DEV__) {
+          console.log('📈 [STATS] Loaded Stats:', {
+            currentStreak: statsData.currentStreak,
+            maxStreak: statsData.maxStreak,
+            totalDays: statsData.totalDays,
+            avgScore: statsData.avgScore,
+          });
+        }
+      }
+      if (historyData) {
+        setHistory(historyData);
+        if (__DEV__) {
+          console.log(`📜 [STATS] Loaded History: ${historyData.length} records`);
+        }
+      }
       if (goalsData) setGoals(goalsData);
-    } catch {
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [STATS] Error in fetchData:', err);
+      }
       if (!statsRef.current) {
         setHasError(true);
       }
@@ -317,6 +348,9 @@ export default function StatsScreen() {
 
   // Handler when user taps any day in chart or heatmap
   const handleOpenDayModal = (day: ChartDayItem) => {
+    if (__DEV__) {
+      console.log(`👆 [USER ACTION] Inspected Day: ${day.dayName} (${day.dateStr}) | Score: ${day.score} | Wake: ${day.wakeUpTime || 'N/A'} | Water: ${day.waterIntake}L | Study: ${day.studyHours}h`);
+    }
     setSelectedDayDetail({
       dayName: day.dayName,
       dateStr: formatModalDate(day.dateStr, day.isToday, day.dayName),

@@ -55,3 +55,4 @@ export function triggerHaptic(type: HapticFeedbackType = 'light'): void {
     // Fail silently if device does not support haptics
   }
 }
+

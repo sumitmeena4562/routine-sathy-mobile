@@ -89,4 +89,14 @@ export const routineService = {
       last7DaysScores: raw?.last7DaysScores || [],
     };
   },
+
+  /**
+   * Retrieves paginated routine history with full day details.
+   */
+  async getRoutineHistory(page: number = 1, limit: number = 35): Promise<RoutineData[]> {
+    const response = await api.get<{ data: RoutineData[]; pagination?: any }>(
+      `/routines?page=${page}&limit=${limit}`
+    );
+    return response.data?.data || [];
+  },
 };

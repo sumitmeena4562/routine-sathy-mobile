@@ -799,9 +799,7 @@ export default function TodayScreen() {
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: wakeGoalMet
-                        ? theme.isDark
-                          ? 'rgba(91, 219, 139, 0.35)'
-                          : PrimitiveTokens.color.fern[300]
+                        ? theme.colors.successBorder
                         : theme.colors.borderSubtle,
                       borderWidth: 1,
                     },
@@ -836,9 +834,7 @@ export default function TodayScreen() {
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: waterGoalMet
-                        ? theme.isDark
-                          ? 'rgba(2, 132, 199, 0.35)'
-                          : PrimitiveTokens.color.sky[200]
+                        ? theme.colors.successBorder
                         : theme.colors.borderSubtle,
                       borderWidth: 1,
                     },
@@ -873,9 +869,7 @@ export default function TodayScreen() {
                     {
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: studyGoalMet
-                        ? theme.isDark
-                          ? 'rgba(79, 70, 229, 0.35)'
-                          : PrimitiveTokens.color.indigo[200]
+                        ? theme.colors.successBorder
                         : theme.colors.borderSubtle,
                       borderWidth: 1,
                     },
@@ -964,12 +958,8 @@ export default function TodayScreen() {
                       styles.loggedPill,
                       wakeGoalMet
                         ? {
-                            backgroundColor: theme.isDark
-                              ? SemanticDarkTokens.color.state.successBg
-                              : SemanticLightTokens.color.state.successBg,
-                            borderColor: theme.isDark
-                              ? 'rgba(91, 219, 139, 0.35)'
-                              : PrimitiveTokens.color.fern[200],
+                            backgroundColor: theme.colors.successMuted,
+                            borderColor: theme.colors.successBorder,
                             borderWidth: 1,
                           }
                         : {

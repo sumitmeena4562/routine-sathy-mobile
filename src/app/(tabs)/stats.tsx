@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,59 +13,37 @@ import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AmbientAtmosphere, Card } from '@/components/ui';
+import { AmbientAtmosphere } from '@/components/ui';
+import {
+  ChartDayItem,
+  DayDetailData,
+  DayDetailModal,
+  HeatmapDayItem,
+  MetricChartCard,
+  MetricType,
+  MonthlyHeatmapCard,
+  RangeType,
+  SathyInsightCard,
+  StatsSkeleton,
+  StreakDayItem,
+  StreakHubCard,
+} from '@/components/stats';
 import { useTheme } from '@/hooks/use-theme';
 import { routineService } from '@/services/routine';
 import {
   PrimitiveTokens,
-  SemanticDarkTokens,
-  SemanticLightTokens,
+  TypographyScale,
 } from '@/theme/tokens.generated';
-import { RoutineStats } from '@/types/routine';
+import { RoutineData, RoutineStats } from '@/types/routine';
 
-function getCircadianTip(isDark: boolean): {
-  title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tileBg: string;
-  body: string;
-} {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) {
-    return {
-      title: 'Morning Sunlight & Circadian Anchor',
-      icon: 'sunny',
-      iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
-      body: 'Getting 10-15 minutes of outdoor sunlight within an hour of waking resets your master biological clock and boosts daytime energy.',
-    };
-  }
-  if (hour >= 12 && hour < 17) {
-    return {
-      title: 'Midday Cognitive Peak & Hydration',
-      icon: 'flash',
-      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[700],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
-      body: 'Core body temperature and cognitive performance peak mid-afternoon. Maintain steady hydration to prevent the afternoon slump.',
-    };
-  }
-  if (hour >= 17 && hour < 22) {
-    return {
-      title: 'Evening Wind-Down & Melatonin Support',
-      icon: 'partly-sunny',
-      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[700],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-      body: 'Dim harsh overhead lighting and minimize bright screen exposure to allow natural melatonin production for restorative deep sleep.',
-    };
-  }
-  return {
-    title: 'Night Recovery & Cellular Repair',
-    icon: 'moon',
-    iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[700],
-    tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-    body: 'During deep delta-wave sleep, your brain clears metabolic waste and tissue repairs. Keep your sleeping space dark, quiet, and cool (~19°C).',
-  };
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
+
+const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function StatsScreen() {
   const theme = useTheme();
@@ -75,28 +52,43 @@ export default function StatsScreen() {
 
   const isTablet = windowWidth >= 768;
   const containerMaxWidth = isTablet ? 520 : 440;
-  const horizontalPadding = isTablet ? 32 : 22;
+  const horizontalPadding = isTablet ? 32 : 16;
 
+  // Data State
   const [stats, setStats] = useState<RoutineStats | null>(null);
+  const [history, setHistory] = useState<RoutineData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Stable reference to avoid redundant re-renders and stale closures
+  // Interactive UI Controls
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>('score');
+  const [selectedRange, setSelectedRange] = useState<RangeType>('week');
+  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = earlier, etc.
+  const [isTableMode, setIsTableMode] = useState(false);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DayDetailData | null>(null);
+
+  // Stable references for SWR
   const statsRef = useRef<RoutineStats | null>(null);
   useEffect(() => {
     statsRef.current = stats;
   }, [stats]);
 
-  // Stale-While-Revalidate (SWR): Instant UI from memory + silent background fresh sync
-  const fetchStats = useCallback(async (isManualRefresh = false) => {
+  // Fetch Stats & Routine History in parallel
+  const fetchData = useCallback(async (isManualRefresh = false) => {
     try {
       if (!statsRef.current && !isManualRefresh) {
         setLoading(true);
       }
       setHasError(false);
-      const data = await routineService.getRoutineStats();
-      setStats(data);
+
+      const [statsData, historyData] = await Promise.all([
+        routineService.getRoutineStats().catch(() => null),
+        routineService.getRoutineHistory(1, 40).catch(() => []),
+      ]);
+
+      if (statsData) setStats(statsData);
+      if (historyData) setHistory(historyData);
     } catch {
       if (!statsRef.current) {
         setHasError(true);
@@ -109,17 +101,187 @@ export default function StatsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchStats(false);
-    }, [fetchStats])
+      fetchData(false);
+    }, [fetchData])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchStats(true);
-  }, [fetchStats]);
+    fetchData(true);
+  }, [fetchData]);
 
-  const tip = getCircadianTip(theme.isDark);
-  const currentStreak = stats?.currentStreak || 0;
+  // Build a lookup map of historical routines by YYYY-MM-DD
+  const routinesByDate = new Map<string, RoutineData>();
+  for (const r of history) {
+    if (r.date) routinesByDate.set(r.date, r);
+  }
+
+  const today = new Date();
+  const todayStr = formatLocalDate(today);
+
+  // 1. Generate 7 days for the Sunrise Streak Path (always current week, Mon-Sun or Sun-Sat)
+  const currentDayIndex = today.getDay(); // 0 = Sun, 1 = Mon ...
+  const streakWeekDays: StreakDayItem[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (currentDayIndex - i));
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    streakWeekDays.push({
+      day: WEEKDAY_NAMES[d.getDay()],
+      score: r?.score || 0,
+      isToday: dStr === todayStr,
+    });
+  }
+
+  // 2. Generate Days for the Chart (Week or Month view)
+  const chartDays: ChartDayItem[] = [];
+  let weekLabel = 'This Week';
+
+  if (selectedRange === 'week') {
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDayIndex + weekOffset * 7);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+    const startMonth = startOfWeek.toLocaleString('en-US', { month: 'short' });
+    const endMonth = endOfWeek.toLocaleString('en-US', { month: 'short' });
+    weekLabel =
+      startMonth === endMonth
+        ? `${startMonth} ${startOfWeek.getDate()} – ${endOfWeek.getDate()}`
+        : `${startMonth} ${startOfWeek.getDate()} – ${endMonth} ${endOfWeek.getDate()}`;
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      const dStr = formatLocalDate(d);
+      const r = routinesByDate.get(dStr);
+
+      const water = r?.waterIntake ?? 0;
+      const study = r?.studyHours ?? 0;
+      const wake = r?.wakeUpTime;
+
+      // Calculate approximate point breakdown
+      const waterPts = Math.min(30, Math.round((water / 3.0) * 30));
+      const studyPts = Math.min(40, Math.round((study / 4.0) * 40));
+      let wakePts = 0;
+      if (wake) {
+        const [h, m] = wake.split(':').map(Number);
+        const mins = (h || 0) * 60 + (m || 0);
+        const targetMins = 360; // 06:00
+        if (mins <= targetMins) wakePts = 30;
+        else if (mins < 600) wakePts = Math.max(0, Math.round(30 - ((mins - targetMins) / 240) * 30));
+      }
+
+      chartDays.push({
+        dayName: dStr === todayStr ? 'Today' : WEEKDAY_NAMES[d.getDay()],
+        dayNumber: d.getDate(),
+        dateStr: dStr,
+        isToday: dStr === todayStr,
+        score: r?.score ?? (waterPts + studyPts + wakePts),
+        waterIntake: water,
+        studyHours: study,
+        wakeMinutesFromTarget: 0,
+        wakeUpTime: wake,
+        wakePts,
+        waterPts,
+        studyPts,
+      });
+    }
+  } else {
+    // Month View (current month's days, e.g. 1 to 31)
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+      const d = new Date(year, month, dayNum);
+      const dStr = formatLocalDate(d);
+      const r = routinesByDate.get(dStr);
+
+      const water = r?.waterIntake ?? 0;
+      const study = r?.studyHours ?? 0;
+      const wake = r?.wakeUpTime;
+
+      const waterPts = Math.min(30, Math.round((water / 3.0) * 30));
+      const studyPts = Math.min(40, Math.round((study / 4.0) * 40));
+      let wakePts = 0;
+      if (wake) {
+        const [h, m] = wake.split(':').map(Number);
+        const mins = (h || 0) * 60 + (m || 0);
+        if (mins <= 360) wakePts = 30;
+        else if (mins < 600) wakePts = Math.max(0, Math.round(30 - ((mins - 360) / 240) * 30));
+      }
+
+      chartDays.push({
+        dayName: WEEKDAY_NAMES[d.getDay()],
+        dayNumber: dayNum,
+        dateStr: dStr,
+        isToday: dStr === todayStr,
+        score: r?.score ?? (waterPts + studyPts + wakePts),
+        waterIntake: water,
+        studyHours: study,
+        wakeMinutesFromTarget: 0,
+        wakeUpTime: wake,
+        wakePts,
+        waterPts,
+        studyPts,
+      });
+    }
+  }
+
+  // 3. Generate Monthly Heatmap Days
+  const curYear = today.getFullYear();
+  const curMonth = today.getMonth();
+  const totalDaysInCurMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(curYear, curMonth, 1).getDay(); // 0 = Sun
+
+  const heatmapDays: HeatmapDayItem[] = [];
+  for (let dayNum = 1; dayNum <= totalDaysInCurMonth; dayNum++) {
+    const d = new Date(curYear, curMonth, dayNum);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    heatmapDays.push({
+      dayNumber: dayNum,
+      dateStr: dStr,
+      score: r?.score || 0,
+      isToday: dStr === todayStr,
+      hasData: Boolean(r),
+    });
+  }
+
+  // 4. Determine Sathy's Best Day Insight
+  let bestDayItem: ChartDayItem | null = null;
+  for (const d of chartDays) {
+    if (!bestDayItem || d.score > bestDayItem.score) {
+      bestDayItem = d;
+    }
+  }
+
+  const isEmpty = (stats?.totalDays || 0) === 0 && history.length === 0;
+
+  // Handler when user taps any day in chart or heatmap
+  const handleOpenDayModal = (day: ChartDayItem) => {
+    setSelectedDayDetail({
+      dayName: day.dayName,
+      dateStr: `${day.dayName}, ${day.dateStr}`,
+      score: day.score,
+      wakeUpTime: day.wakeUpTime,
+      wakePts: day.wakePts,
+      waterIntake: day.waterIntake,
+      waterPts: day.waterPts,
+      studyHours: day.studyHours,
+      studyPts: day.studyPts,
+    });
+  };
+
+  const handleOpenHeatmapDayModal = (dayNumber: number) => {
+    const match = chartDays.find((d) => d.dayNumber === dayNumber);
+    if (match) {
+      handleOpenDayModal(match);
+    }
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -146,13 +308,13 @@ export default function StatsScreen() {
                   : PrimitiveTokens.color.forest[600],
               },
             ]}>
-            PROGRESS & TRENDS
+            PROGRESS
           </Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Consistency
+            Your consistency
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Your habit streaks and daily rhythm score over time.
+            How your three daily steps add up over time.
           </Text>
         </View>
       </View>
@@ -176,12 +338,7 @@ export default function StatsScreen() {
           },
         ]}>
         {loading && !stats ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={theme.colors.success} />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Calculating consistency trends...
-            </Text>
-          </View>
+          <StatsSkeleton />
         ) : hasError && !stats ? (
           <View style={styles.errorContainer}>
             <Ionicons name="cloud-offline-outline" size={32} color={theme.colors.textMuted} />
@@ -192,7 +349,7 @@ export default function StatsScreen() {
               Check your connection and tap below to retry.
             </Text>
             <Pressable
-              onPress={() => fetchStats(true)}
+              onPress={() => fetchData(true)}
               accessibilityRole="button"
               accessibilityLabel="Retry loading progress"
               style={[styles.retryBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
@@ -204,255 +361,58 @@ export default function StatsScreen() {
           </View>
         ) : (
           <View style={styles.content}>
-            {/* 1. Unified Streak & Consistency Hub Card */}
-            <Card style={styles.streakHubCard}>
-              <View style={styles.streakTopRow}>
-                <View
-                  style={[
-                    styles.flameIconBox,
-                    {
-                      backgroundColor: theme.isDark
-                        ? 'rgba(245, 158, 11, 0.15)'
-                        : '#FFF7ED',
-                      borderColor: theme.isDark
-                        ? 'rgba(245, 158, 11, 0.30)'
-                        : '#FFEDD5',
-                    },
-                  ]}>
-                  <Ionicons
-                    name="flame"
-                    size={26}
-                    color={
-                      theme.isDark
-                        ? PrimitiveTokens.color.amber[400]
-                        : '#EA580C'
-                    }
-                  />
-                </View>
+            {/* 1. Streak & Sunrise Path Hub Card */}
+            <StreakHubCard
+              currentStreak={stats?.currentStreak || 0}
+              maxStreak={stats?.maxStreak || 0}
+              avgScore={stats?.avgScore || 0}
+              totalDays={stats?.totalDays || 0}
+              weekDays={streakWeekDays}
+              range={selectedRange}
+              isEmpty={isEmpty}
+            />
 
-                <View style={styles.streakCountCol}>
-                  <View style={styles.streakNumberRow}>
-                    <Text
-                      style={[styles.streakCount, { color: theme.colors.text }]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit>
-                      {currentStreak}
-                    </Text>
-                    <Text style={[styles.streakDaysUnit, { color: theme.colors.textSecondary }]}>
-                      {currentStreak === 1 ? 'DAY STREAK' : 'DAYS STREAK'}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[
-                      styles.streakNote,
-                      {
-                        color: theme.isDark
-                          ? PrimitiveTokens.color.amber[400]
-                          : PrimitiveTokens.color.amber[700],
-                      },
-                    ]}>
-                    {currentStreak > 0
-                      ? 'Great momentum! Keep logging daily.'
-                      : "Log today's routine to start your streak."}
-                  </Text>
-                </View>
-              </View>
+            {/* 2. Interactive Metric & Trend Chart Card */}
+            <MetricChartCard
+              days={chartDays}
+              selectedMetric={selectedMetric}
+              onSelectMetric={setSelectedMetric}
+              selectedRange={selectedRange}
+              onSelectRange={setSelectedRange}
+              weekOffset={weekOffset}
+              onNavigateWeek={(dir) => setWeekOffset((prev) => prev + dir)}
+              weekLabel={weekLabel}
+              isTableMode={isTableMode}
+              onToggleTableMode={() => setIsTableMode((prev) => !prev)}
+              onSelectDay={handleOpenDayModal}
+              isEmpty={isEmpty}
+            />
 
-              {/* Integrated 3-Metric Summary Strip */}
-              <View
-                style={[
-                  styles.metricsStrip,
-                  { borderTopColor: theme.colors.borderSubtle },
-                ]}>
-                <View
-                  style={styles.metricItem}
-                  accessible={true}
-                  accessibilityLabel={`Best streak: ${stats?.maxStreak || 0} days`}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    BEST STREAK
-                  </Text>
-                  <Text
-                    style={[styles.metricNumber, { color: theme.colors.text }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {stats?.maxStreak || 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                  </Text>
-                </View>
+            {/* 3. Monthly Heatmap Card */}
+            <MonthlyHeatmapCard
+              monthName={today.toLocaleString('en-US', { month: 'long' })}
+              days={heatmapDays}
+              firstDayOffset={firstDayOfMonth}
+              onSelectDay={handleOpenHeatmapDayModal}
+            />
 
-                <View
-                  style={[
-                    styles.metricDivider,
-                    { backgroundColor: theme.colors.borderSubtle },
-                  ]}
-                />
-
-                <View
-                  style={styles.metricItem}
-                  accessible={true}
-                  accessibilityLabel={`Average score: ${stats?.avgScore ? Math.round(stats.avgScore) : 0} percent`}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    AVG SCORE
-                  </Text>
-                  <Text
-                    style={[styles.metricNumber, { color: theme.colors.text }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {stats?.avgScore ? Math.round(stats.avgScore) : 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.metricDivider,
-                    { backgroundColor: theme.colors.borderSubtle },
-                  ]}
-                />
-
-                <View
-                  style={styles.metricItem}
-                  accessible={true}
-                  accessibilityLabel={`Total days logged: ${stats?.totalDays || 0} days`}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    TOTAL LOGGED
-                  </Text>
-                  <Text
-                    style={[styles.metricNumber, { color: theme.colors.text }]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit>
-                    {stats?.totalDays || 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                  </Text>
-                </View>
-              </View>
-            </Card>
-
-            {/* 2. Sleek 7-Day Rhythm Trend Card (Precision Pill Columns) */}
-            {stats?.last7DaysScores && stats.last7DaysScores.length > 0 && (
-              <Card style={styles.trendCard}>
-                <View style={styles.trendHeader}>
-                  <View style={styles.trendTitleRow}>
-                    <Ionicons
-                      name="trending-up"
-                      size={18}
-                      color={
-                        theme.isDark
-                          ? PrimitiveTokens.color.fern[300]
-                          : PrimitiveTokens.color.forest[600]
-                      }
-                    />
-                    <Text style={[styles.trendTitle, { color: theme.colors.text }]}>
-                      Last 7 Days Rhythm
-                    </Text>
-                  </View>
-                  <Text style={[styles.trendSubtitle, { color: theme.colors.textSecondary }]}>
-                    SCORE %
-                  </Text>
-                </View>
-
-                {/* Sleek Pill Chart */}
-                <View style={styles.trendBarsRow}>
-                  {stats.last7DaysScores.map((day, idx) => {
-                    const isToday = idx === (stats.last7DaysScores?.length || 0) - 1;
-                    const barHeight = Math.max(Math.round((day.score / 100) * 72), 6);
-                    const barColor =
-                      day.score >= 80
-                        ? theme.colors.success
-                        : day.score >= 50
-                          ? theme.isDark
-                            ? PrimitiveTokens.color.amber[400]
-                            : PrimitiveTokens.color.amber[600]
-                          : day.score > 0
-                            ? theme.colors.error
-                            : 'transparent';
-
-                    return (
-                      <View
-                        key={day.date}
-                        style={styles.trendBarCol}
-                        accessible={true}
-                        accessibilityRole="image"
-                        accessibilityLabel={`${isToday ? 'Today' : day.dayName}: ${day.score > 0 ? `${day.score} percent score` : 'no score logged'}`}>
-                        {/* Score Label above Bar */}
-                        <Text
-                          style={[
-                            styles.barScoreLabel,
-                            {
-                              color: isToday
-                                ? theme.colors.success
-                                : day.score > 0
-                                  ? theme.colors.textSecondary
-                                  : 'transparent',
-                              fontWeight: isToday ? '800' : '600',
-                            },
-                          ]}>
-                          {day.score > 0 ? `${day.score}%` : '—'}
-                        </Text>
-
-                        {/* Slender Pill Track & Fill */}
-                        <View
-                          style={[
-                            styles.trendBarTrack,
-                            {
-                              backgroundColor: theme.colors.surfaceAlt,
-                              borderColor: isToday ? theme.colors.success : 'transparent',
-                              borderWidth: isToday && day.score === 0 ? 1 : 0,
-                            },
-                          ]}>
-                          <View
-                            style={[
-                              styles.trendBarFill,
-                              {
-                                height: barHeight,
-                                backgroundColor: barColor,
-                              },
-                            ]}
-                          />
-                        </View>
-
-                        {/* Weekday Label */}
-                        <Text
-                          style={[
-                            styles.trendDayText,
-                            {
-                              color: isToday
-                                ? theme.colors.text
-                                : theme.colors.textSecondary,
-                              fontWeight: isToday ? '800' : '600',
-                            },
-                          ]}>
-                          {isToday ? 'Today' : day.dayName}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </Card>
-            )}
-
-            {/* 3. Contextual Circadian Rhythm Insight Card (Time of Day Adaptive) */}
-            <Card style={styles.tipCard}>
-              <View style={styles.tipHeader}>
-                <View style={[styles.tipIconCircle, { backgroundColor: tip.tileBg }]}>
-                  <Ionicons name={tip.icon} size={18} color={tip.iconColor} />
-                </View>
-                <View style={styles.tipHeaderTextCol}>
-                  <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
-                    {tip.title}
-                  </Text>
-                  <Text style={[styles.tipSubtitle, { color: theme.colors.textMuted }]}>
-                    Circadian Science Insight
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.tipBody, { color: theme.colors.textSecondary }]}>
-                {tip.body}
-              </Text>
-            </Card>
+            {/* 4. Sathy Companion Reflection Card */}
+            <SathyInsightCard
+              bestDayName={bestDayItem?.dayName}
+              bestScore={bestDayItem?.score}
+              bestWakeTime={bestDayItem?.wakeUpTime || undefined}
+              isEmpty={isEmpty}
+            />
           </View>
         )}
       </ScrollView>
+
+      {/* Day Breakdown Bottom Sheet Modal */}
+      <DayDetailModal
+        visible={Boolean(selectedDayDetail)}
+        onClose={() => setSelectedDayDetail(null)}
+        data={selectedDayDetail}
+      />
     </View>
   );
 }
@@ -463,43 +423,40 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     zIndex: 10,
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   headerBarInner: {
     width: '100%',
     alignSelf: 'center',
   },
   headerEyebrow: {
-    fontSize: 11,
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '800',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 2,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
+    fontFamily: TypographyScale.h2.fontFamily,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginTop: 4,
+    fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    lineHeight: 17,
+    marginTop: 2,
   },
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 8,
+    paddingTop: 6,
   },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 13,
-    fontWeight: '500',
+  content: {
+    width: '100%',
+    gap: PrimitiveTokens.space[3],
   },
   errorContainer: {
     alignItems: 'center',
@@ -510,11 +467,13 @@ const styles = StyleSheet.create({
   },
   errorTitle: {
     fontSize: 16,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '700',
     marginTop: 4,
   },
   errorSubtitle: {
     fontSize: 13,
+    fontFamily: TypographyScale.body.fontFamily,
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -529,176 +488,5 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 13,
     fontWeight: '600',
-  },
-  content: {
-    width: '100%',
-    gap: 16,
-  },
-  /* 1. Unified Streak Hub Card */
-  streakHubCard: {
-    padding: 20,
-    borderRadius: 20,
-  },
-  streakTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 18,
-  },
-  flameIconBox: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  streakCountCol: {
-    flex: 1,
-  },
-  streakNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 8,
-  },
-  streakCount: {
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  streakDaysUnit: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  streakNote: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  metricsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-  },
-  metricItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricHeader: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  metricNumber: {
-    fontSize: 18,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  metricUnit: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  metricDivider: {
-    width: 1,
-    height: 26,
-  },
-  /* 2. Sleek 7-Day Trend Card */
-  trendCard: {
-    padding: 18,
-    borderRadius: 20,
-  },
-  trendHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  trendTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trendTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  trendSubtitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  trendBarsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 8,
-    height: 110,
-    paddingHorizontal: 4,
-  },
-  trendBarCol: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
-    gap: 6,
-  },
-  barScoreLabel: {
-    fontSize: 10,
-    height: 14,
-    textAlign: 'center',
-  },
-  trendBarTrack: {
-    width: 14,
-    height: 72,
-    borderRadius: 7,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-  },
-  trendBarFill: {
-    width: '100%',
-    borderRadius: 7,
-  },
-  trendDayText: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  /* 3. Circadian Tip Card */
-  tipCard: {
-    padding: 18,
-    borderRadius: 20,
-    gap: 10,
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  tipIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tipHeaderTextCol: {
-    flex: 1,
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  tipSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 1,
-  },
-  tipBody: {
-    fontSize: 13,
-    lineHeight: 18.5,
   },
 });

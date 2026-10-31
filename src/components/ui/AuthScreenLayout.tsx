@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/utils/haptics';
 
 import { RoutineSathyEmblem } from './RoutineSathyEmblem';
 import { Toast, ToastType } from './Toast';
@@ -77,9 +77,7 @@ export function AuthScreenLayout({
   const emblemSize = customEmblemSize ?? (isCompact ? 52 : isTablet ? 66 : 58);
 
   const handleBackPress = useCallback(() => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
+    triggerHaptic('light');
     if (onBack) {
       onBack();
     } else if (router.canGoBack()) {

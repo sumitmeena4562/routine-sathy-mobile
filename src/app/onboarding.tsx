@@ -13,9 +13,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import { triggerHaptic } from '@/utils/haptics';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -40,16 +40,6 @@ import {
   SemanticDarkTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
-
-function triggerHaptic(type: 'light' | 'success' = 'light') {
-  if (Platform.OS !== 'web') {
-    if (type === 'success') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    } else {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-  }
-}
 
 interface OnboardingSlide {
   id: string;

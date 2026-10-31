@@ -10,9 +10,9 @@ import {
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
+import { triggerHaptic } from '@/utils/haptics';
 import {
   PrimitiveTokens,
   SemanticDarkTokens,
@@ -52,20 +52,12 @@ export function Toast({
   useEffect(() => {
     if (!visible) return;
 
-    if (Platform.OS !== 'web') {
-      if (type === 'error') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-
     const timer = setTimeout(() => {
       onDismiss();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [visible, duration, onDismiss, type]);
+  }, [visible, duration, onDismiss]);
 
   if (!visible) return null;
 
@@ -114,9 +106,7 @@ export function Toast({
         ]}>
         <Pressable
           onPress={() => {
-            if (Platform.OS !== 'web') {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-            }
+            triggerHaptic('light');
             onDismiss();
           }}
           style={styles.pressableRow}

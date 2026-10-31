@@ -11,9 +11,8 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-
 import { useTheme } from '@/hooks/use-theme';
+import { triggerHaptic } from '@/utils/haptics';
 import { PrimitiveTokens } from '@/theme/tokens.generated';
 
 export type ButtonVariant =
@@ -65,8 +64,8 @@ export function Button({
 
   const handlePress = (e: GestureResponderEvent) => {
     if (disabled || loading) return;
-    if (haptic && Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (haptic) {
+      triggerHaptic('light');
     }
     onPress?.(e);
   };

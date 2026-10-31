@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -8,7 +7,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/utils/haptics';
 
 import {
   AuthScreenLayout,
@@ -34,16 +33,6 @@ export default function ForgotPasswordScreen() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-
-  const triggerHaptic = useCallback((type: 'light' | 'warning') => {
-    if (Platform.OS !== 'web') {
-      if (type === 'warning') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-  }, []);
 
   const validate = (): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

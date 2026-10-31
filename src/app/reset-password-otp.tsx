@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,7 +8,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/utils/haptics';
 
 import {
   AuthScreenLayout,
@@ -65,18 +64,6 @@ export default function ResetPasswordOtpScreen() {
     }, 1000);
     return () => clearInterval(timer);
   }, [countdown]);
-
-  const triggerHaptic = useCallback((type: 'light' | 'warning' | 'success') => {
-    if (Platform.OS !== 'web') {
-      if (type === 'warning') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      } else if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-  }, []);
 
   const validate = () => {
     const nextErrors: typeof errors = {};

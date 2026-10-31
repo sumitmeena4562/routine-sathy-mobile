@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { triggerHaptic } from '@/utils/haptics';
 
 import {
   BrandLandscapeIllustration,
@@ -67,16 +67,6 @@ export default function WelcomeScreen() {
   const buttonHeight = isCompact ? 44 : ComponentTokens.button.heightMd;
 
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
-
-  const triggerHaptic = useCallback((type: 'light' | 'success') => {
-    if (Platform.OS !== 'web') {
-      if (type === 'success') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-  }, []);
 
   const handleGoogleSignIn = () => {
     triggerHaptic('light');

@@ -14,7 +14,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
 import {
   AmbientAtmosphere,
@@ -26,7 +25,14 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
+import {
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  SemanticLightTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 import { RoutineActivity, RoutineData } from '@/types/routine';
+import { triggerHaptic } from '@/utils/haptics';
 
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
@@ -39,58 +45,59 @@ function getTimeGreeting(): string {
  * Curated brand palette for circadian habits.
  * Intentional, earthy, mindful colors matching sunrise, mindfulness, and deep focus.
  */
-function getHabitBrandMeta(name: string): {
+function getHabitBrandMeta(name: string, isDark: boolean): {
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
   tileBg: string;
 } {
   const lower = name.toLowerCase();
+
   if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
     return {
       icon: 'barbell',
-      iconColor: '#B45309',
-      tileBg: '#FEF3C7',
+      iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
     };
   }
   if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
     return {
       icon: 'leaf',
-      iconColor: '#1E9E5A',
-      tileBg: '#E3F3E9',
+      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
     };
   }
   if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
     return {
       icon: 'book',
-      iconColor: '#4F46E5',
-      tileBg: '#EEF2FF',
+      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
     };
   }
   if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
     return {
       icon: 'water',
-      iconColor: '#0284C7',
-      tileBg: '#E0F2FE',
+      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
     };
   }
   if (lower.includes('walk') || lower.includes('run') || lower.includes('step')) {
     return {
       icon: 'footsteps',
-      iconColor: '#16A34A',
-      tileBg: '#E3F3E9',
+      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
     };
   }
   if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night')) {
     return {
       icon: 'moon',
-      iconColor: '#4338CA',
-      tileBg: '#EEF2FF',
+      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
     };
   }
   return {
     icon: 'sparkles',
-    iconColor: '#B45309',
-    tileBg: '#FEF3C7',
+    iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
+    tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
   };
 }
 
@@ -103,8 +110,8 @@ export default function TodayScreen() {
 
   const isCompact = windowHeight < 720 || windowWidth < 380;
   const isTablet = windowWidth >= 768;
-  const containerMaxWidth = isTablet ? 520 : 440;
-  const horizontalPadding = isTablet ? 32 : isCompact ? 18 : 22;
+  const containerMaxWidth = isTablet ? 540 : 440;
+  const horizontalPadding = isTablet ? 32 : isCompact ? 16 : 20;
 
   const [routine, setRoutine] = useState<RoutineData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +127,7 @@ export default function TodayScreen() {
       const data = await routineService.getTodayRoutine(getTodayDateString());
       setRoutine(data);
     } catch {
-      // Fallback
+      // Fallback gracefully
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -138,20 +145,10 @@ export default function TodayScreen() {
     fetchRoutine();
   }, [fetchRoutine]);
 
-  const triggerHaptic = useCallback((type: 'light' | 'success') => {
-    if (Platform.OS !== 'web' && user?.settings?.vibration !== false) {
-      if (type === 'success') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-  }, [user?.settings?.vibration]);
-
   const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
     if (!routine) return;
 
-    triggerHaptic(currentVal ? 'light' : 'success');
+    triggerHaptic(!currentVal ? 'medium' : 'light');
 
     const updatedActivities: RoutineActivity[] = routine.activities.map((act) => {
       if (act.activityId === activityId) {
@@ -207,10 +204,14 @@ export default function TodayScreen() {
   }
 
   const totalHabits = displayActivities.length;
-  const completedHabits =
-    displayActivities.filter((a) => Boolean(a.value)).length;
+  const completedHabits = displayActivities.filter((a) => Boolean(a.value)).length;
   const score = Math.round(routine?.score || 0);
   const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
+  const isAllCompleted = completedHabits === totalHabits && totalHabits > 0;
+
+  const sunriseAmber = theme.isDark
+    ? PrimitiveTokens.color.amber[400]
+    : PrimitiveTokens.color.amber[600];
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -237,11 +238,14 @@ export default function TodayScreen() {
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
-          <View>
-            <Text style={styles.dateSub}>
+          <View style={styles.headerTitleCol}>
+            <Text style={[styles.dateSub, { color: sunriseAmber }]}>
               {formattedDate}
             </Text>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
+            <Text
+              style={[styles.title, { color: theme.colors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit>
               {greeting}, {firstName}
             </Text>
           </View>
@@ -255,10 +259,10 @@ export default function TodayScreen() {
               style={({ pressed }) => [
                 styles.editBtn,
                 {
-                  backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
-                  borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
                 },
-                pressed && { opacity: 0.7 },
+                pressed && { opacity: 0.75 },
               ]}>
               <Ionicons name="options-outline" size={15} color={theme.colors.text} />
               <Text style={[styles.editText, { color: theme.colors.text }]}>Edit</Text>
@@ -273,32 +277,47 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#F59E0B"
+            tintColor={sunriseAmber}
           />
         }
         contentContainerStyle={[
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 36, 44),
+            paddingBottom: Math.max(insets.bottom + 84, 96),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#F59E0B" />
+            <ActivityIndicator size="small" color={sunriseAmber} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
               Aligning today&apos;s rhythm...
             </Text>
           </View>
         ) : !routine ? (
           /* ========================================================
-             CASE A: NO ROUTINE SET
+             CASE A: EMPTY STATE - NO ROUTINE SET
              ======================================================== */
-          <Card style={styles.emptyCard}>
-            <View style={[styles.emptyIconCircle, { backgroundColor: '#FFF7ED' }]}>
-              <Ionicons name="sunny" size={32} color="#F97316" />
+          <Card
+            style={[
+              styles.emptyCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}>
+            <View
+              style={[
+                styles.emptyIconCircle,
+                {
+                  backgroundColor: theme.isDark
+                    ? SemanticDarkTokens.color.bg.tileAmber
+                    : SemanticLightTokens.color.bg.tileAmber,
+                },
+              ]}>
+              <Ionicons name="sunny" size={32} color={sunriseAmber} />
             </View>
 
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
@@ -321,10 +340,10 @@ export default function TodayScreen() {
           </Card>
         ) : (
           /* ========================================================
-             CASE B: BESPOKE CIRCADIAN DASHBOARD
+             CASE B: CIRCADIAN RHYTHM DASHBOARD
              ======================================================== */
           <View style={styles.dashboard}>
-            {/* 1. Light Signature Circadian Hero Card */}
+            {/* 1. Signature Circadian Rhythm Hero Card */}
             <View
               style={[
                 styles.heroCard,
@@ -349,29 +368,46 @@ export default function TodayScreen() {
                   style={[
                     styles.heroStreakPill,
                     {
-                      backgroundColor:
-                        completedHabits === totalHabits && totalHabits > 0
-                          ? '#E3F3E9'
-                          : '#FEF3C7',
-                      borderColor:
-                        completedHabits === totalHabits && totalHabits > 0
-                          ? '#A7F3D0'
-                          : '#FDE68A',
+                      backgroundColor: isAllCompleted
+                        ? theme.isDark
+                          ? SemanticDarkTokens.color.state.successBg
+                          : SemanticLightTokens.color.state.successBg
+                        : theme.isDark
+                          ? SemanticDarkTokens.color.state.warningBg
+                          : SemanticLightTokens.color.state.warningBg,
+                      borderColor: isAllCompleted
+                        ? theme.isDark
+                          ? 'rgba(91, 219, 139, 0.35)'
+                          : PrimitiveTokens.color.fern[200]
+                        : theme.isDark
+                          ? 'rgba(251, 191, 36, 0.35)'
+                          : PrimitiveTokens.color.amber[200],
                     },
                   ]}>
                   <Ionicons
-                    name={completedHabits === totalHabits && totalHabits > 0 ? 'checkmark-circle' : 'flame'}
+                    name={isAllCompleted ? 'checkmark-circle' : 'flame'}
                     size={14}
-                    color={completedHabits === totalHabits && totalHabits > 0 ? '#0B6B35' : '#92400E'}
+                    color={
+                      isAllCompleted
+                        ? theme.isDark
+                          ? SemanticDarkTokens.color.state.success
+                          : SemanticLightTokens.color.state.success
+                        : theme.isDark
+                          ? SemanticDarkTokens.color.state.warning
+                          : PrimitiveTokens.color.amber[700]
+                    }
                   />
                   <Text
                     style={[
                       styles.heroStreakPillText,
                       {
-                        color:
-                          completedHabits === totalHabits && totalHabits > 0
-                            ? '#0B6B35'
-                            : '#92400E',
+                        color: isAllCompleted
+                          ? theme.isDark
+                            ? SemanticDarkTokens.color.state.success
+                            : SemanticLightTokens.color.state.success
+                          : theme.isDark
+                            ? SemanticDarkTokens.color.state.warning
+                            : PrimitiveTokens.color.amber[800],
                       },
                     ]}>
                     {completedHabits}/{totalHabits} Done
@@ -391,7 +427,11 @@ export default function TodayScreen() {
                     {
                       width: `${scoreProgress * 100}%`,
                       backgroundColor:
-                        score >= 80 ? theme.colors.success : score >= 50 ? theme.colors.primary : theme.colors.error,
+                        score >= 80
+                          ? theme.colors.success
+                          : score >= 50
+                            ? theme.colors.primary
+                            : theme.colors.error,
                     },
                   ]}
                 />
@@ -405,8 +445,18 @@ export default function TodayScreen() {
                 ]}>
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="sunny" size={13} color="#B45309" />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Wake-up</Text>
+                    <Ionicons
+                      name="sunny"
+                      size={13}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.amber[400]
+                          : PrimitiveTokens.color.amber[700]
+                      }
+                    />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
+                      Wake-up
+                    </Text>
                   </View>
                   <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.wakeUpTime || '—'}
@@ -422,8 +472,18 @@ export default function TodayScreen() {
 
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="water" size={13} color="#0284C7" />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Water</Text>
+                    <Ionicons
+                      name="water"
+                      size={13}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.sky[400]
+                          : PrimitiveTokens.color.sky[600]
+                      }
+                    />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
+                      Water
+                    </Text>
                   </View>
                   <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.waterIntake !== undefined ? `${routine.waterIntake}L` : '—'}
@@ -439,8 +499,18 @@ export default function TodayScreen() {
 
                 <View style={styles.heroMetricItem}>
                   <View style={styles.heroMetricIconRow}>
-                    <Ionicons name="hourglass" size={13} color="#4F46E5" />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>Focus</Text>
+                    <Ionicons
+                      name="hourglass"
+                      size={13}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.indigo[400]
+                          : PrimitiveTokens.color.indigo[600]
+                      }
+                    />
+                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
+                      Focus
+                    </Text>
                   </View>
                   <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
                     {routine.studyHours !== undefined ? `${routine.studyHours}h` : '—'}
@@ -472,12 +542,15 @@ export default function TodayScreen() {
                 displayActivities.map((act, index) => {
                   const isDone = Boolean(act.value);
                   const isLast = index === displayActivities.length - 1;
-                  const meta = getHabitBrandMeta(act.name);
+                  const meta = getHabitBrandMeta(act.name, theme.isDark);
 
                   return (
                     <React.Fragment key={act.activityId}>
                       <Pressable
                         onPress={() => handleToggleHabit(act.activityId, isDone)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isDone }}
+                        accessibilityLabel={`${act.name}, ${isDone ? 'completed' : 'incomplete'}`}
                         style={({ pressed }) => [
                           styles.habitRow,
                           pressed && { opacity: 0.75 },
@@ -487,11 +560,7 @@ export default function TodayScreen() {
                           <View
                             style={[
                               styles.habitIconCircle,
-                              {
-                                backgroundColor: theme.isDark
-                                  ? 'rgba(255, 255, 255, 0.08)'
-                                  : meta.tileBg,
-                              },
+                              { backgroundColor: meta.tileBg },
                             ]}>
                             <Ionicons
                               name={meta.icon}
@@ -505,10 +574,11 @@ export default function TodayScreen() {
                             style={[
                               styles.habitName,
                               {
-                                color: theme.colors.text,
+                                color: isDone ? theme.colors.textSecondary : theme.colors.text,
                                 fontWeight: isDone ? '600' : '700',
                               },
-                            ]}>
+                            ]}
+                            numberOfLines={2}>
                             {act.name}
                           </Text>
                         </View>
@@ -527,7 +597,7 @@ export default function TodayScreen() {
                         <View
                           style={[
                             styles.divider,
-                            { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.06)' : '#F1F5F9' },
+                            { backgroundColor: theme.colors.borderSubtle },
                           ]}
                         />
                       )}
@@ -548,19 +618,27 @@ export default function TodayScreen() {
               style={[
                 styles.circadianRibbon,
                 {
-                  backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
-                  borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
                 },
               ]}>
-              <View style={styles.ribbonIconCircle}>
-                <Ionicons name="sunny-outline" size={17} color="#D97706" />
+              <View
+                style={[
+                  styles.ribbonIconCircle,
+                  {
+                    backgroundColor: theme.isDark
+                      ? SemanticDarkTokens.color.bg.tileAmber
+                      : SemanticLightTokens.color.bg.tileAmber,
+                  },
+                ]}>
+                <Ionicons name="sunny-outline" size={17} color={sunriseAmber} />
               </View>
               <View style={styles.ribbonTextCol}>
                 <Text style={[styles.ribbonTitle, { color: theme.colors.text }]}>
                   Circadian Harmony
                 </Text>
                 <Text style={[styles.ribbonSub, { color: theme.colors.textSecondary }]}>
-                  {completedHabits === totalHabits && totalHabits > 0
+                  {isAllCompleted
                     ? 'All habits completed! Natural melatonin release supported tonight.'
                     : 'Consistent wake-up and daily habits keep your biological clock in sync.'}
                 </Text>
@@ -579,7 +657,7 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     zIndex: 10,
-    paddingBottom: 8,
+    paddingBottom: PrimitiveTokens.space[2],
   },
   headerBarInner: {
     width: '100%',
@@ -588,56 +666,61 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-between',
   },
+  headerTitleCol: {
+    flex: 1,
+    paddingRight: PrimitiveTokens.space[3],
+  },
   dateSub: {
-    fontSize: 12,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
     fontWeight: '800',
     letterSpacing: 0.8,
-    color: '#D97706', // Warm Amber Sunrise
     textTransform: 'uppercase',
   },
   title: {
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
-    marginTop: 2,
+    fontSize: 26,
+    fontFamily: TypographyScale.h2.fontFamily,
+    fontWeight: TypographyScale.h2.fontWeight,
+    letterSpacing: TypographyScale.h2.letterSpacing,
+    marginTop: PrimitiveTokens.space['0_5'],
   },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: PrimitiveTokens.space[3],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
     borderWidth: 1,
-    gap: 5,
-    marginBottom: 2,
+    gap: PrimitiveTokens.space[1],
+    marginBottom: PrimitiveTokens.space['0_5'],
   },
   editText: {
-    fontSize: 12,
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',
   },
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 8,
+    paddingTop: PrimitiveTokens.space[2],
   },
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    gap: 12,
+    gap: PrimitiveTokens.space[3],
   },
   loadingText: {
-    fontSize: 13.5,
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     fontWeight: '500',
   },
   emptyCard: {
     alignItems: 'center',
-    padding: 24,
-    marginTop: 20,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+    padding: PrimitiveTokens.space[6],
+    marginTop: PrimitiveTokens.space[5],
+    borderRadius: PrimitiveTokens.radius['2xl'],
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   emptyIconCircle: {
     width: 64,
@@ -645,20 +728,22 @@ const styles = StyleSheet.create({
     borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: PrimitiveTokens.space[4],
   },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: -0.4,
+    fontSize: TypographyScale.h3.fontSize,
+    fontFamily: TypographyScale.h3.fontFamily,
+    fontWeight: TypographyScale.h3.fontWeight,
+    letterSpacing: TypographyScale.h3.letterSpacing,
     textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 13.5,
-    lineHeight: 19,
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    lineHeight: TypographyScale.bodySm.lineHeight,
     textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 20,
+    marginTop: PrimitiveTokens.space['1_5'],
+    marginBottom: PrimitiveTokens.space[5],
     maxWidth: 290,
   },
   emptyButton: {
@@ -667,70 +752,69 @@ const styles = StyleSheet.create({
   dashboard: {
     width: '100%',
   },
-  /* Signature Light Circadian Hero Card */
+  /* Signature Circadian Rhythm Hero Card */
   heroCard: {
-    borderRadius: 22,
-    padding: 20,
-    marginBottom: 20,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
+    borderRadius: PrimitiveTokens.radius['2xl'],
+    padding: PrimitiveTokens.space[5],
+    marginBottom: PrimitiveTokens.space[5],
     borderWidth: 1,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: PrimitiveTokens.space[4],
   },
   heroLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.6,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   scoreRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
   scoreNumber: {
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: -1,
+    fontSize: TypographyScale.scoreDisplay.fontSize,
+    fontFamily: TypographyScale.scoreDisplay.fontFamily,
+    fontWeight: TypographyScale.scoreDisplay.fontWeight,
+    letterSpacing: TypographyScale.scoreDisplay.letterSpacing,
   },
   scoreTotal: {
-    fontSize: 18,
+    fontSize: TypographyScale.h4.fontSize,
+    fontFamily: TypographyScale.h4.fontFamily,
     fontWeight: '600',
   },
   heroStreakPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: 14,
-    gap: 5,
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    gap: PrimitiveTokens.space[1],
     borderWidth: 1,
   },
   heroStreakPillText: {
-    fontSize: 12,
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',
   },
   heroProgressTrack: {
     height: 7,
-    borderRadius: 4,
+    borderRadius: PrimitiveTokens.radius.full,
     overflow: 'hidden',
-    marginBottom: 18,
+    marginBottom: PrimitiveTokens.space[4],
   },
   heroProgressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: PrimitiveTokens.radius.full,
   },
   heroMetricsStrip: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingTop: 16,
+    paddingTop: PrimitiveTokens.space[4],
     borderTopWidth: 1,
   },
   heroMetricItem: {
@@ -740,16 +824,18 @@ const styles = StyleSheet.create({
   heroMetricIconRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: PrimitiveTokens.space[1],
   },
   heroMetricLabel: {
-    fontSize: 11,
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '600',
   },
   heroMetricVal: {
-    fontSize: 15,
-    fontWeight: '800',
-    marginTop: 3,
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: TypographyScale.bodyStrong.fontWeight,
+    marginTop: PrimitiveTokens.space['0_5'],
   },
   heroMetricSep: {
     width: 1,
@@ -759,80 +845,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
-    paddingHorizontal: 4,
+    marginBottom: PrimitiveTokens.space['2_5'],
+    paddingHorizontal: PrimitiveTokens.space[1],
   },
   sectionHeading: {
-    fontSize: 11.5,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
     fontWeight: '800',
     letterSpacing: 0.8,
   },
   sectionCountText: {
-    fontSize: 12,
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',
   },
   habitsGroupCard: {
-    borderRadius: 22,
+    borderRadius: PrimitiveTokens.radius['2xl'],
     borderWidth: 1,
-    padding: 4,
-    marginBottom: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: PrimitiveTokens.space[1],
+    marginBottom: PrimitiveTokens.space[4],
   },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingHorizontal: PrimitiveTokens.space['3_5'],
+    paddingVertical: PrimitiveTokens.space['3_5'],
   },
   habitLeft: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingRight: 10,
+    gap: PrimitiveTokens.space[3],
+    paddingRight: PrimitiveTokens.space['2_5'],
   },
   habitIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: PrimitiveTokens.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   habitName: {
-    fontSize: 15,
+    fontSize: TypographyScale.body.fontSize,
+    fontFamily: TypographyScale.body.fontFamily,
     letterSpacing: -0.2,
     flex: 1,
   },
   divider: {
     height: 1,
-    marginHorizontal: 14,
+    marginHorizontal: PrimitiveTokens.space['3_5'],
   },
   noHabitsBox: {
-    padding: 20,
+    padding: PrimitiveTokens.space[5],
     alignItems: 'center',
   },
   noHabitsText: {
-    fontSize: 13,
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     textAlign: 'center',
   },
   circadianRibbon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    padding: 14,
-    borderRadius: 18,
+    gap: PrimitiveTokens.space[3],
+    padding: PrimitiveTokens.space[4],
+    borderRadius: PrimitiveTokens.radius.xl,
     borderWidth: 1,
   },
   ribbonIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEF3C7', // Soft warm sunrise
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -840,13 +924,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ribbonTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: TypographyScale.bodyStrong.fontWeight,
     letterSpacing: -0.1,
   },
   ribbonSub: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    marginTop: 2,
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    lineHeight: TypographyScale.captionSm.lineHeight,
+    marginTop: PrimitiveTokens.space['0_5'],
   },
 });

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -15,10 +14,10 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
 import { Radius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { triggerHaptic } from '@/utils/haptics';
 
 export interface HabitCheckControlProps {
   completed: boolean;
@@ -52,14 +51,7 @@ export function HabitCheckControl({
       withSpring(1, { damping: 8, stiffness: 180 })
     );
 
-    if (Platform.OS !== 'web') {
-      if (!completed) {
-        // Successful habit completion: snappy crisp medium impact
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
+    triggerHaptic(!completed ? 'medium' : 'light');
 
     onToggle(!completed);
   };
@@ -81,14 +73,18 @@ export function HabitCheckControl({
             width: size,
             height: size,
             borderRadius: theme.radius.full,
-            backgroundColor: completed ? '#10B981' : 'transparent',
-            borderColor: completed ? '#10B981' : theme.isDark ? '#475569' : '#CBD5E1',
+            backgroundColor: completed ? theme.colors.success : 'transparent',
+            borderColor: completed ? theme.colors.success : theme.colors.border,
             borderWidth: completed ? 0 : 2,
           },
           completed ? theme.shadows.sm : undefined,
         ]}>
         {completed ? (
-          <Ionicons name="checkmark-sharp" size={iconSize} color="#FFFFFF" />
+          <Ionicons
+            name="checkmark-sharp"
+            size={iconSize}
+            color={theme.colors.successForeground || '#FFFFFF'}
+          />
         ) : null}
       </Animated.View>
 

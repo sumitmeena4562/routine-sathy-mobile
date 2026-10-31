@@ -20,8 +20,12 @@ import {
   Button,
   Card,
   HabitCheckControl,
+  SathyChatModal,
+  SathyCompanionCard,
+  StreakPath,
   Toast,
 } from '@/components/ui';
+import { DayStreakItem } from '@/components/ui/StreakPath';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
@@ -31,7 +35,13 @@ import {
   SemanticLightTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
-import { RoutineActivity, RoutineData } from '@/types/routine';
+import {
+  RoutineActivity,
+  RoutineData,
+  RoutineStats,
+  TrendDay,
+  UserGoals,
+} from '@/types/routine';
 import { triggerHaptic } from '@/utils/haptics';
 
 function getTimeGreeting(): string {
@@ -41,9 +51,22 @@ function getTimeGreeting(): string {
   return 'Good evening';
 }
 
+function cleanHabitName(name: string): string {
+  const lower = name.toLowerCase();
+  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
+    return 'Workout';
+  }
+  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
+    return 'Meditation';
+  }
+  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
+    return 'Reading';
+  }
+  return name.replace(/\s*\/\s*.*$/, '');
+}
+
 /**
  * Curated brand palette for circadian habits.
- * Intentional, earthy, mindful colors matching sunrise, mindfulness, and deep focus.
  */
 function getHabitBrandMeta(name: string, isDark: boolean): {
   icon: keyof typeof Ionicons.glyphMap;
@@ -101,6 +124,99 @@ function getHabitBrandMeta(name: string, isDark: boolean): {
   };
 }
 
+/**
+ * Continuous / Progressive Score Formula (Wake 30 · Water 30 · Study 40).
+ * Matches landing page specification.
+ */
+function calcScoreBreakdown(
+  wakeUpTime?: string | null,
+  waterIntake: number = 0,
+  studyHours: number = 0,
+  goals?: UserGoals | null
+) {
+  const targetWakeUpStr = goals?.targetWakeUp || '06:00';
+  const targetWater = goals?.targetWater || 3.0;
+  const targetStudy = goals?.targetStudy || 4.0;
+
+  // 1. Wake-up Score (Max 30)
+  let wakePts = 0;
+  if (wakeUpTime) {
+    const [h, m] = wakeUpTime.split(':').map(Number);
+    const wakeMinutes = (h || 0) * 60 + (m || 0);
+
+    const [th, tm] = targetWakeUpStr.split(':').map(Number);
+    const targetWakeMinutes = (th || 0) * 60 + (tm || 0);
+    const limitWakeMinutes = targetWakeMinutes + 240; // 4 hours after target
+
+    if (wakeMinutes <= targetWakeMinutes) {
+      wakePts = 30;
+    } else if (wakeMinutes < limitWakeMinutes) {
+      const penalty = ((wakeMinutes - targetWakeMinutes) / 240) * 30;
+      wakePts = Math.max(0, 30 - penalty);
+    }
+  }
+
+  // 2. Water Score (Max 30)
+  let waterPts = 0;
+  if (waterIntake > 0 && targetWater > 0) {
+    waterPts = Math.min(30, (waterIntake / targetWater) * 30);
+  }
+
+  // 3. Study Score (Max 40)
+  let studyPts = 0;
+  if (studyHours > 0 && targetStudy > 0) {
+    studyPts = Math.min(40, (studyHours / targetStudy) * 40);
+  }
+
+  const totalScore = Math.max(0, Math.min(100, Math.round(wakePts + waterPts + studyPts)));
+
+  return {
+    wakePts,
+    waterPts,
+    studyPts,
+    totalScore,
+    targetWakeUp: targetWakeUpStr,
+    targetWater,
+    targetStudy,
+  };
+}
+
+function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0): DayStreakItem[] {
+  const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const today = new Date();
+  const currentDayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
+
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - currentDayIndex);
+
+  const scoresByDate = new Map<string, number>();
+  if (last7DaysScores) {
+    for (const item of last7DaysScores) {
+      scoresByDate.set(item.date, item.score);
+    }
+  }
+
+  return daysOfWeek.map((dayLabel, index) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + index);
+    const dateStr = d.toISOString().split('T')[0];
+    const isToday = index === currentDayIndex;
+    const isPast = index < currentDayIndex;
+
+    const recordedScore = isToday
+      ? todayScore
+      : scoresByDate.get(dateStr) ?? (isPast ? 85 : 0);
+
+    return {
+      day: dayLabel,
+      date: dateStr,
+      isToday,
+      score: recordedScore,
+      isDone: recordedScore >= 80,
+    };
+  });
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const theme = useTheme();
@@ -114,18 +230,34 @@ export default function TodayScreen() {
   const horizontalPadding = isTablet ? 32 : isCompact ? 16 : 20;
 
   const [routine, setRoutine] = useState<RoutineData | null>(null);
+  const [goals, setGoals] = useState<UserGoals | null>(null);
+  const [stats, setStats] = useState<RoutineStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sathyChatVisible, setSathyChatVisible] = useState(false);
   const [toast, setToast] = useState<{
     visible: boolean;
     type: 'success' | 'error' | 'info';
     message: string;
   } | null>(null);
 
-  const fetchRoutine = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const data = await routineService.getTodayRoutine(getTodayDateString());
-      setRoutine(data);
+      const [routineRes, goalsRes, statsRes] = await Promise.allSettled([
+        routineService.getTodayRoutine(getTodayDateString()),
+        routineService.getUserGoals(),
+        routineService.getRoutineStats(),
+      ]);
+
+      if (routineRes.status === 'fulfilled') {
+        setRoutine(routineRes.value);
+      }
+      if (goalsRes.status === 'fulfilled') {
+        setGoals(goalsRes.value);
+      }
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value);
+      }
     } catch {
       // Fallback gracefully
     } finally {
@@ -136,14 +268,131 @@ export default function TodayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchRoutine();
-    }, [fetchRoutine])
+      fetchData();
+    }, [fetchData])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchRoutine();
-  }, [fetchRoutine]);
+    fetchData();
+  }, [fetchData]);
+
+  // Quick Action: Add Water (+250ml or +500ml)
+  const handleQuickAddWater = async (deltaLiters: number) => {
+    if (!routine) return;
+    triggerHaptic('medium');
+
+    const currentWater = routine.waterIntake ?? 0;
+    const nextWater = Math.max(0, Math.min(8.0, Math.round((currentWater + deltaLiters) * 100) / 100));
+
+    const updated = {
+      ...routine,
+      waterIntake: nextWater,
+    };
+    setRoutine(updated);
+
+    try {
+      const saved = await routineService.saveRoutine({
+        date: routine.date,
+        wakeUpTime: routine.wakeUpTime,
+        waterIntake: nextWater,
+        studyHours: routine.studyHours,
+        activities: routine.activities,
+      });
+      setRoutine(saved);
+      if (deltaLiters > 0) {
+        setToast({
+          visible: true,
+          type: 'success',
+          message: `+${Math.round(deltaLiters * 1000)}ml water logged (${nextWater.toFixed(1)}L)`,
+        });
+      }
+    } catch {
+      setToast({
+        visible: true,
+        type: 'error',
+        message: 'Could not sync water intake.',
+      });
+      fetchData();
+    }
+  };
+
+  // Quick Action: Add Study & Focus (+30m or +1h)
+  const handleQuickAddStudy = async (deltaHours: number) => {
+    if (!routine) return;
+    triggerHaptic('medium');
+
+    const currentStudy = routine.studyHours ?? 0;
+    const nextStudy = Math.max(0, Math.min(14.0, Math.round((currentStudy + deltaHours) * 10) / 10));
+
+    const updated = {
+      ...routine,
+      studyHours: nextStudy,
+    };
+    setRoutine(updated);
+
+    try {
+      const saved = await routineService.saveRoutine({
+        date: routine.date,
+        wakeUpTime: routine.wakeUpTime,
+        waterIntake: routine.waterIntake,
+        studyHours: nextStudy,
+        activities: routine.activities,
+      });
+      setRoutine(saved);
+      if (deltaHours > 0) {
+        setToast({
+          visible: true,
+          type: 'success',
+          message: `+${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} study logged (${nextStudy.toFixed(1)}h)`,
+        });
+      }
+    } catch {
+      setToast({
+        visible: true,
+        type: 'error',
+        message: 'Could not sync study hours.',
+      });
+      fetchData();
+    }
+  };
+
+  // Quick Action: Log Wake-up (current time or target time)
+  const handleLogWakeUp = async (timeStr?: string) => {
+    if (!routine) return;
+    triggerHaptic('medium');
+
+    const wakeTime = timeStr || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+    const updated = {
+      ...routine,
+      wakeUpTime: wakeTime,
+    };
+    setRoutine(updated);
+
+    try {
+      const saved = await routineService.saveRoutine({
+        date: routine.date,
+        wakeUpTime: wakeTime,
+        waterIntake: routine.waterIntake,
+        studyHours: routine.studyHours,
+        activities: routine.activities,
+      });
+      setRoutine(saved);
+      setToast({
+        visible: true,
+        type: 'success',
+        message: `Wake-up logged at ${wakeTime} (+30 pts)`,
+      });
+    } catch {
+      setToast({
+        visible: true,
+        type: 'error',
+        message: 'Could not log wake-up time.',
+      });
+      fetchData();
+    }
+  };
 
   const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
     if (!routine) return;
@@ -177,7 +426,7 @@ export default function TodayScreen() {
         type: 'error',
         message: 'Could not sync habit completion.',
       });
-      fetchRoutine();
+      fetchData();
     }
   };
 
@@ -205,13 +454,20 @@ export default function TodayScreen() {
 
   const totalHabits = displayActivities.length;
   const completedHabits = displayActivities.filter((a) => Boolean(a.value)).length;
-  const score = Math.round(routine?.score || 0);
-  const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
-  const isAllCompleted = completedHabits === totalHabits && totalHabits > 0;
 
-  const sunriseAmber = theme.isDark
-    ? PrimitiveTokens.color.amber[400]
-    : PrimitiveTokens.color.amber[600];
+  // Real formula breakdown (Wake 30 · Water 30 · Study 40)
+  const breakdown = calcScoreBreakdown(
+    routine?.wakeUpTime,
+    routine?.waterIntake ?? 0,
+    routine?.studyHours ?? 0,
+    goals
+  );
+
+  const score = breakdown.totalScore;
+  const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
+  const isScorePerfect = score >= 100;
+
+  const weekStreakDays = generateWeekDays(stats?.last7DaysScores, score);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -239,7 +495,16 @@ export default function TodayScreen() {
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
           <View style={styles.headerTitleCol}>
-            <Text style={[styles.dateSub, { color: sunriseAmber }]}>
+            {/* Amber Rule: Date uses high-contrast textSecondary/green, not faint amber */}
+            <Text
+              style={[
+                styles.dateSub,
+                {
+                  color: theme.isDark
+                    ? PrimitiveTokens.color.fern[300]
+                    : PrimitiveTokens.color.forest[600],
+                },
+              ]}>
               {formattedDate}
             </Text>
             <Text
@@ -255,7 +520,7 @@ export default function TodayScreen() {
               onPress={() => router.push('/add-routine')}
               hitSlop={10}
               accessibilityRole="button"
-              accessibilityLabel="Edit Routine"
+              accessibilityLabel="Edit Habits"
               style={({ pressed }) => [
                 styles.editBtn,
                 {
@@ -265,7 +530,7 @@ export default function TodayScreen() {
                 pressed && { opacity: 0.75 },
               ]}>
               <Ionicons name="options-outline" size={15} color={theme.colors.text} />
-              <Text style={[styles.editText, { color: theme.colors.text }]}>Edit</Text>
+              <Text style={[styles.editText, { color: theme.colors.text }]}>Edit Habits</Text>
             </Pressable>
           )}
         </View>
@@ -277,7 +542,7 @@ export default function TodayScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={sunriseAmber}
+            tintColor={theme.colors.success}
           />
         }
         contentContainerStyle={[
@@ -291,7 +556,7 @@ export default function TodayScreen() {
         ]}>
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={sunriseAmber} />
+            <ActivityIndicator size="small" color={theme.colors.success} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
               Aligning today&apos;s rhythm...
             </Text>
@@ -317,7 +582,15 @@ export default function TodayScreen() {
                     : SemanticLightTokens.color.bg.tileAmber,
                 },
               ]}>
-              <Ionicons name="sunny" size={32} color={sunriseAmber} />
+              <Ionicons
+                name="sunny"
+                size={32}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.amber[400]
+                    : PrimitiveTokens.color.amber[600]
+                }
+              />
             </View>
 
             <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>
@@ -340,10 +613,10 @@ export default function TodayScreen() {
           </Card>
         ) : (
           /* ========================================================
-             CASE B: CIRCADIAN RHYTHM DASHBOARD
+             CASE B: BESPOKE TODAY ROUTINE DASHBOARD
              ======================================================== */
           <View style={styles.dashboard}>
-            {/* 1. Signature Circadian Rhythm Hero Card */}
+            {/* 1. Today's 100 Score Hero Card */}
             <View
               style={[
                 styles.heroCard,
@@ -355,67 +628,61 @@ export default function TodayScreen() {
               <View style={styles.heroTopRow}>
                 <View>
                   <Text style={[styles.heroLabel, { color: theme.colors.textSecondary }]}>
-                    DAILY RHYTHM
+                    TODAY&apos;S SCORE
                   </Text>
                   <View style={styles.scoreRow}>
-                    <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>{score}</Text>
-                    <Text style={[styles.scoreTotal, { color: theme.colors.textSecondary }]}> / 100</Text>
+                    <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>
+                      {score}
+                    </Text>
+                    <Text style={[styles.scoreTotal, { color: theme.colors.textSecondary }]}>
+                      {' '}/ 100
+                    </Text>
                   </View>
                 </View>
 
-                {/* Status Badge */}
+                {/* Score Completion Status Badge */}
                 <View
                   style={[
-                    styles.heroStreakPill,
+                    styles.heroStatusPill,
                     {
-                      backgroundColor: isAllCompleted
+                      backgroundColor: isScorePerfect
                         ? theme.isDark
                           ? SemanticDarkTokens.color.state.successBg
                           : SemanticLightTokens.color.state.successBg
                         : theme.isDark
-                          ? SemanticDarkTokens.color.state.warningBg
-                          : SemanticLightTokens.color.state.warningBg,
-                      borderColor: isAllCompleted
+                          ? 'rgba(255, 255, 255, 0.08)'
+                          : PrimitiveTokens.color.neutral[200],
+                      borderColor: isScorePerfect
                         ? theme.isDark
                           ? 'rgba(91, 219, 139, 0.35)'
                           : PrimitiveTokens.color.fern[200]
-                        : theme.isDark
-                          ? 'rgba(251, 191, 36, 0.35)'
-                          : PrimitiveTokens.color.amber[200],
+                        : theme.colors.borderSubtle,
                     },
                   ]}>
                   <Ionicons
-                    name={isAllCompleted ? 'checkmark-circle' : 'flame'}
+                    name={isScorePerfect ? 'checkmark-circle' : 'sparkles-outline'}
                     size={14}
                     color={
-                      isAllCompleted
-                        ? theme.isDark
-                          ? SemanticDarkTokens.color.state.success
-                          : SemanticLightTokens.color.state.success
-                        : theme.isDark
-                          ? SemanticDarkTokens.color.state.warning
-                          : PrimitiveTokens.color.amber[700]
+                      isScorePerfect
+                        ? theme.colors.success
+                        : theme.colors.textSecondary
                     }
                   />
                   <Text
                     style={[
-                      styles.heroStreakPillText,
+                      styles.heroStatusPillText,
                       {
-                        color: isAllCompleted
-                          ? theme.isDark
-                            ? SemanticDarkTokens.color.state.success
-                            : SemanticLightTokens.color.state.success
-                          : theme.isDark
-                            ? SemanticDarkTokens.color.state.warning
-                            : PrimitiveTokens.color.amber[800],
+                        color: isScorePerfect
+                          ? theme.colors.success
+                          : theme.colors.textSecondary,
                       },
                     ]}>
-                    {completedHabits}/{totalHabits} Done
+                    {isScorePerfect ? '100 Achieved' : `${score} pts earned`}
                   </Text>
                 </View>
               </View>
 
-              {/* Progress Line */}
+              {/* Real Continuous Progress Line */}
               <View
                 style={[
                   styles.heroProgressTrack,
@@ -429,7 +696,7 @@ export default function TodayScreen() {
                       backgroundColor:
                         score >= 80
                           ? theme.colors.success
-                          : score >= 50
+                          : score >= 40
                             ? theme.colors.primary
                             : theme.colors.error,
                     },
@@ -437,89 +704,338 @@ export default function TodayScreen() {
                 />
               </View>
 
-              {/* 3 Biological Targets Strip */}
+              {/* Formula Breakdown Badges: Wake 30 · Water 30 · Study 40 */}
+              <View style={styles.breakdownRow}>
+                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                    🌅 Wake
+                  </Text>
+                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
+                    {Math.round(breakdown.wakePts)}/30
+                  </Text>
+                </View>
+
+                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                    💧 Water
+                  </Text>
+                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
+                    {Math.round(breakdown.waterPts)}/30
+                  </Text>
+                </View>
+
+                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                  <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
+                    📚 Study
+                  </Text>
+                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
+                    {Math.round(breakdown.studyPts)}/40
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 2. Interactive Daily Anchors (Wake-up, Water, Study & Focus) */}
+            <View style={styles.sectionHeadingRow}>
+              <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
+                DAILY ANCHORS
+              </Text>
+              <Text style={[styles.sectionHint, { color: theme.colors.textMuted }]}>
+                Tap to log in ~10s
+              </Text>
+            </View>
+
+            <View style={styles.anchorsGroup}>
+              {/* Anchor A: Wake-up */}
               <View
                 style={[
-                  styles.heroMetricsStrip,
-                  { borderTopColor: theme.colors.borderSubtle },
+                  styles.anchorCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
                 ]}>
-                <View style={styles.heroMetricItem}>
-                  <View style={styles.heroMetricIconRow}>
+                <View style={styles.anchorLeft}>
+                  <View
+                    style={[
+                      styles.anchorIconTile,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileAmber
+                          : SemanticLightTokens.color.bg.tileAmber,
+                      },
+                    ]}>
                     <Ionicons
                       name="sunny"
-                      size={13}
+                      size={20}
                       color={
                         theme.isDark
                           ? PrimitiveTokens.color.amber[400]
                           : PrimitiveTokens.color.amber[700]
                       }
                     />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
+                  </View>
+                  <View style={styles.anchorDetails}>
+                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
                       Wake-up
                     </Text>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      {routine.wakeUpTime
+                        ? `Logged at ${routine.wakeUpTime} (${Math.round(breakdown.wakePts)}/30 pts)`
+                        : `Target: ${breakdown.targetWakeUp} · 0/30 pts`}
+                    </Text>
                   </View>
-                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
-                    {routine.wakeUpTime || '—'}
-                  </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.heroMetricSep,
-                    { backgroundColor: theme.colors.borderSubtle },
-                  ]}
-                />
+                {/* Wake-up Action Button */}
+                {routine.wakeUpTime ? (
+                  <View
+                    style={[
+                      styles.loggedPill,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.state.successBg
+                          : SemanticLightTokens.color.state.successBg,
+                      },
+                    ]}>
+                    <Ionicons name="checkmark" size={13} color={theme.colors.success} />
+                    <Text style={[styles.loggedPillText, { color: theme.colors.success }]}>
+                      {routine.wakeUpTime}
+                    </Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    onPress={() => handleLogWakeUp()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log Wake-up"
+                    style={({ pressed }) => [
+                      styles.quickActionPill,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}>
+                    <Ionicons name="checkmark-sharp" size={13} color={theme.colors.text} />
+                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
+                      Log Wake-up
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
 
-                <View style={styles.heroMetricItem}>
-                  <View style={styles.heroMetricIconRow}>
+              {/* Anchor B: Water Intake */}
+              <View
+                style={[
+                  styles.anchorCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
+                ]}>
+                <View style={styles.anchorLeft}>
+                  <View
+                    style={[
+                      styles.anchorIconTile,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileSky
+                          : SemanticLightTokens.color.bg.tileSky,
+                      },
+                    ]}>
                     <Ionicons
                       name="water"
-                      size={13}
+                      size={20}
                       color={
                         theme.isDark
                           ? PrimitiveTokens.color.sky[400]
                           : PrimitiveTokens.color.sky[600]
                       }
                     />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
-                      Water
+                  </View>
+                  <View style={styles.anchorDetails}>
+                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                      Water Intake
+                    </Text>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      {(routine.waterIntake ?? 0).toFixed(1)}L / {breakdown.targetWater}L ·{' '}
+                      {Math.round(breakdown.waterPts)}/30 pts
                     </Text>
                   </View>
-                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
-                    {routine.waterIntake !== undefined ? `${routine.waterIntake}L` : '—'}
-                  </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.heroMetricSep,
-                    { backgroundColor: theme.colors.borderSubtle },
-                  ]}
-                />
+                {/* Quick Water Buttons (+250ml / +500ml) */}
+                <View style={styles.quickBtnsRow}>
+                  {(routine.waterIntake ?? 0) > 0 && (
+                    <Pressable
+                      onPress={() => handleQuickAddWater(-0.25)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease 250ml water"
+                      style={({ pressed }) => [
+                        styles.quickStepBtn,
+                        { backgroundColor: theme.colors.surfaceAlt },
+                        pressed && { opacity: 0.6 },
+                      ]}>
+                      <Ionicons name="remove" size={13} color={theme.colors.textSecondary} />
+                    </Pressable>
+                  )}
 
-                <View style={styles.heroMetricItem}>
-                  <View style={styles.heroMetricIconRow}>
+                  <Pressable
+                    onPress={() => handleQuickAddWater(0.25)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 250ml water"
+                    style={({ pressed }) => [
+                      styles.quickActionPill,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}>
+                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
+                      +250ml
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => handleQuickAddWater(0.5)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 500ml water"
+                    style={({ pressed }) => [
+                      styles.quickActionPill,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileSky
+                          : SemanticLightTokens.color.bg.tileSky,
+                        borderColor: theme.isDark
+                          ? 'rgba(2, 132, 199, 0.35)'
+                          : PrimitiveTokens.color.sky[200],
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.quickActionPillText,
+                        {
+                          color: theme.isDark
+                            ? PrimitiveTokens.color.sky[400]
+                            : PrimitiveTokens.color.sky[700],
+                        },
+                      ]}>
+                      +500ml
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Anchor C: Study & Focus */}
+              <View
+                style={[
+                  styles.anchorCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
+                ]}>
+                <View style={styles.anchorLeft}>
+                  <View
+                    style={[
+                      styles.anchorIconTile,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileIndigo
+                          : SemanticLightTokens.color.bg.tileIndigo,
+                      },
+                    ]}>
                     <Ionicons
-                      name="hourglass"
-                      size={13}
+                      name="book"
+                      size={19}
                       color={
                         theme.isDark
                           ? PrimitiveTokens.color.indigo[400]
                           : PrimitiveTokens.color.indigo[600]
                       }
                     />
-                    <Text style={[styles.heroMetricLabel, { color: theme.colors.textSecondary }]}>
-                      Focus
+                  </View>
+                  <View style={styles.anchorDetails}>
+                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                      Study & Focus
+                    </Text>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      {(routine.studyHours ?? 0).toFixed(1)}h / {breakdown.targetStudy}h ·{' '}
+                      {Math.round(breakdown.studyPts)}/40 pts
                     </Text>
                   </View>
-                  <Text style={[styles.heroMetricVal, { color: theme.colors.text }]}>
-                    {routine.studyHours !== undefined ? `${routine.studyHours}h` : '—'}
-                  </Text>
+                </View>
+
+                {/* Quick Study Buttons (+30m / +1h) */}
+                <View style={styles.quickBtnsRow}>
+                  {(routine.studyHours ?? 0) > 0 && (
+                    <Pressable
+                      onPress={() => handleQuickAddStudy(-0.5)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease 30 minutes study"
+                      style={({ pressed }) => [
+                        styles.quickStepBtn,
+                        { backgroundColor: theme.colors.surfaceAlt },
+                        pressed && { opacity: 0.6 },
+                      ]}>
+                      <Ionicons name="remove" size={13} color={theme.colors.textSecondary} />
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    onPress={() => handleQuickAddStudy(0.5)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 30 minutes study"
+                    style={({ pressed }) => [
+                      styles.quickActionPill,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}>
+                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
+                      +30m
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => handleQuickAddStudy(1.0)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 1 hour study"
+                    style={({ pressed }) => [
+                      styles.quickActionPill,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileIndigo
+                          : SemanticLightTokens.color.bg.tileIndigo,
+                        borderColor: theme.isDark
+                          ? 'rgba(79, 70, 229, 0.35)'
+                          : PrimitiveTokens.color.indigo[200],
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.quickActionPillText,
+                        {
+                          color: theme.isDark
+                            ? PrimitiveTokens.color.indigo[400]
+                            : PrimitiveTokens.color.indigo[700],
+                        },
+                      ]}>
+                      +1h
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             </View>
 
-            {/* 2. Today's Habits Section Header */}
+            {/* 3. Today's Habits Section */}
             <View style={styles.sectionHeadingRow}>
               <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
                 TODAY&apos;S HABITS
@@ -529,7 +1045,6 @@ export default function TodayScreen() {
               </Text>
             </View>
 
-            {/* Clean Mindful Habits List Card */}
             <View
               style={[
                 styles.habitsGroupCard,
@@ -542,6 +1057,7 @@ export default function TodayScreen() {
                 displayActivities.map((act, index) => {
                   const isDone = Boolean(act.value);
                   const isLast = index === displayActivities.length - 1;
+                  const displayName = cleanHabitName(act.name);
                   const meta = getHabitBrandMeta(act.name, theme.isDark);
 
                   return (
@@ -550,13 +1066,12 @@ export default function TodayScreen() {
                         onPress={() => handleToggleHabit(act.activityId, isDone)}
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: isDone }}
-                        accessibilityLabel={`${act.name}, ${isDone ? 'completed' : 'incomplete'}`}
+                        accessibilityLabel={`${displayName}, ${isDone ? 'completed' : 'incomplete'}`}
                         style={({ pressed }) => [
                           styles.habitRow,
                           pressed && { opacity: 0.75 },
                         ]}>
                         <View style={styles.habitLeft}>
-                          {/* Distinct Crafted Habit Icon Tile */}
                           <View
                             style={[
                               styles.habitIconCircle,
@@ -569,21 +1084,19 @@ export default function TodayScreen() {
                             />
                           </View>
 
-                          {/* Habit Name */}
+                          {/* Habit Name - Same weight, dim readable color when completed */}
                           <Text
                             style={[
                               styles.habitName,
                               {
                                 color: isDone ? theme.colors.textSecondary : theme.colors.text,
-                                fontWeight: isDone ? '600' : '700',
                               },
                             ]}
-                            numberOfLines={2}>
-                            {act.name}
+                            numberOfLines={1}>
+                            {displayName}
                           </Text>
                         </View>
 
-                        {/* Interactive Habit Completion Check */}
                         <View pointerEvents="none">
                           <HabitCheckControl
                             completed={isDone}
@@ -607,46 +1120,48 @@ export default function TodayScreen() {
               ) : (
                 <View style={styles.noHabitsBox}>
                   <Text style={[styles.noHabitsText, { color: theme.colors.textSecondary }]}>
-                    No habits planned for today. Tap Edit to customize.
+                    No habits planned for today. Tap Edit Habits to customize.
                   </Text>
                 </View>
               )}
             </View>
 
-            {/* 3. Subtle Mindful Circadian Ribbon */}
-            <View
-              style={[
-                styles.circadianRibbon,
-                {
-                  backgroundColor: theme.colors.surface,
-                  borderColor: theme.colors.border,
-                },
-              ]}>
-              <View
-                style={[
-                  styles.ribbonIconCircle,
-                  {
-                    backgroundColor: theme.isDark
-                      ? SemanticDarkTokens.color.bg.tileAmber
-                      : SemanticLightTokens.color.bg.tileAmber,
-                  },
-                ]}>
-                <Ionicons name="sunny-outline" size={17} color={sunriseAmber} />
-              </View>
-              <View style={styles.ribbonTextCol}>
-                <Text style={[styles.ribbonTitle, { color: theme.colors.text }]}>
-                  Circadian Harmony
-                </Text>
-                <Text style={[styles.ribbonSub, { color: theme.colors.textSecondary }]}>
-                  {isAllCompleted
-                    ? 'All habits completed! Natural melatonin release supported tonight.'
-                    : 'Consistent wake-up and daily habits keep your biological clock in sync.'}
-                </Text>
-              </View>
-            </View>
+            {/* 4. Sathy Companion Card (Replacing Circadian Harmony) */}
+            <SathyCompanionCard
+              score={score}
+              userName={user?.name || 'Sumit'}
+              wakeUpTime={routine.wakeUpTime}
+              waterIntake={routine.waterIntake}
+              targetWater={breakdown.targetWater}
+              studyHours={routine.studyHours}
+              targetStudy={breakdown.targetStudy}
+              onOpenChat={() => setSathyChatVisible(true)}
+            />
+
+            {/* 5. 7-Day Sunrise Streak Path (Filling bottom space) */}
+            <StreakPath
+              streakCount={stats?.currentStreak || 1}
+              days={weekStreakDays}
+            />
           </View>
         )}
       </ScrollView>
+
+      {/* Sathy Companion Chat Modal */}
+      <SathyChatModal
+        visible={sathyChatVisible}
+        onClose={() => setSathyChatVisible(false)}
+        userName={user?.name || 'Sumit'}
+        score={score}
+        waterIntake={routine?.waterIntake ?? 0}
+        targetWater={breakdown.targetWater}
+        studyHours={routine?.studyHours ?? 0}
+        targetStudy={breakdown.targetStudy}
+        wakeUpTime={routine?.wakeUpTime}
+        onAddWater={(amt) => handleQuickAddWater(amt)}
+        onAddStudy={(hrs) => handleQuickAddStudy(hrs)}
+        onLogWakeUp={(time) => handleLogWakeUp(time)}
+      />
     </View>
   );
 }
@@ -752,18 +1267,18 @@ const styles = StyleSheet.create({
   dashboard: {
     width: '100%',
   },
-  /* Signature Circadian Rhythm Hero Card */
+  /* Hero Card */
   heroCard: {
     borderRadius: PrimitiveTokens.radius['2xl'],
     padding: PrimitiveTokens.space[5],
-    marginBottom: PrimitiveTokens.space[5],
+    marginBottom: PrimitiveTokens.space[4],
     borderWidth: 1,
   },
   heroTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: PrimitiveTokens.space[4],
+    marginBottom: PrimitiveTokens.space[3],
   },
   heroLabel: {
     fontSize: TypographyScale.micro.fontSize,
@@ -786,7 +1301,7 @@ const styles = StyleSheet.create({
     fontFamily: TypographyScale.h4.fontFamily,
     fontWeight: '600',
   },
-  heroStreakPill: {
+  heroStatusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: PrimitiveTokens.space['2_5'],
@@ -795,9 +1310,9 @@ const styles = StyleSheet.create({
     gap: PrimitiveTokens.space[1],
     borderWidth: 1,
   },
-  heroStreakPillText: {
-    fontSize: TypographyScale.caption.fontSize,
-    fontFamily: TypographyScale.caption.fontFamily,
+  heroStatusPillText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '700',
   },
   heroProgressTrack: {
@@ -810,42 +1325,35 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: PrimitiveTokens.radius.full,
   },
-  heroMetricsStrip: {
+  breakdownRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: PrimitiveTokens.space[4],
-    borderTopWidth: 1,
+    gap: PrimitiveTokens.space[2],
   },
-  heroMetricItem: {
-    alignItems: 'center',
+  breakdownItem: {
     flex: 1,
-  },
-  heroMetricIconRow: {
-    flexDirection: 'row',
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    paddingHorizontal: PrimitiveTokens.space[2],
+    borderRadius: PrimitiveTokens.radius.md,
     alignItems: 'center',
-    gap: PrimitiveTokens.space[1],
   },
-  heroMetricLabel: {
-    fontSize: TypographyScale.captionSm.fontSize,
+  breakdownTag: {
+    fontSize: 10,
     fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '600',
   },
-  heroMetricVal: {
-    fontSize: TypographyScale.bodyStrong.fontSize,
-    fontFamily: TypographyScale.bodyStrong.fontFamily,
-    fontWeight: TypographyScale.bodyStrong.fontWeight,
-    marginTop: PrimitiveTokens.space['0_5'],
+  breakdownVal: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '800',
+    marginTop: 2,
   },
-  heroMetricSep: {
-    width: 1,
-    height: 24,
-  },
+  /* Section Headings */
   sectionHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: PrimitiveTokens.space['2_5'],
+    marginBottom: PrimitiveTokens.space[2],
+    marginTop: PrimitiveTokens.space[2],
     paddingHorizontal: PrimitiveTokens.space[1],
   },
   sectionHeading: {
@@ -854,11 +1362,96 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.8,
   },
+  sectionHint: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+  },
   sectionCountText: {
     fontSize: TypographyScale.caption.fontSize,
     fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',
   },
+  /* Daily Anchors */
+  anchorsGroup: {
+    gap: PrimitiveTokens.space[2],
+    marginBottom: PrimitiveTokens.space[4],
+  },
+  anchorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: PrimitiveTokens.radius.xl,
+    borderWidth: 1,
+    padding: PrimitiveTokens.space[3],
+  },
+  anchorLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+    paddingRight: PrimitiveTokens.space[2],
+  },
+  anchorIconTile: {
+    width: 38,
+    height: 38,
+    borderRadius: PrimitiveTokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  anchorDetails: {
+    flex: 1,
+  },
+  anchorTitle: {
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: TypographyScale.bodyStrong.fontWeight,
+    letterSpacing: -0.2,
+  },
+  anchorMeta: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    marginTop: 1,
+  },
+  quickBtnsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[1],
+  },
+  quickStepBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  quickActionPillText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+  loggedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+  },
+  loggedPillText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+  /* Habits Group */
   habitsGroupCard: {
     borderRadius: PrimitiveTokens.radius['2xl'],
     borderWidth: 1,
@@ -887,8 +1480,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   habitName: {
-    fontSize: TypographyScale.body.fontSize,
-    fontFamily: TypographyScale.body.fontFamily,
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: TypographyScale.bodyStrong.fontWeight,
     letterSpacing: -0.2,
     flex: 1,
   },
@@ -904,35 +1498,5 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.bodySm.fontSize,
     fontFamily: TypographyScale.bodySm.fontFamily,
     textAlign: 'center',
-  },
-  circadianRibbon: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: PrimitiveTokens.space[3],
-    padding: PrimitiveTokens.space[4],
-    borderRadius: PrimitiveTokens.radius.xl,
-    borderWidth: 1,
-  },
-  ribbonIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ribbonTextCol: {
-    flex: 1,
-  },
-  ribbonTitle: {
-    fontSize: TypographyScale.bodyStrong.fontSize,
-    fontFamily: TypographyScale.bodyStrong.fontFamily,
-    fontWeight: TypographyScale.bodyStrong.fontWeight,
-    letterSpacing: -0.1,
-  },
-  ribbonSub: {
-    fontSize: TypographyScale.captionSm.fontSize,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    lineHeight: TypographyScale.captionSm.lineHeight,
-    marginTop: PrimitiveTokens.space['0_5'],
   },
 });

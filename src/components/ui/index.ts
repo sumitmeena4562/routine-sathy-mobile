@@ -25,3 +25,5 @@ export * from './HabitRow';
 export * from './WaterStepper';
 export * from './Toast';
 export * from './AuthScreenLayout';
+export * from './SathyCompanionCard';
+export * from './SathyChatModal';

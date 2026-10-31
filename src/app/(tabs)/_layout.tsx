@@ -5,18 +5,27 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
+import { PrimitiveTokens } from '@/theme/tokens.generated';
 
 export default function TabLayout() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+
+  const activeColor = theme.isDark
+    ? PrimitiveTokens.color.fern[300]
+    : PrimitiveTokens.color.forest[700];
+
+  const inactiveColor = theme.isDark
+    ? 'rgba(207, 227, 214, 0.50)'
+    : theme.colors.textMuted;
 
   return (
     <Tabs
       initialRouteName="today"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveTintColor: activeColor,
+        tabBarInactiveTintColor: inactiveColor,
         tabBarStyle: [
           styles.tabBar,
           {

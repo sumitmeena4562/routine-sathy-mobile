@@ -26,8 +26,8 @@ import { getTodayDateString, routineService } from '@/services/routine';
 import { HabitItem, RoutineActivity } from '@/types/routine';
 
 const DEFAULT_HABITS: HabitItem[] = [
-  { id: 'workout', name: 'Workout / Exercise', type: 'boolean', icon: 'barbell-outline', enabled: true },
-  { id: 'meditation', name: 'Meditation / Mindfulness', type: 'boolean', icon: 'leaf-outline', enabled: true },
+  { id: 'workout', name: 'Workout', type: 'boolean', icon: 'barbell-outline', enabled: true },
+  { id: 'meditation', name: 'Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
   { id: 'reading', name: 'Reading', type: 'boolean', icon: 'book-outline', enabled: true },
 ];
 

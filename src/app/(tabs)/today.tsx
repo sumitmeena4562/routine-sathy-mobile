@@ -237,6 +237,13 @@ function calcScoreBreakdown(
   };
 }
 
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0): DayStreakItem[] {
   const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   const today = new Date();
@@ -255,13 +262,12 @@ function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0):
   return daysOfWeek.map((dayLabel, index) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + index);
-    const dateStr = d.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(d);
     const isToday = index === currentDayIndex;
-    const isPast = index < currentDayIndex;
 
     const recordedScore = isToday
       ? todayScore
-      : scoresByDate.get(dateStr) ?? (isPast ? 85 : 0);
+      : scoresByDate.get(dateStr) ?? 0;
 
     return {
       day: dayLabel,
@@ -417,7 +423,13 @@ export default function TodayScreen() {
     if (!routine) return;
     triggerHaptic('medium');
 
-    const wakeTime = timeStr || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    let wakeTime = timeStr;
+    if (!wakeTime) {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      wakeTime = `${h}:${m}`;
+    }
 
     const updated = {
       ...routine,
@@ -517,6 +529,11 @@ export default function TodayScreen() {
     routine?.studyHours ?? 0,
     goals
   );
+
+  const wakeGoalMet = Boolean(routine?.wakeUpTime && breakdown.wakePts >= 30);
+  const waterGoalMet = (routine?.waterIntake ?? 0) >= breakdown.targetWater;
+  const studyGoalMet = (routine?.studyHours ?? 0) >= breakdown.targetStudy;
+  const completedGoalsCount = (wakeGoalMet ? 1 : 0) + (waterGoalMet ? 1 : 0) + (studyGoalMet ? 1 : 0);
 
   const score = breakdown.totalScore;
   const scoreProgress = Math.min(Math.max(score / 100, 0), 1);
@@ -732,7 +749,7 @@ export default function TodayScreen() {
                           : theme.colors.textSecondary,
                       },
                     ]}>
-                    {isScorePerfect ? '100 Achieved' : `${score} pts earned`}
+                    {isScorePerfect ? '100 Achieved' : `${completedGoalsCount} of 3 Goals Done`}
                   </Text>
                 </View>
               </View>
@@ -754,32 +771,91 @@ export default function TodayScreen() {
                 />
               </View>
 
-              {/* Formula Breakdown Badges: Wake 30 · Water 30 · Study 40 */}
+              {/* Daily Anchors Progress: Wake · Water · Study (Actual vs Target) */}
               <View style={styles.breakdownRow}>
-                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                {/* 1. Wake */}
+                <View
+                  style={[
+                    styles.breakdownItem,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: wakeGoalMet
+                        ? theme.isDark
+                          ? 'rgba(91, 219, 139, 0.35)'
+                          : PrimitiveTokens.color.fern[300]
+                        : theme.colors.borderSubtle,
+                      borderWidth: 1,
+                    },
+                  ]}>
                   <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
                     🌅 Wake
                   </Text>
-                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {breakdown.wakePts}/30
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: wakeGoalMet ? theme.colors.success : theme.colors.text },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
+                    {routine?.wakeUpTime
+                      ? `${routine.wakeUpTime} / ${breakdown.targetWakeUp}`
+                      : `--:-- / ${breakdown.targetWakeUp}`}
                   </Text>
                 </View>
 
-                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                {/* 2. Water */}
+                <View
+                  style={[
+                    styles.breakdownItem,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: waterGoalMet
+                        ? theme.isDark
+                          ? 'rgba(2, 132, 199, 0.35)'
+                          : PrimitiveTokens.color.sky[200]
+                        : theme.colors.borderSubtle,
+                      borderWidth: 1,
+                    },
+                  ]}>
                   <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
                     💧 Water
                   </Text>
-                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {breakdown.waterPts}/30
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: waterGoalMet ? theme.colors.success : theme.colors.text },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
+                    {`${(routine?.waterIntake ?? 0).toFixed(1)} / ${breakdown.targetWater}L`}
                   </Text>
                 </View>
 
-                <View style={[styles.breakdownItem, { backgroundColor: theme.colors.surfaceAlt }]}>
+                {/* 3. Study */}
+                <View
+                  style={[
+                    styles.breakdownItem,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: studyGoalMet
+                        ? theme.isDark
+                          ? 'rgba(79, 70, 229, 0.35)'
+                          : PrimitiveTokens.color.indigo[200]
+                        : theme.colors.borderSubtle,
+                      borderWidth: 1,
+                    },
+                  ]}>
                   <Text style={[styles.breakdownTag, { color: theme.colors.textMuted }]}>
                     📚 Study
                   </Text>
-                  <Text style={[styles.breakdownVal, { color: theme.colors.text }]}>
-                    {breakdown.studyPts}/40
+                  <Text
+                    style={[
+                      styles.breakdownVal,
+                      { color: studyGoalMet ? theme.colors.success : theme.colors.text },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit>
+                    {`${(routine?.studyHours ?? 0).toFixed(1)} / ${breakdown.targetStudy}h`}
                   </Text>
                 </View>
               </View>
@@ -1364,21 +1440,22 @@ const styles = StyleSheet.create({
   },
   breakdownItem: {
     flex: 1,
-    paddingVertical: PrimitiveTokens.space['1_5'],
-    paddingHorizontal: PrimitiveTokens.space[2],
-    borderRadius: PrimitiveTokens.radius.md,
+    paddingVertical: PrimitiveTokens.space['2'],
+    paddingHorizontal: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.lg,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   breakdownTag: {
-    fontSize: 10,
+    fontSize: TypographyScale.captionSm.fontSize,
     fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: PrimitiveTokens.space['0_5'],
   },
   breakdownVal: {
     fontSize: TypographyScale.caption.fontSize,
     fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '800',
-    marginTop: 2,
   },
   /* Section Headings */
   sectionHeadingRow: {

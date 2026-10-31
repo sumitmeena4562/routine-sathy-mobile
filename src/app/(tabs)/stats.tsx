@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,9 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { AmbientAtmosphere, Card } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { routineService } from '@/services/routine';
+import {
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  SemanticLightTokens,
+} from '@/theme/tokens.generated';
 import { RoutineStats } from '@/types/routine';
 
-function getCircadianTip(): {
+function getCircadianTip(isDark: boolean): {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   iconColor: string;
@@ -30,8 +36,8 @@ function getCircadianTip(): {
     return {
       title: 'Morning Sunlight & Circadian Anchor',
       icon: 'sunny',
-      iconColor: '#D97706',
-      tileBg: '#FEF3C7',
+      iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
       body: 'Getting 10-15 minutes of outdoor sunlight within an hour of waking resets your master biological clock and boosts daytime energy.',
     };
   }
@@ -39,8 +45,8 @@ function getCircadianTip(): {
     return {
       title: 'Midday Cognitive Peak & Hydration',
       icon: 'flash',
-      iconColor: '#0284C7',
-      tileBg: '#E0F2FE',
+      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[700],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
       body: 'Core body temperature and cognitive performance peak mid-afternoon. Maintain steady hydration to prevent the afternoon slump.',
     };
   }
@@ -48,16 +54,16 @@ function getCircadianTip(): {
     return {
       title: 'Evening Wind-Down & Melatonin Support',
       icon: 'partly-sunny',
-      iconColor: '#7C3AED',
-      tileBg: '#F3E8FF',
+      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[700],
+      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
       body: 'Dim harsh overhead lighting and minimize bright screen exposure to allow natural melatonin production for restorative deep sleep.',
     };
   }
   return {
     title: 'Night Recovery & Cellular Repair',
     icon: 'moon',
-    iconColor: '#4F46E5',
-    tileBg: '#EEF2FF',
+    iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[700],
+    tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
     body: 'During deep delta-wave sleep, your brain clears metabolic waste and tissue repairs. Keep your sleeping space dark, quiet, and cool (~19°C).',
   };
 }
@@ -74,31 +80,48 @@ export default function StatsScreen() {
   const [stats, setStats] = useState<RoutineStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
-  const fetchStats = useCallback(async () => {
-    try {
-      const data = await routineService.getRoutineStats();
-      setStats(data);
-    } catch {
-      // Fallback
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+  // Cache optimization: avoid duplicate API roundtrips if focused within 30 seconds
+  const lastFetchTimeRef = useRef<number>(0);
+
+  const fetchStats = useCallback(
+    async (force = false) => {
+      const now = Date.now();
+      if (!force && stats && now - lastFetchTimeRef.current < 30000) {
+        return;
+      }
+
+      try {
+        if (!stats) setLoading(true);
+        setHasError(false);
+        const data = await routineService.getRoutineStats();
+        setStats(data);
+        lastFetchTimeRef.current = Date.now();
+      } catch {
+        if (!stats) {
+          setHasError(true);
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [stats]
+  );
 
   useFocusEffect(
     useCallback(() => {
-      fetchStats();
+      fetchStats(false);
     }, [fetchStats])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchStats();
+    fetchStats(true);
   }, [fetchStats]);
 
-  const tip = getCircadianTip();
+  const tip = getCircadianTip(theme.isDark);
   const currentStreak = stats?.currentStreak || 0;
 
   return (
@@ -117,7 +140,17 @@ export default function StatsScreen() {
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
-          <Text style={styles.headerEyebrow}>RHYTHM ANALYTICS</Text>
+          <Text
+            style={[
+              styles.headerEyebrow,
+              {
+                color: theme.isDark
+                  ? PrimitiveTokens.color.fern[400]
+                  : PrimitiveTokens.color.forest[600],
+              },
+            ]}>
+            PROGRESS & TRENDS
+          </Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Consistency
           </Text>
@@ -133,7 +166,7 @@ export default function StatsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#F59E0B"
+            tintColor={theme.colors.success}
           />
         }
         contentContainerStyle={[
@@ -145,20 +178,59 @@ export default function StatsScreen() {
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
-        {loading ? (
+        {loading && !stats ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#F59E0B" />
+            <ActivityIndicator size="small" color={theme.colors.success} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
               Calculating consistency trends...
             </Text>
+          </View>
+        ) : hasError && !stats ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="cloud-offline-outline" size={32} color={theme.colors.textMuted} />
+            <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
+              Couldn't load progress
+            </Text>
+            <Text style={[styles.errorSubtitle, { color: theme.colors.textSecondary }]}>
+              Check your connection and tap below to retry.
+            </Text>
+            <Pressable
+              onPress={() => fetchStats(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading progress"
+              style={[styles.retryBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
+              <Ionicons name="refresh" size={15} color={theme.colors.text} />
+              <Text style={[styles.retryBtnText, { color: theme.colors.text }]}>
+                Retry
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.content}>
             {/* 1. Unified Streak & Consistency Hub Card */}
             <Card style={styles.streakHubCard}>
               <View style={styles.streakTopRow}>
-                <View style={styles.flameIconBox}>
-                  <Ionicons name="flame" size={28} color="#EA580C" />
+                <View
+                  style={[
+                    styles.flameIconBox,
+                    {
+                      backgroundColor: theme.isDark
+                        ? 'rgba(245, 158, 11, 0.15)'
+                        : '#FFF7ED',
+                      borderColor: theme.isDark
+                        ? 'rgba(245, 158, 11, 0.30)'
+                        : '#FFEDD5',
+                    },
+                  ]}>
+                  <Ionicons
+                    name="flame"
+                    size={26}
+                    color={
+                      theme.isDark
+                        ? PrimitiveTokens.color.amber[400]
+                        : '#EA580C'
+                    }
+                  />
                 </View>
 
                 <View style={styles.streakCountCol}>
@@ -170,16 +242,28 @@ export default function StatsScreen() {
                       {currentStreak === 1 ? 'DAY STREAK' : 'DAYS STREAK'}
                     </Text>
                   </View>
-                  <Text style={styles.streakNote}>
+                  <Text
+                    style={[
+                      styles.streakNote,
+                      {
+                        color: theme.isDark
+                          ? PrimitiveTokens.color.amber[400]
+                          : PrimitiveTokens.color.amber[700],
+                      },
+                    ]}>
                     {currentStreak > 0
                       ? 'Great momentum! Keep logging daily.'
-                      : 'Log today\'s routine to start your streak.'}
+                      : "Log today's routine to start your streak."}
                   </Text>
                 </View>
               </View>
 
               {/* Integrated 3-Metric Summary Strip */}
-              <View style={[styles.metricsStrip, { borderTopColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}>
+              <View
+                style={[
+                  styles.metricsStrip,
+                  { borderTopColor: theme.colors.borderSubtle },
+                ]}>
                 <View style={styles.metricItem}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
                     BEST STREAK
@@ -190,7 +274,12 @@ export default function StatsScreen() {
                   </Text>
                 </View>
 
-                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
+                <View
+                  style={[
+                    styles.metricDivider,
+                    { backgroundColor: theme.colors.borderSubtle },
+                  ]}
+                />
 
                 <View style={styles.metricItem}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
@@ -202,7 +291,12 @@ export default function StatsScreen() {
                   </Text>
                 </View>
 
-                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
+                <View
+                  style={[
+                    styles.metricDivider,
+                    { backgroundColor: theme.colors.borderSubtle },
+                  ]}
+                />
 
                 <View style={styles.metricItem}>
                   <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
@@ -221,7 +315,15 @@ export default function StatsScreen() {
               <Card style={styles.trendCard}>
                 <View style={styles.trendHeader}>
                   <View style={styles.trendTitleRow}>
-                    <Ionicons name="trending-up" size={17} color="#D97706" />
+                    <Ionicons
+                      name="trending-up"
+                      size={18}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.fern[300]
+                          : PrimitiveTokens.color.forest[600]
+                      }
+                    />
                     <Text style={[styles.trendTitle, { color: theme.colors.text }]}>
                       Last 7 Days Rhythm
                     </Text>
@@ -238,12 +340,14 @@ export default function StatsScreen() {
                     const barHeight = Math.max(Math.round((day.score / 100) * 72), 6);
                     const barColor =
                       day.score >= 80
-                        ? '#10B981'
+                        ? theme.colors.success
                         : day.score >= 50
-                        ? '#F59E0B'
-                        : day.score > 0
-                        ? '#EF4444'
-                        : 'transparent';
+                          ? theme.isDark
+                            ? PrimitiveTokens.color.amber[400]
+                            : PrimitiveTokens.color.amber[600]
+                          : day.score > 0
+                            ? theme.colors.error
+                            : 'transparent';
 
                     return (
                       <View key={day.date} style={styles.trendBarCol}>
@@ -253,10 +357,10 @@ export default function StatsScreen() {
                             styles.barScoreLabel,
                             {
                               color: isToday
-                                ? '#10B981'
+                                ? theme.colors.success
                                 : day.score > 0
-                                ? theme.colors.textSecondary
-                                : 'transparent',
+                                  ? theme.colors.textSecondary
+                                  : 'transparent',
                               fontWeight: isToday ? '800' : '600',
                             },
                           ]}>
@@ -268,10 +372,8 @@ export default function StatsScreen() {
                           style={[
                             styles.trendBarTrack,
                             {
-                              backgroundColor: theme.isDark
-                                ? 'rgba(255, 255, 255, 0.08)'
-                                : '#F1F5F9',
-                              borderColor: isToday ? '#10B981' : 'transparent',
+                              backgroundColor: theme.colors.surfaceAlt,
+                              borderColor: isToday ? theme.colors.success : 'transparent',
                               borderWidth: isToday && day.score === 0 ? 1 : 0,
                             },
                           ]}>
@@ -291,7 +393,9 @@ export default function StatsScreen() {
                           style={[
                             styles.trendDayText,
                             {
-                              color: isToday ? '#0F172A' : theme.colors.textSecondary,
+                              color: isToday
+                                ? theme.colors.text
+                                : theme.colors.textSecondary,
                               fontWeight: isToday ? '800' : '600',
                             },
                           ]}>
@@ -314,7 +418,7 @@ export default function StatsScreen() {
                   <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
                     {tip.title}
                   </Text>
-                  <Text style={[styles.tipSubtitle, { color: theme.colors.textSecondary }]}>
+                  <Text style={[styles.tipSubtitle, { color: theme.colors.textMuted }]}>
                     Circadian Science Insight
                   </Text>
                 </View>
@@ -343,21 +447,20 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headerEyebrow: {
-    fontSize: 11.5,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0.8,
-    color: '#D97706', // Warm Amber
     textTransform: 'uppercase',
     marginBottom: 2,
   },
   title: {
-    fontSize: 27,
+    fontSize: 28,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 13.5,
-    lineHeight: 19,
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: 4,
   },
   scrollContent: {
@@ -372,8 +475,37 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: '500',
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  errorSubtitle: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   content: {
     width: '100%',
@@ -382,10 +514,7 @@ const styles = StyleSheet.create({
   /* 1. Unified Streak Hub Card */
   streakHubCard: {
     padding: 20,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderRadius: 20,
   },
   streakTopRow: {
     flexDirection: 'row',
@@ -394,12 +523,10 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   flameIconBox: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#FFF7ED',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     borderWidth: 1,
-    borderColor: '#FFEDD5',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -422,9 +549,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.6,
   },
   streakNote: {
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#D97706',
     marginTop: 2,
   },
   metricsStrip: {
@@ -439,17 +565,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   metricHeader: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   metricNumber: {
-    fontSize: 19,
+    fontSize: 18,
     fontWeight: '900',
     marginTop: 3,
   },
   metricUnit: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   metricDivider: {
@@ -459,10 +585,7 @@ const styles = StyleSheet.create({
   /* 2. Sleek 7-Day Trend Card */
   trendCard: {
     padding: 18,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderRadius: 20,
   },
   trendHeader: {
     flexDirection: 'row',
@@ -476,12 +599,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   trendTitle: {
-    fontSize: 14.5,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: -0.2,
   },
   trendSubtitle: {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.6,
   },
@@ -506,7 +629,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   trendBarTrack: {
-    width: 14, // Slender pill width instead of giant chunky 45px block
+    width: 14,
     height: 72,
     borderRadius: 7,
     overflow: 'hidden',
@@ -523,10 +646,7 @@ const styles = StyleSheet.create({
   /* 3. Circadian Tip Card */
   tipCard: {
     padding: 18,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderRadius: 20,
     gap: 10,
   },
   tipHeader: {
@@ -552,7 +672,6 @@ const styles = StyleSheet.create({
   tipSubtitle: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
     marginTop: 1,
   },
   tipBody: {

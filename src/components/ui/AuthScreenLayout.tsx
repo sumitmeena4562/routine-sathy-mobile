@@ -14,7 +14,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationBar } from 'expo-navigation-bar';
 import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -93,7 +92,6 @@ export function AuthScreenLayout({
   return (
     <View style={[styles.root, { backgroundColor: PrimitiveTokens.color.forest[950] }]}>
       <StatusBar style="light" />
-      {Platform.OS === 'android' && <NavigationBar hidden={true} style="dark" />}
 
       {/* Atmospheric Forest Canvas with Whisper-Soft Crown Sunrise Glow */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">

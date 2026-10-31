@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { NavigationBar } from 'expo-navigation-bar';
+import { enableFreeze } from 'react-native-screens';
 import {
   useFonts,
   PlusJakartaSans_400Regular,
@@ -19,6 +20,9 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 import { AuthProvider } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { PrimitiveTokens } from '@/theme/tokens.generated';
+
+// Freeze inactive background screens to prevent stutter/jank during transitions
+enableFreeze(true);
 
 // Lock native Android substrate window background to Dark Forest (#052418)
 SystemUI.setBackgroundColorAsync(PrimitiveTokens.color.forest[950]).catch(() => {});
@@ -49,6 +53,10 @@ function RootNavigator() {
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: 'slide_from_right',
+          animationDuration: 240,
+          animationTypeForReplace: 'push',
+          freezeOnBlur: true,
           navigationBarHidden: true,
           navigationBarColor: PrimitiveTokens.color.forest[950],
         }}>

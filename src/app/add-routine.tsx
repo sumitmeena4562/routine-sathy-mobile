@@ -498,13 +498,13 @@ export default function AddRoutineScreen() {
                     : PrimitiveTokens.color.amber[700],
                 },
               ]}>
-              HABITS & GOALS
+              HABITS MANAGEMENT
             </Text>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              {isExistingRoutine ? 'Apni Habits & Goals' : "Aaj ki Routine Banao"}
+              {isExistingRoutine ? 'Manage Habits' : 'Set Up Daily Habits'}
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Habits toggle karo (Section 1), apna daily aim set karo (Section 2).
+              Select which habits to track today or create new custom ones.
             </Text>
           </View>
 
@@ -853,14 +853,14 @@ export default function AddRoutineScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.targetBannerTitle, { color: theme.colors.text }]}>
-                      Daily Target Kahan Set Hota Hai?
+                      Looking for Daily Targets?
                     </Text>
                     <Text
                       style={[
                         styles.targetBannerDesc,
                         { color: theme.colors.textSecondary },
                       ]}>
-                      Wake-up, Water aur Study ka fixed target Profile Settings mein ek baar set hota hai.
+                      Your benchmark targets for Wake-up, Water, and Study are configured in Profile Settings.
                     </Text>
                   </View>
                 </View>
@@ -870,7 +870,7 @@ export default function AddRoutineScreen() {
                     router.push('/(tabs)/profile');
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel="Profile settings mein target set karein"
+                  accessibilityLabel="Open Target Settings in Profile"
                   style={({ pressed }) => [
                     styles.targetBannerBtn,
                     {
@@ -880,22 +880,22 @@ export default function AddRoutineScreen() {
                     pressed && { opacity: 0.75 },
                   ]}>
                   <Text style={[styles.targetBannerBtnText, { color: theme.colors.text }]}>
-                    Profile Settings Mein Targets Dekhein
+                    Open Target Settings in Profile
                   </Text>
                   <Ionicons name="arrow-forward" size={14} color={theme.colors.text} />
                 </Pressable>
               </Card>
 
               {/* ========================================================
-                  SECTION 2: AAJ KITNE BAJE UTHE (OPTIONAL CORRECTION)
+                  SECTION 2: TODAY'S WAKE-UP LOG (OPTIONAL CORRECTION)
                   ======================================================== */}
               <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    2. AAJ KITNE BAJE UTHE?
+                    2. TODAY&apos;S WAKE-UP LOG
                   </Text>
                   <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
-                    Subah ka wake-up time adjust karo ya reset karo. (Today tab se bhi log ho sakta hai)
+                    Optional: Adjust or reset this morning&apos;s recorded wake-up time.
                   </Text>
                 </View>
               </View>

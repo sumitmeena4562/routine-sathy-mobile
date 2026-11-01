@@ -380,6 +380,23 @@ export default function TodayScreen() {
   const [showCelebration, setShowCelebration] = useState(false);
   const prevScoreRef = useRef<number | null>(null);
 
+  // Synchronized state tracker & debounced save queue for rapid taps
+  const pendingRoutineRef = useRef<RoutineData | null>(null);
+  const isSyncingRef = useRef<boolean>(false);
+  const hasQueuedSyncRef = useRef<boolean>(false);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingToastMsgRef = useRef<string | null>(null);
+  const latestUserHabitsRef = useRef<HabitItem[]>(userHabits);
+  const latestGoalsRef = useRef<UserGoals | null>(goals);
+
+  useEffect(() => {
+    latestUserHabitsRef.current = userHabits;
+  }, [userHabits]);
+
+  useEffect(() => {
+    latestGoalsRef.current = goals;
+  }, [goals]);
+
   const fetchData = useCallback(async () => {
     if (__DEV__) {
       console.log('🔄 [TODAY] Fetching today routine, goals, stats & habits...');
@@ -394,6 +411,9 @@ export default function TodayScreen() {
 
       if (routineRes.status === 'fulfilled') {
         setRoutine(routineRes.value);
+        if (!syncTimerRef.current && !isSyncingRef.current) {
+          pendingRoutineRef.current = routineRes.value;
+        }
         if (__DEV__) {
           console.log('📦 [TODAY] Routine Loaded:', {
             date: routineRes.value?.date,
@@ -450,242 +470,283 @@ export default function TodayScreen() {
     goals
   );
 
-  // Quick Action: Add Water (+250ml or +500ml or -250ml)
-  const handleQuickAddWater = async (deltaLiters: number) => {
-    triggerHaptic('medium');
+  // Unmount cleanup: flush pending routine save immediately
+  useEffect(() => {
+    return () => {
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = null;
+        if (pendingRoutineRef.current) {
+          routineService
+            .saveRoutine({
+              date: pendingRoutineRef.current.date || getTodayDateString(),
+              wakeUpTime: pendingRoutineRef.current.wakeUpTime,
+              waterIntake: pendingRoutineRef.current.waterIntake,
+              studyHours: pendingRoutineRef.current.studyHours,
+              activities: pendingRoutineRef.current.activities,
+            })
+            .catch(() => {});
+        }
+      }
+    };
+  }, []);
 
-    const currentDate = routine?.date || getTodayDateString();
-    const currentWater = routine?.waterIntake ?? 0;
-    const nextWater = Math.max(0, Math.min(8.0, Math.round((currentWater + deltaLiters) * 100) / 100));
-
-    const updatedActivities = displayActivities;
-    const nextWakeUp = routine?.wakeUpTime || undefined;
-    const nextStudy = routine?.studyHours ?? 0;
-
-    const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
-
-    if (__DEV__) {
-      console.log(`💧 [USER ACTION] Water tap: ${deltaLiters > 0 ? '+' : ''}${Math.round(deltaLiters * 1000)}ml | ${currentWater}L -> ${nextWater}L | New Score: ${nextBreakdown.totalScore}`);
+  // Flushes the accumulated pending routine state to backend safely
+  const flushSyncRoutine = useCallback(async () => {
+    if (isSyncingRef.current) {
+      hasQueuedSyncRef.current = true;
+      return;
     }
 
-    const optimisticRoutine: RoutineData = {
-      _id: routine?._id || '',
-      user: routine?.user || (user?._id ?? ''),
-      date: currentDate,
-      wakeUpTime: nextWakeUp,
-      waterIntake: nextWater,
-      studyHours: nextStudy,
-      activities: updatedActivities,
-      score: nextBreakdown.totalScore,
-    };
-    setRoutine(optimisticRoutine);
+    isSyncingRef.current = true;
 
     try {
-      const saved = await routineService.saveRoutine({
-        date: currentDate,
-        wakeUpTime: nextWakeUp,
-        waterIntake: nextWater,
-        studyHours: nextStudy,
-        activities: updatedActivities,
-      });
-      setRoutine(saved);
-      if (deltaLiters > 0) {
-        setToast({
-          visible: true,
-          type: 'success',
-          message: `+${Math.round(deltaLiters * 1000)}ml water logged (${nextWater.toFixed(1)}L)`,
+      while (true) {
+        hasQueuedSyncRef.current = false;
+        const dataToSave = pendingRoutineRef.current;
+        if (!dataToSave) break;
+
+        const saved = await routineService.saveRoutine({
+          date: dataToSave.date || getTodayDateString(),
+          wakeUpTime: dataToSave.wakeUpTime,
+          waterIntake: dataToSave.waterIntake,
+          studyHours: dataToSave.studyHours,
+          activities: dataToSave.activities,
         });
+
+        // Adopt server payload only if no further rapid taps occurred in-flight
+        if (!hasQueuedSyncRef.current && !syncTimerRef.current) {
+          pendingRoutineRef.current = saved;
+          setRoutine(saved);
+        }
+
+        if (pendingToastMsgRef.current) {
+          setToast({
+            visible: true,
+            type: 'success',
+            message: pendingToastMsgRef.current,
+          });
+          pendingToastMsgRef.current = null;
+        }
+
+        if (!hasQueuedSyncRef.current) {
+          break;
+        }
       }
     } catch (err) {
       if (__DEV__) {
-        console.error('❌ [USER ACTION ERROR] Water save failed:', err);
+        console.error('❌ [USER ACTION ERROR] Sync routine failed:', err);
       }
       setToast({
         visible: true,
         type: 'error',
-        message: 'Could not sync water intake.',
+        message: 'Could not sync routine changes.',
       });
       fetchData();
+    } finally {
+      isSyncingRef.current = false;
     }
-  };
+  }, [fetchData]);
+
+  // Synchronously updates local state for 0ms instant UI feedback, while debouncing network POSTs
+  const queueRoutineMutation = useCallback(
+    (
+      mutate: (current: RoutineData) => { next: RoutineData; toastMsg?: string },
+      debounceMs: number = 350
+    ) => {
+      const base: RoutineData =
+        pendingRoutineRef.current ||
+        (routine
+          ? { ...routine }
+          : {
+              _id: '',
+              user: user?._id ?? '',
+              date: getTodayDateString(),
+              wakeUpTime: undefined,
+              waterIntake: 0,
+              studyHours: 0,
+              activities: displayActivities,
+              score: 0,
+            });
+
+      const { next, toastMsg } = mutate({ ...base });
+      pendingRoutineRef.current = next;
+      setRoutine(next);
+
+      if (toastMsg) {
+        pendingToastMsgRef.current = toastMsg;
+      }
+
+      if (syncTimerRef.current) {
+        clearTimeout(syncTimerRef.current);
+      }
+
+      if (debounceMs <= 0) {
+        flushSyncRoutine();
+      } else {
+        syncTimerRef.current = setTimeout(() => {
+          syncTimerRef.current = null;
+          flushSyncRoutine();
+        }, debounceMs);
+      }
+    },
+    [routine, user?._id, displayActivities, flushSyncRoutine]
+  );
+
+  // Quick Action: Add Water (+250ml or +500ml or -250ml)
+  const handleQuickAddWater = useCallback(
+    (deltaLiters: number) => {
+      triggerHaptic('medium');
+
+      queueRoutineMutation((prev) => {
+        const currentWater = prev.waterIntake ?? 0;
+        const nextWater = Math.max(0, Math.min(8.0, Math.round((currentWater + deltaLiters) * 100) / 100));
+        const nextBreakdown = calcScoreBreakdown(
+          prev.wakeUpTime,
+          nextWater,
+          prev.studyHours ?? 0,
+          latestGoalsRef.current
+        );
+
+        if (__DEV__) {
+          console.log(
+            `💧 [USER ACTION] Water tap: ${deltaLiters > 0 ? '+' : ''}${Math.round(deltaLiters * 1000)}ml | ${currentWater}L -> ${nextWater}L | Score: ${nextBreakdown.totalScore}`
+          );
+        }
+
+        return {
+          next: {
+            ...prev,
+            waterIntake: nextWater,
+            score: nextBreakdown.totalScore,
+          },
+          toastMsg:
+            deltaLiters > 0
+              ? `+${Math.round(deltaLiters * 1000)}ml water logged (${nextWater.toFixed(1)}L)`
+              : undefined,
+        };
+      }, 350);
+    },
+    [queueRoutineMutation]
+  );
 
   // Quick Action: Add Study & Focus (+30m or +1h or -30m)
-  const handleQuickAddStudy = async (deltaHours: number) => {
-    triggerHaptic('medium');
+  const handleQuickAddStudy = useCallback(
+    (deltaHours: number) => {
+      triggerHaptic('medium');
 
-    const currentDate = routine?.date || getTodayDateString();
-    const currentStudy = routine?.studyHours ?? 0;
-    const nextStudy = Math.max(0, Math.min(14.0, Math.round((currentStudy + deltaHours) * 10) / 10));
+      queueRoutineMutation((prev) => {
+        const currentStudy = prev.studyHours ?? 0;
+        const nextStudy = Math.max(0, Math.min(14.0, Math.round((currentStudy + deltaHours) * 10) / 10));
+        const nextBreakdown = calcScoreBreakdown(
+          prev.wakeUpTime,
+          prev.waterIntake ?? 0,
+          nextStudy,
+          latestGoalsRef.current
+        );
 
-    const updatedActivities = displayActivities;
-    const nextWakeUp = routine?.wakeUpTime || undefined;
-    const nextWater = routine?.waterIntake ?? 0;
+        if (__DEV__) {
+          console.log(
+            `📚 [USER ACTION] Study tap: ${deltaHours > 0 ? '+' : ''}${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} | ${currentStudy}h -> ${nextStudy}h | Score: ${nextBreakdown.totalScore}`
+          );
+        }
 
-    const nextBreakdown = calcScoreBreakdown(nextWakeUp, nextWater, nextStudy, goals);
-
-    if (__DEV__) {
-      console.log(`📚 [USER ACTION] Study tap: ${deltaHours > 0 ? '+' : ''}${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} | ${currentStudy}h -> ${nextStudy}h | New Score: ${nextBreakdown.totalScore}`);
-    }
-
-    const optimisticRoutine: RoutineData = {
-      _id: routine?._id || '',
-      user: routine?.user || (user?._id ?? ''),
-      date: currentDate,
-      wakeUpTime: nextWakeUp,
-      waterIntake: nextWater,
-      studyHours: nextStudy,
-      activities: updatedActivities,
-      score: nextBreakdown.totalScore,
-    };
-    setRoutine(optimisticRoutine);
-
-    try {
-      const saved = await routineService.saveRoutine({
-        date: currentDate,
-        wakeUpTime: nextWakeUp,
-        waterIntake: nextWater,
-        studyHours: nextStudy,
-        activities: updatedActivities,
-      });
-      setRoutine(saved);
-      if (deltaHours > 0) {
-        setToast({
-          visible: true,
-          type: 'success',
-          message: `+${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} study logged (${nextStudy.toFixed(1)}h)`,
-        });
-      }
-    } catch (err) {
-      if (__DEV__) {
-        console.error('❌ [USER ACTION ERROR] Study save failed:', err);
-      }
-      setToast({
-        visible: true,
-        type: 'error',
-        message: 'Could not sync study hours.',
-      });
-      fetchData();
-    }
-  };
+        return {
+          next: {
+            ...prev,
+            studyHours: nextStudy,
+            score: nextBreakdown.totalScore,
+          },
+          toastMsg:
+            deltaHours > 0
+              ? `+${deltaHours >= 1 ? `${deltaHours}h` : `${Math.round(deltaHours * 60)}m`} study logged (${nextStudy.toFixed(1)}h)`
+              : undefined,
+        };
+      }, 350);
+    },
+    [queueRoutineMutation]
+  );
 
   // Quick Action: Log Wake-up (current time or custom)
-  const handleLogWakeUp = async (timeStr?: string) => {
-    triggerHaptic('medium');
+  const handleLogWakeUp = useCallback(
+    (timeStr?: string) => {
+      triggerHaptic('medium');
 
-    let wakeTime = timeStr;
-    if (!wakeTime) {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-      wakeTime = `${h}:${m}`;
-    }
-
-    const currentDate = routine?.date || getTodayDateString();
-    const currentWater = routine?.waterIntake ?? 0;
-    const currentStudy = routine?.studyHours ?? 0;
-    const updatedActivities = displayActivities;
-
-    const nextBreakdown = calcScoreBreakdown(wakeTime, currentWater, currentStudy, goals);
-
-    if (__DEV__) {
-      console.log(`☀️ [USER ACTION] Log Wake-up: ${wakeTime} | Target: ${breakdown.targetWakeUp} | Wake Pts: ${nextBreakdown.wakePts}/30 | New Score: ${nextBreakdown.totalScore}`);
-    }
-
-    const optimisticRoutine: RoutineData = {
-      _id: routine?._id || '',
-      user: routine?.user || (user?._id ?? ''),
-      date: currentDate,
-      wakeUpTime: wakeTime,
-      waterIntake: currentWater,
-      studyHours: currentStudy,
-      activities: updatedActivities,
-      score: nextBreakdown.totalScore,
-    };
-    setRoutine(optimisticRoutine);
-
-    try {
-      const saved = await routineService.saveRoutine({
-        date: currentDate,
-        wakeUpTime: wakeTime,
-        waterIntake: currentWater,
-        studyHours: currentStudy,
-        activities: updatedActivities,
-      });
-      setRoutine(saved);
-      setToast({
-        visible: true,
-        type: 'success',
-        message: `Wake-up logged at ${formatWakeTimeDisplay(wakeTime)}`,
-      });
-    } catch (err) {
-      if (__DEV__) {
-        console.error('❌ [USER ACTION ERROR] Wake-up save failed:', err);
+      let wakeTime = timeStr;
+      if (!wakeTime) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        wakeTime = `${h}:${m}`;
       }
-      setToast({
-        visible: true,
-        type: 'error',
-        message: 'Could not log wake-up time.',
-      });
-      fetchData();
-    }
-  };
+
+      queueRoutineMutation((prev) => {
+        const nextBreakdown = calcScoreBreakdown(
+          wakeTime,
+          prev.waterIntake ?? 0,
+          prev.studyHours ?? 0,
+          latestGoalsRef.current
+        );
+
+        if (__DEV__) {
+          console.log(
+            `☀️ [USER ACTION] Log Wake-up: ${wakeTime} | Target: ${latestGoalsRef.current?.targetWakeUp || '06:00'} | Wake Pts: ${nextBreakdown.wakePts}/30 | Score: ${nextBreakdown.totalScore}`
+          );
+        }
+
+        return {
+          next: {
+            ...prev,
+            wakeUpTime: wakeTime,
+            score: nextBreakdown.totalScore,
+          },
+          toastMsg: `Wake-up logged at ${formatWakeTimeDisplay(wakeTime)}`,
+        };
+      }, 0);
+    },
+    [queueRoutineMutation]
+  );
 
   // Quick Action: Toggle Habit Completion
-  const handleToggleHabit = async (activityId: string, currentVal: boolean) => {
-    triggerHaptic(!currentVal ? 'medium' : 'light');
+  const handleToggleHabit = useCallback(
+    (activityId: string, currentVal: boolean) => {
+      triggerHaptic(!currentVal ? 'medium' : 'light');
 
-    const updatedActivities = displayActivities.map((act) => {
-      if (act.activityId === activityId) {
-        return { ...act, value: !currentVal };
-      }
-      return act;
-    });
+      queueRoutineMutation((prev) => {
+        const baseActs =
+          prev.activities && prev.activities.length > 0 ? prev.activities : displayActivities;
+        const updatedActivities = baseActs.map((act) => {
+          if (act.activityId === activityId) {
+            return { ...act, value: !currentVal };
+          }
+          return act;
+        });
 
-    const currentDate = routine?.date || getTodayDateString();
-    const currentWakeUp = routine?.wakeUpTime || undefined;
-    const currentWater = routine?.waterIntake ?? 0;
-    const currentStudy = routine?.studyHours ?? 0;
+        const nextBreakdown = calcScoreBreakdown(
+          prev.wakeUpTime,
+          prev.waterIntake ?? 0,
+          prev.studyHours ?? 0,
+          latestGoalsRef.current
+        );
 
-    const nextBreakdown = calcScoreBreakdown(currentWakeUp, currentWater, currentStudy, goals);
+        if (__DEV__) {
+          const targetHabit = baseActs.find((a) => a.activityId === activityId);
+          console.log(
+            `✅ [USER ACTION] Toggle Habit: "${targetHabit?.name || activityId}" -> ${!currentVal ? 'COMPLETED' : 'INCOMPLETE'} | Score: ${nextBreakdown.totalScore}`
+          );
+        }
 
-    if (__DEV__) {
-      const targetHabit = displayActivities.find((a) => a.activityId === activityId);
-      console.log(`✅ [USER ACTION] Toggle Habit: "${targetHabit?.name || activityId}" -> ${!currentVal ? 'COMPLETED' : 'INCOMPLETE'} | New Score: ${nextBreakdown.totalScore}`);
-    }
-
-    const optimisticRoutine: RoutineData = {
-      _id: routine?._id || '',
-      user: routine?.user || (user?._id ?? ''),
-      date: currentDate,
-      wakeUpTime: currentWakeUp,
-      waterIntake: currentWater,
-      studyHours: currentStudy,
-      activities: updatedActivities,
-      score: nextBreakdown.totalScore,
-    };
-    setRoutine(optimisticRoutine);
-
-    try {
-      const saved = await routineService.saveRoutine({
-        date: currentDate,
-        wakeUpTime: currentWakeUp,
-        waterIntake: currentWater,
-        studyHours: currentStudy,
-        activities: updatedActivities,
-      });
-      setRoutine(saved);
-    } catch (err) {
-      if (__DEV__) {
-        console.error('❌ [USER ACTION ERROR] Habit toggle save failed:', err);
-      }
-      setToast({
-        visible: true,
-        type: 'error',
-        message: 'Could not sync habit completion.',
-      });
-      fetchData();
-    }
-  };
+        return {
+          next: {
+            ...prev,
+            activities: updatedActivities,
+            score: nextBreakdown.totalScore,
+          },
+        };
+      }, 350);
+    },
+    [queueRoutineMutation, displayActivities]
+  );
 
   const formattedDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',

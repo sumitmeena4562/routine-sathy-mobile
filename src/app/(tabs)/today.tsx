@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -523,6 +523,16 @@ export default function TodayScreen() {
   const displayActivities = computeDisplayActivities(userHabits, routine);
   const totalHabits = displayActivities.length;
   const completedHabits = displayActivities.filter((a) => Boolean(a.value)).length;
+
+  // Smart Habit Prioritization: Pending habits appear first, completed follow
+  const sortedActivities = useMemo(() => {
+    return [...displayActivities].sort((a, b) => {
+      const aDone = Boolean(a.value);
+      const bDone = Boolean(b.value);
+      if (aDone === bDone) return 0;
+      return aDone ? 1 : -1;
+    });
+  }, [displayActivities]);
 
   // Real formula breakdown (Wake 30 · Water 30 · Study 40)
   const breakdown = calcScoreBreakdown(
@@ -1524,7 +1534,7 @@ export default function TodayScreen() {
                       styles.breakdownChipVal,
                       { color: wakeGoalMet ? theme.colors.success : theme.colors.text },
                     ]}>
-                    +{breakdown.wakePts}
+                    {breakdown.wakePts}/30
                   </Text>
                 </View>
 
@@ -1559,7 +1569,7 @@ export default function TodayScreen() {
                       styles.breakdownChipVal,
                       { color: waterGoalMet ? theme.colors.success : theme.colors.text },
                     ]}>
-                    +{breakdown.waterPts}
+                    {breakdown.waterPts}/30
                   </Text>
                 </View>
 
@@ -1594,7 +1604,7 @@ export default function TodayScreen() {
                       styles.breakdownChipVal,
                       { color: studyGoalMet ? theme.colors.success : theme.colors.text },
                     ]}>
-                    +{breakdown.studyPts}
+                    {breakdown.studyPts}/40
                   </Text>
                 </View>
               </View>
@@ -1688,7 +1698,7 @@ export default function TodayScreen() {
                       pressed && { opacity: 0.75 },
                     ]}>
                     <Ionicons
-                      name={wakeGoalMet ? 'checkmark' : 'time-outline'}
+                      name="create-outline"
                       size={13}
                       color={wakeGoalMet ? theme.colors.success : theme.colors.textSecondary}
                     />
@@ -1697,27 +1707,54 @@ export default function TodayScreen() {
                         styles.loggedPillText,
                         { color: wakeGoalMet ? theme.colors.success : theme.colors.textSecondary },
                       ]}>
-                      {formatWakeTimeDisplay(routine?.wakeUpTime)}
+                      Edit
                     </Text>
                   </Pressable>
                 ) : (
-                  <Pressable
-                    onPress={openWakePicker}
-                    accessibilityRole="button"
-                    accessibilityLabel="Log Wake-up time"
-                    style={({ pressed }) => [
-                      styles.quickActionPill,
-                      {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.border,
-                      },
-                      pressed && { opacity: 0.75 },
-                    ]}>
-                    <Ionicons name="time-outline" size={13} color={theme.colors.text} />
-                    <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
-                      Log Time
-                    </Text>
-                  </Pressable>
+                  <View style={styles.wakeActionRow}>
+                    <Pressable
+                      onPress={() => handleLogWakeUp()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Log awake now"
+                      style={({ pressed }) => [
+                        styles.wakeAwakeBtn,
+                        {
+                          backgroundColor: theme.isDark
+                            ? PrimitiveTokens.color.amber[400]
+                            : PrimitiveTokens.color.amber[500],
+                        },
+                        pressed && { opacity: 0.8 },
+                      ]}>
+                      <Ionicons
+                        name="sunny"
+                        size={13}
+                        color={PrimitiveTokens.color.neutral[950]}
+                      />
+                      <Text
+                        style={[
+                          styles.wakeAwakeBtnText,
+                          { color: PrimitiveTokens.color.neutral[950] },
+                        ]}>
+                        I&apos;m Awake
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={openWakePicker}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Set custom wake-up time"
+                      style={({ pressed }) => [
+                        styles.wakeCustomBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.borderSubtle,
+                        },
+                        pressed && { opacity: 0.75 },
+                      ]}>
+                      <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
+                    </Pressable>
+                  </View>
                 )}
               </View>
 
@@ -1990,10 +2027,10 @@ export default function TodayScreen() {
                   borderColor: theme.colors.border,
                 },
               ]}>
-              {displayActivities && displayActivities.length > 0 ? (
-                displayActivities.map((act, index) => {
+              {sortedActivities && sortedActivities.length > 0 ? (
+                sortedActivities.map((act, index) => {
                   const isDone = Boolean(act.value);
-                  const isLast = index === displayActivities.length - 1;
+                  const isLast = index === sortedActivities.length - 1;
                   const displayName = cleanHabitName(act.name);
                   const meta = getHabitBrandMeta(act.name, theme.isDark);
 
@@ -2399,6 +2436,33 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.captionSm.fontSize,
     fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '700',
+  },
+  wakeActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space['1_5'],
+  },
+  wakeAwakeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    gap: PrimitiveTokens.space[1],
+  },
+  wakeAwakeBtnText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  wakeCustomBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
   },
   /* Habits Group */
   habitsGroupCard: {

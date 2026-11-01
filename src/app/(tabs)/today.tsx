@@ -28,6 +28,7 @@ import { DayStreakItem } from '@/components/ui/StreakPath';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
+import { Storage } from '@/utils/storage';
 import {
   PrimitiveTokens,
   SemanticDarkTokens,
@@ -398,6 +399,60 @@ export default function TodayScreen() {
     latestGoalsRef.current = goals;
   }, [goals]);
 
+  // Offline-first instant hydration from local cache so the screen is never blank
+  useEffect(() => {
+    let active = true;
+    const hydrateFromCache = async () => {
+      try {
+        const todayDate = getTodayDateString();
+        const [cachedRoutine, cachedGoals, cachedStats, cachedHabits] = await Promise.all([
+          Storage.getItem(`cached_routine_${todayDate}`),
+          Storage.getItem('cached_user_goals'),
+          Storage.getItem('cached_user_stats'),
+          Storage.getItem('cached_user_habits'),
+        ]);
+
+        if (!active) return;
+
+        if (cachedRoutine) {
+          try {
+            const parsed = JSON.parse(cachedRoutine);
+            if (parsed) {
+              setRoutine(parsed);
+              pendingRoutineRef.current = parsed;
+              setLoading(false);
+            }
+          } catch {}
+        }
+        if (cachedGoals) {
+          try {
+            const parsed = JSON.parse(cachedGoals);
+            if (parsed) setGoals(parsed);
+          } catch {}
+        }
+        if (cachedStats) {
+          try {
+            const parsed = JSON.parse(cachedStats);
+            if (parsed) setStats(parsed);
+          } catch {}
+        }
+        if (cachedHabits) {
+          try {
+            const parsed = JSON.parse(cachedHabits);
+            if (Array.isArray(parsed) && parsed.length > 0) setUserHabits(parsed);
+          } catch {}
+        }
+      } catch {
+        // Fall back cleanly to live network fetch
+      }
+    };
+
+    hydrateFromCache();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const fetchData = useCallback(async () => {
     if (__DEV__) {
       console.log('🔄 [TODAY] Fetching today routine, goals, stats & habits...');
@@ -415,6 +470,9 @@ export default function TodayScreen() {
         if (!syncTimerRef.current && !isSyncingRef.current) {
           pendingRoutineRef.current = routineRes.value;
         }
+        if (routineRes.value) {
+          Storage.setItem(`cached_routine_${getTodayDateString()}`, JSON.stringify(routineRes.value)).catch(() => {});
+        }
         if (__DEV__) {
           console.log('📦 [TODAY] Routine Loaded:', {
             date: routineRes.value?.date,
@@ -431,12 +489,15 @@ export default function TodayScreen() {
 
       if (goalsRes.status === 'fulfilled' && goalsRes.value) {
         setGoals(goalsRes.value);
+        Storage.setItem('cached_user_goals', JSON.stringify(goalsRes.value)).catch(() => {});
       }
       if (statsRes.status === 'fulfilled' && statsRes.value) {
         setStats(statsRes.value);
+        Storage.setItem('cached_user_stats', JSON.stringify(statsRes.value)).catch(() => {});
       }
       if (habitsRes.status === 'fulfilled' && habitsRes.value) {
         setUserHabits(habitsRes.value);
+        Storage.setItem('cached_user_habits', JSON.stringify(habitsRes.value)).catch(() => {});
       }
     } catch (err) {
       if (__DEV__) {
@@ -520,6 +581,9 @@ export default function TodayScreen() {
           pendingRoutineRef.current = saved;
           setRoutine(saved);
         }
+
+        // Cache latest synchronized routine to storage
+        Storage.setItem(`cached_routine_${saved.date || getTodayDateString()}`, JSON.stringify(saved)).catch(() => {});
 
         if (pendingToastMsgRef.current) {
           setToast({

@@ -30,6 +30,7 @@ import {
 } from '@/components/stats';
 import { useTheme } from '@/hooks/use-theme';
 import { routineService } from '@/services/routine';
+import { Storage } from '@/utils/storage';
 import {
   PrimitiveTokens,
   TypographyScale,
@@ -75,6 +76,53 @@ export default function StatsScreen() {
     statsRef.current = stats;
   }, [stats]);
 
+  // Offline-first instant hydration from local cache
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [cachedStats, cachedHistory, cachedGoals] = await Promise.all([
+          Storage.getItem('cached_stats_summary'),
+          Storage.getItem('cached_stats_history'),
+          Storage.getItem('cached_user_goals'),
+        ]);
+
+        if (!active) return;
+
+        if (cachedStats) {
+          try {
+            const parsed = JSON.parse(cachedStats);
+            if (parsed) {
+              setStats(parsed);
+              setLoading(false);
+            }
+          } catch {}
+        }
+        if (cachedHistory) {
+          try {
+            const parsed = JSON.parse(cachedHistory);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setHistory(parsed);
+              setLoading(false);
+            }
+          } catch {}
+        }
+        if (cachedGoals) {
+          try {
+            const parsed = JSON.parse(cachedGoals);
+            if (parsed) setGoals(parsed);
+          } catch {}
+        }
+      } catch {
+        // Fall back cleanly to live network fetch
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   // Fetch Stats, Routine History & User Goals in parallel
   const fetchData = useCallback(async (isManualRefresh = false) => {
     try {
@@ -104,6 +152,7 @@ export default function StatsScreen() {
 
       if (statsData) {
         setStats(statsData);
+        Storage.setItem('cached_stats_summary', JSON.stringify(statsData)).catch(() => {});
         if (__DEV__) {
           console.log('📈 [STATS] Loaded Stats:', {
             currentStreak: statsData.currentStreak,
@@ -113,13 +162,17 @@ export default function StatsScreen() {
           });
         }
       }
-      if (historyData) {
+      if (historyData && historyData.length > 0) {
         setHistory(historyData);
+        Storage.setItem('cached_stats_history', JSON.stringify(historyData)).catch(() => {});
         if (__DEV__) {
           console.log(`📜 [STATS] Loaded History: ${historyData.length} records`);
         }
       }
-      if (goalsData) setGoals(goalsData);
+      if (goalsData) {
+        setGoals(goalsData);
+        Storage.setItem('cached_user_goals', JSON.stringify(goalsData)).catch(() => {});
+      }
     } catch (err) {
       if (__DEV__) {
         console.error('❌ [STATS] Error in fetchData:', err);

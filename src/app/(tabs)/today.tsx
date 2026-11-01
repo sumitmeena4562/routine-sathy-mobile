@@ -1132,17 +1132,18 @@ export default function TodayScreen() {
                     />
                   </View>
                   <View style={styles.anchorDetails}>
-                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                      Wake-up
-                    </Text>
-                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                    <View style={styles.anchorTitleRow}>
+                      <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                        Wake-up
+                      </Text>
                       {routine?.wakeUpTime ? (
-                        <Text style={{ fontWeight: '700', color: theme.colors.text }}>
-                          {formatWakeTimeDisplay(routine?.wakeUpTime)}
-                          {' · '}
+                        <Text style={[styles.anchorBadaText, { color: theme.colors.text }]}>
+                          · {formatWakeTimeDisplay(routine?.wakeUpTime)}
                         </Text>
                       ) : null}
-                      Goal: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
+                    </View>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      Daily Goal: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
                       {' · '}
                       <Text style={{ color: wakeGoalMet ? theme.colors.success : theme.colors.textMuted }}>
                         {routine?.wakeUpTime ? `${breakdown.wakePts}/30 pts` : '0/30 pts'}
@@ -1237,21 +1238,26 @@ export default function TodayScreen() {
                     />
                   </View>
                   <View style={styles.anchorDetails}>
-                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                      Water Intake
-                    </Text>
-                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      <Text
-                        style={{
-                          fontWeight: '700',
-                          color: (routine?.waterIntake ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
-                        }}>
-                        {(routine?.waterIntake ?? 0).toFixed(1)}L
+                    <View style={styles.anchorTitleRow}>
+                      <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                        Water
                       </Text>
-                      {' · '}Goal: {breakdown.targetWater}L
+                      <Text
+                        style={[
+                          styles.anchorBadaText,
+                          {
+                            color:
+                              (routine?.waterIntake ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
+                          },
+                        ]}>
+                        · {(routine?.waterIntake ?? 0).toFixed(1)} L
+                      </Text>
+                    </View>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      Daily Goal: {breakdown.targetWater} L
                       {' · '}
                       <Text style={{ color: waterGoalMet ? theme.colors.success : theme.colors.textMuted }}>
-                        +{breakdown.waterPts} pts
+                        {breakdown.waterPts}/30 pts
                       </Text>
                     </Text>
                   </View>
@@ -1344,21 +1350,26 @@ export default function TodayScreen() {
                     />
                   </View>
                   <View style={styles.anchorDetails}>
-                    <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                      Study &amp; Focus
-                    </Text>
-                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      <Text
-                        style={{
-                          fontWeight: '700',
-                          color: (routine?.studyHours ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
-                        }}>
-                        {(routine?.studyHours ?? 0).toFixed(1)}h
+                    <View style={styles.anchorTitleRow}>
+                      <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                        Study &amp; Focus
                       </Text>
-                      {' · '}Goal: {breakdown.targetStudy}h
+                      <Text
+                        style={[
+                          styles.anchorBadaText,
+                          {
+                            color:
+                              (routine?.studyHours ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
+                          },
+                        ]}>
+                        · {(routine?.studyHours ?? 0).toFixed(1)} h
+                      </Text>
+                    </View>
+                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                      Daily Goal: {breakdown.targetStudy} h
                       {' · '}
                       <Text style={{ color: studyGoalMet ? theme.colors.success : theme.colors.textMuted }}>
-                        +{breakdown.studyPts} pts
+                        {breakdown.studyPts}/40 pts
                       </Text>
                     </Text>
                   </View>
@@ -1814,16 +1825,28 @@ const styles = StyleSheet.create({
   anchorDetails: {
     flex: 1,
   },
+  anchorTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
   anchorTitle: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  anchorBadaText: {
     fontSize: TypographyScale.bodyStrong.fontSize,
     fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: TypographyScale.bodyStrong.fontWeight,
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   anchorMeta: {
     fontSize: TypographyScale.captionSm.fontSize,
     fontFamily: TypographyScale.captionSm.fontFamily,
-    marginTop: 1,
+    marginTop: 2,
   },
   quickBtnsRow: {
     flexDirection: 'row',

@@ -131,13 +131,7 @@ export default function AddRoutineScreen() {
   // Track if today's routine exists (edit mode vs create mode)
   const [isExistingRoutine, setIsExistingRoutine] = useState(false);
 
-  // Daily Circadian Targets
-  const [targetWakeHour, setTargetWakeHour] = useState(6);
-  const [targetWakeMin, setTargetWakeMin] = useState(0);
-  const [targetWater, setTargetWater] = useState(3.0);
-  const [targetStudy, setTargetStudy] = useState(4.0);
-
-  // Today's Logged Progress (preserved so editing targets doesn't wipe today's metrics)
+  // Today's Logged Progress (preserved so editing habits doesn't wipe today's metrics)
   const [todayWakeUpTime, setTodayWakeUpTime] = useState<string | null>(null);
   const [todayWaterLogged, setTodayWaterLogged] = useState(0);
   const [todayStudyLogged, setTodayStudyLogged] = useState(0);
@@ -165,14 +159,13 @@ export default function AddRoutineScreen() {
     message: string;
   } | null>(null);
 
-  // Load defaults, targets, and user habits
+  // Load defaults and user habits
   useEffect(() => {
     async function loadDefaults() {
       try {
-        const [todayRoutineRes, serverHabitsRes, serverGoalsRes] = await Promise.allSettled([
+        const [todayRoutineRes, serverHabitsRes] = await Promise.allSettled([
           routineService.getTodayRoutine(),
           routineService.getUserHabits(),
-          routineService.getUserGoals(),
         ]);
 
         // 1. Process server habit definitions
@@ -199,25 +192,7 @@ export default function AddRoutineScreen() {
         }
         setHabits(loadedHabits);
 
-        // 2. Process user permanent circadian goals
-        if (serverGoalsRes.status === 'fulfilled' && serverGoalsRes.value) {
-          const g = serverGoalsRes.value;
-          if (g.targetWakeUp) {
-            const [h, m] = g.targetWakeUp.split(':').map(Number);
-            if (!isNaN(h) && !isNaN(m)) {
-              setTargetWakeHour(h);
-              setTargetWakeMin(m);
-            }
-          }
-          if (g.targetWater !== undefined && g.targetWater > 0) {
-            setTargetWater(g.targetWater);
-          }
-          if (g.targetStudy !== undefined && g.targetStudy > 0) {
-            setTargetStudy(g.targetStudy);
-          }
-        }
-
-        // 3. Process today's saved routine (if exists)
+        // 2. Process today's saved routine (if exists)
         if (todayRoutineRes.status === 'fulfilled' && todayRoutineRes.value) {
           const r = todayRoutineRes.value;
           setIsExistingRoutine(true);
@@ -255,26 +230,6 @@ export default function AddRoutineScreen() {
 
     loadDefaults();
   }, []);
-
-  // Stepper handlers for Circadian Targets
-  const adjustWakeTarget = (deltaMinutes: number) => {
-    triggerHaptic('light');
-    let totalMins = targetWakeHour * 60 + targetWakeMin + deltaMinutes;
-    // Bound between 04:00 AM (240 mins) and 10:00 AM (600 mins)
-    totalMins = Math.max(240, Math.min(600, totalMins));
-    setTargetWakeHour(Math.floor(totalMins / 60));
-    setTargetWakeMin(totalMins % 60);
-  };
-
-  const adjustWaterTarget = (delta: number) => {
-    triggerHaptic('light');
-    setTargetWater((prev) => Math.max(1.0, Math.min(6.0, Math.round((prev + delta) * 10) / 10)));
-  };
-
-  const adjustStudyTarget = (delta: number) => {
-    triggerHaptic('light');
-    setTargetStudy((prev) => Math.max(0.5, Math.min(12.0, Math.round((prev + delta) * 10) / 10)));
-  };
 
   // Adjust today's logged wake-up time (if correcting an entry)
   const adjustLoggedWakeTime = (deltaMinutes: number) => {
@@ -388,9 +343,7 @@ export default function AddRoutineScreen() {
     }
   };
 
-  const formattedWakeTarget = `${String(targetWakeHour).padStart(2, '0')}:${String(targetWakeMin).padStart(2, '0')}`;
-
-  // Save All Changes (Syncs Habits, Goals, and Routine)
+  // Save All Changes (Syncs Habits and Today's Routine)
   const handleSave = async () => {
     triggerHaptic('light');
     setLoading(true);
@@ -413,24 +366,17 @@ export default function AddRoutineScreen() {
 
     try {
       if (__DEV__) {
-        console.log('⚙️ [ADD ROUTINE] 1/2 Persisting updated habits and goals...');
+        console.log('⚙️ [ADD ROUTINE] 1/2 Persisting updated habits...');
       }
 
-      // Step 1: First commit updated habits and goals to user document
-      await Promise.all([
-        routineService.updateUserHabits(syncedHabits),
-        routineService.updateUserGoals({
-          targetWakeUp: formattedWakeTarget,
-          targetWater,
-          targetStudy,
-        }),
-      ]);
+      // Step 1: Save updated habit list
+      await routineService.updateUserHabits(syncedHabits);
 
       if (__DEV__) {
-        console.log('💾 [ADD ROUTINE] 2/2 Saving routine (server calculates score against committed goals)...');
+        console.log('💾 [ADD ROUTINE] 2/2 Saving routine with selected habits...');
       }
 
-      // Step 2: Save the routine so server's calcScore strictly reads the freshly updated goals
+      // Step 2: Save the routine activities for today
       await routineService.saveRoutine({
         date: getTodayDateString(),
         wakeUpTime: todayWakeUpTime || undefined,
@@ -872,250 +818,81 @@ export default function AddRoutineScreen() {
                 )}
               </Card>
 
-              {/* ========================================================
-                  SECTION 2: DAILY GOALS (AAPKA AIM)
-                  ======================================================== */}
-              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    2. DAILY GOALS — AAPKA AIM
+              {/* Profile Target Info Banner */}
+              <Card
+                style={[
+                  styles.targetBannerCard,
+                  {
+                    backgroundColor: theme.isDark
+                      ? 'rgba(251, 191, 36, 0.08)'
+                      : 'rgba(251, 191, 36, 0.12)',
+                    borderColor: theme.isDark
+                      ? 'rgba(251, 191, 36, 0.25)'
+                      : PrimitiveTokens.color.amber[200],
+                  },
+                ]}>
+                <View style={styles.targetBannerContent}>
+                  <View
+                    style={[
+                      styles.targetBannerIconCircle,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileAmber
+                          : SemanticLightTokens.color.bg.tileAmber,
+                      },
+                    ]}>
+                    <Ionicons
+                      name="flag"
+                      size={18}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.amber[400]
+                          : PrimitiveTokens.color.amber[700]
+                      }
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.targetBannerTitle, { color: theme.colors.text }]}>
+                      Daily Target Kahan Set Hota Hai?
+                    </Text>
+                    <Text
+                      style={[
+                        styles.targetBannerDesc,
+                        { color: theme.colors.textSecondary },
+                      ]}>
+                      Wake-up, Water aur Study ka fixed target Profile Settings mein ek baar set hota hai.
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('light');
+                    router.push('/(tabs)/profile');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Profile settings mein target set karein"
+                  style={({ pressed }) => [
+                    styles.targetBannerBtn,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.borderSubtle,
+                    },
+                    pressed && { opacity: 0.75 },
+                  ]}>
+                  <Text style={[styles.targetBannerBtnText, { color: theme.colors.text }]}>
+                    Profile Settings Mein Targets Dekhein
                   </Text>
-                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
-                    Set once. Aaj ka logged data (Today tab) in targets ke against score calculate karta hai.
-                  </Text>
-                </View>
-              </View>
-
-              <Card style={styles.groupedCard}>
-                {/* Row 1: Wake-up Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileAmber
-                            : SemanticLightTokens.color.bg.tileAmber,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="sunny"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.amber[400]
-                            : PrimitiveTokens.color.amber[700]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Subah Uthne ka Goal
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Kitne baje uthna chahte ho?
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustWakeTarget(-15)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease wake-up target 15 minutes"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {formatTime12hr(formattedWakeTarget)}
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustWakeTarget(15)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase wake-up target 15 minutes"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View
-                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
-                />
-
-                {/* Row 2: Water Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileSky
-                            : SemanticLightTokens.color.bg.tileSky,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="water"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.sky[400]
-                            : PrimitiveTokens.color.sky[600]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Paani Peene ka Goal
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Roz kitna paani peena hai?
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustWaterTarget(-0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease water target 0.5 liters"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {targetWater.toFixed(1)} L
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustWaterTarget(0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase water target 0.5 liters"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View
-                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
-                />
-
-                {/* Row 3: Focus Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileIndigo
-                            : SemanticLightTokens.color.bg.tileIndigo,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="book"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.indigo[400]
-                            : PrimitiveTokens.color.indigo[600]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Padhai ka Goal
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Roz kitne ghante padhna hai?
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustStudyTarget(-0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease study target 0.5 hours"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {targetStudy.toFixed(1)} h
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustStudyTarget(0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase study target 0.5 hours"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </View>
+                  <Ionicons name="arrow-forward" size={14} color={theme.colors.text} />
+                </Pressable>
               </Card>
 
               {/* ========================================================
-                  SECTION 3: AAJ KITNE BAJE UTHE (OPTIONAL CORRECTION)
+                  SECTION 2: AAJ KITNE BAJE UTHE (OPTIONAL CORRECTION)
                   ======================================================== */}
               <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    3. AAJ KITNE BAJE UTHE?
+                    2. AAJ KITNE BAJE UTHE?
                   </Text>
                   <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
                     Subah ka wake-up time adjust karo ya reset karo. (Today tab se bhi log ho sakta hai)
@@ -1211,10 +988,13 @@ export default function AddRoutineScreen() {
                     <Pressable
                       onPress={() => {
                         triggerHaptic('light');
-                        setTodayWakeUpTime(formattedWakeTarget);
+                        const now = new Date();
+                        const h = String(now.getHours()).padStart(2, '0');
+                        const m = String(now.getMinutes()).padStart(2, '0');
+                        setTodayWakeUpTime(`${h}:${m}`);
                       }}
                       accessibilityRole="button"
-                      accessibilityLabel="Log wake-up at target time"
+                      accessibilityLabel="Log wake-up right now"
                       style={({ pressed }) => [
                         styles.logNowBtn,
                         {
@@ -1615,5 +1395,50 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     marginTop: PrimitiveTokens.space[6],
+  },
+  targetBannerCard: {
+    marginTop: PrimitiveTokens.space[6],
+    borderRadius: PrimitiveTokens.radius.xl,
+    padding: PrimitiveTokens.space[4],
+    borderWidth: 1,
+  },
+  targetBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+  },
+  targetBannerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetBannerTitle: {
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  targetBannerDesc: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    lineHeight: 16,
+  },
+  targetBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: PrimitiveTokens.space[1],
+    paddingVertical: PrimitiveTokens.space[2],
+    paddingHorizontal: PrimitiveTokens.space[3],
+    borderRadius: PrimitiveTokens.radius.md,
+    borderWidth: 1,
+    marginTop: PrimitiveTokens.space[3],
+  },
+  targetBannerBtnText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '600',
   },
 });

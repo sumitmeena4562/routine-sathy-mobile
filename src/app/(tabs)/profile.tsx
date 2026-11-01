@@ -514,10 +514,10 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Daily Targets
+                Daily Fixed Targets (Roz Ka Aim)
               </Text>
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
-                Your standard goals used to calculate score
+                Set once. Aapka daily score isi target ke hisaab se banta hai.
               </Text>
             </View>
           </View>
@@ -536,9 +536,9 @@ export default function ProfileScreen() {
                 style={styles.targetIcon}
               />
               <View>
-                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Wake-up Time</Text>
+                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Subah Uthne Ka Target</Text>
                 <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
-                  Morning biological start
+                  Morning rise aim
                 </Text>
               </View>
             </View>
@@ -579,9 +579,9 @@ export default function ProfileScreen() {
                 style={styles.targetIcon}
               />
               <View>
-                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Water Intake</Text>
+                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Paani Peene Ka Target</Text>
                 <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
-                  Daily hydration goal
+                  Daily hydration aim
                 </Text>
               </View>
             </View>
@@ -622,9 +622,9 @@ export default function ProfileScreen() {
                 style={styles.targetIcon}
               />
               <View>
-                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Deep Focus</Text>
+                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Padhai / Focus Ka Target</Text>
                 <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
-                  Dedicated daily study block
+                  Dedicated daily study aim
                 </Text>
               </View>
             </View>

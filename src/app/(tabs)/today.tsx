@@ -843,7 +843,7 @@ export default function TodayScreen() {
             onPress={() => router.push('/add-routine')}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Habits and Goals"
+            accessibilityLabel="Manage Habits"
             style={({ pressed }) => [
               styles.editBtn,
               {
@@ -852,8 +852,8 @@ export default function TodayScreen() {
               },
               pressed && { opacity: 0.75 },
             ]}>
-            <Ionicons name="options-outline" size={15} color={theme.colors.text} />
-            <Text style={[styles.editText, { color: theme.colors.text }]}>Habits &amp; Goals</Text>
+            <Ionicons name="sparkles-outline" size={14} color={theme.colors.text} />
+            <Text style={[styles.editText, { color: theme.colors.text }]}>Habits</Text>
           </Pressable>
         </View>
       </View>
@@ -1143,7 +1143,7 @@ export default function TodayScreen() {
                       ) : null}
                     </View>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      Daily Goal: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
+                      Target: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
                       {' · '}
                       <Text style={{ color: wakeGoalMet ? theme.colors.success : theme.colors.textMuted }}>
                         {routine?.wakeUpTime ? `${breakdown.wakePts}/30 pts` : '0/30 pts'}
@@ -1254,7 +1254,7 @@ export default function TodayScreen() {
                       </Text>
                     </View>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      Daily Goal: {breakdown.targetWater} L
+                      Target: {breakdown.targetWater} L
                       {' · '}
                       <Text style={{ color: waterGoalMet ? theme.colors.success : theme.colors.textMuted }}>
                         {breakdown.waterPts}/30 pts
@@ -1366,7 +1366,7 @@ export default function TodayScreen() {
                       </Text>
                     </View>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      Daily Goal: {breakdown.targetStudy} h
+                      Target: {breakdown.targetStudy} h
                       {' · '}
                       <Text style={{ color: studyGoalMet ? theme.colors.success : theme.colors.textMuted }}>
                         {breakdown.studyPts}/40 pts

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -707,6 +708,83 @@ export default function TodayScreen() {
     [queueRoutineMutation]
   );
 
+  // Quick Action: Reset Logged Wake-up Time
+  const handleResetWakeUp = useCallback(() => {
+    triggerHaptic('medium');
+
+    queueRoutineMutation((prev) => {
+      const nextBreakdown = calcScoreBreakdown(
+        undefined,
+        prev.waterIntake ?? 0,
+        prev.studyHours ?? 0,
+        latestGoalsRef.current
+      );
+
+      if (__DEV__) {
+        console.log(`☀️ [USER ACTION] Reset Wake-up | Score: ${nextBreakdown.totalScore}`);
+      }
+
+      return {
+        next: {
+          ...prev,
+          wakeUpTime: undefined,
+          score: nextBreakdown.totalScore,
+        },
+        toastMsg: 'Wake-up entry reset',
+      };
+    }, 0);
+  }, [queueRoutineMutation]);
+
+  // Modal State & Helpers for In-app Wake-up Time Picker
+  const [wakeModalVisible, setWakeModalVisible] = useState(false);
+  const [pickerWakeTime, setPickerWakeTime] = useState<string>('06:30');
+
+  const openWakePicker = useCallback(() => {
+    triggerHaptic('light');
+    if (routine?.wakeUpTime) {
+      setPickerWakeTime(routine.wakeUpTime);
+    } else {
+      const now = new Date();
+      if (now.getHours() < 10) {
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        setPickerWakeTime(`${h}:${m}`);
+      } else {
+        setPickerWakeTime(goals?.targetWakeUp || '06:00');
+      }
+    }
+    setWakeModalVisible(true);
+  }, [routine, goals]);
+
+  const adjustPickerMinutes = (deltaMinutes: number) => {
+    triggerHaptic('light');
+    const [h, m] = pickerWakeTime.split(':').map(Number);
+    let totalMins = (isNaN(h) ? 6 : h) * 60 + (isNaN(m) ? 0 : m) + deltaMinutes;
+    // Bound between 03:00 AM (180 mins) and 12:00 PM (720 mins)
+    totalMins = Math.max(180, Math.min(720, totalMins));
+    const nextH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+    const nextM = String(totalMins % 60).padStart(2, '0');
+    setPickerWakeTime(`${nextH}:${nextM}`);
+  };
+
+  const previewWakePoints = (() => {
+    const targetWakeUpStr = goals?.targetWakeUp || '06:00';
+    const [h, m] = pickerWakeTime.split(':').map(Number);
+    const wakeMinutes = (h || 0) * 60 + (m || 0);
+
+    const [th, tm] = targetWakeUpStr.split(':').map(Number);
+    const targetWakeMinutes = (th || 0) * 60 + (tm || 0);
+    const limitWakeMinutes = targetWakeMinutes + 240;
+
+    if (wakeMinutes <= targetWakeMinutes) {
+      return 30;
+    } else if (wakeMinutes < limitWakeMinutes) {
+      const penalty = ((wakeMinutes - targetWakeMinutes) / 240) * 30;
+      return Math.round(Math.max(0, 30 - penalty));
+    }
+    return 0;
+  })();
+
   // Quick Action: Toggle Habit Completion
   const handleToggleHabit = useCallback(
     (activityId: string, currentVal: boolean) => {
@@ -806,6 +884,330 @@ export default function TodayScreen() {
           onDismiss={() => setToast(null)}
         />
       )}
+
+      {/* In-app Wake-up Time Picker Modal */}
+      <Modal
+        visible={wakeModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setWakeModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setWakeModalVisible(false)}
+          />
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  {routine?.wakeUpTime ? 'Edit Wake-up Time' : 'Log Wake-up Time'}
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+                  Target: {formatWakeTimeDisplay(goals?.targetWakeUp || '06:00')}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setWakeModalVisible(false)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Close time picker"
+                style={[styles.modalCloseBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
+                <Ionicons name="close" size={18} color={theme.colors.text} />
+              </Pressable>
+            </View>
+
+            {/* Prominent Selected Clock Display */}
+            <View
+              style={[
+                styles.modalClockBox,
+                {
+                  backgroundColor: theme.isDark
+                    ? 'rgba(251, 191, 36, 0.08)'
+                    : 'rgba(251, 191, 36, 0.12)',
+                  borderColor: theme.isDark
+                    ? 'rgba(251, 191, 36, 0.3)'
+                    : PrimitiveTokens.color.amber[300],
+                },
+              ]}>
+              <Ionicons
+                name="sunny"
+                size={24}
+                color={
+                  theme.isDark
+                    ? PrimitiveTokens.color.amber[400]
+                    : PrimitiveTokens.color.amber[600]
+                }
+              />
+              <Text
+                style={[
+                  styles.modalClockText,
+                  {
+                    color: theme.isDark
+                      ? PrimitiveTokens.color.amber[300]
+                      : PrimitiveTokens.color.amber[800],
+                  },
+                ]}>
+                {formatWakeTimeDisplay(pickerWakeTime)}
+              </Text>
+              <View
+                style={[
+                  styles.modalPtsBadge,
+                  {
+                    backgroundColor:
+                      previewWakePoints >= 30
+                        ? theme.colors.successMuted
+                        : theme.colors.surfaceAlt,
+                    borderColor:
+                      previewWakePoints >= 30
+                        ? theme.colors.successBorder
+                        : theme.colors.borderSubtle,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.modalPtsText,
+                    {
+                      color:
+                        previewWakePoints >= 30
+                          ? theme.colors.success
+                          : theme.colors.textSecondary,
+                    },
+                  ]}>
+                  {previewWakePoints}/30 pts
+                </Text>
+              </View>
+            </View>
+
+            {/* Steppers: Hours & Minutes */}
+            <View style={styles.modalSteppersRow}>
+              {/* Hours Stepper */}
+              <View style={styles.modalStepperBlock}>
+                <Text style={[styles.modalStepperLabel, { color: theme.colors.textSecondary }]}>
+                  Hour
+                </Text>
+                <View style={styles.modalStepperControls}>
+                  <Pressable
+                    onPress={() => adjustPickerMinutes(-60)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Subtract 1 hour"
+                    style={[
+                      styles.modalStepperBtn,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>-1h</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => adjustPickerMinutes(60)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 1 hour"
+                    style={[
+                      styles.modalStepperBtn,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>+1h</Text>
+                  </Pressable>
+                </View>
+              </View>
+
+              {/* Minutes Stepper */}
+              <View style={styles.modalStepperBlock}>
+                <Text style={[styles.modalStepperLabel, { color: theme.colors.textSecondary }]}>
+                  Minute
+                </Text>
+                <View style={styles.modalStepperControls}>
+                  <Pressable
+                    onPress={() => adjustPickerMinutes(-15)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Subtract 15 minutes"
+                    style={[
+                      styles.modalStepperBtn,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>-15m</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => adjustPickerMinutes(15)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add 15 minutes"
+                    style={[
+                      styles.modalStepperBtn,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>+15m</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+
+            {/* Quick 1-tap presets */}
+            <Text style={[styles.modalPresetsHeading, { color: theme.colors.textMuted }]}>
+              QUICK PRESETS
+            </Text>
+            <View style={styles.modalPresetsRow}>
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light');
+                  const now = new Date();
+                  const h = String(now.getHours()).padStart(2, '0');
+                  const m = String(now.getMinutes()).padStart(2, '0');
+                  setPickerWakeTime(`${h}:${m}`);
+                }}
+                style={[
+                  styles.modalPresetPill,
+                  { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
+                ]}>
+                <Ionicons name="time-outline" size={12} color={theme.colors.text} />
+                <Text style={[styles.modalPresetText, { color: theme.colors.text }]}>Now</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  triggerHaptic('light');
+                  setPickerWakeTime(goals?.targetWakeUp || '06:00');
+                }}
+                style={[
+                  styles.modalPresetPill,
+                  pickerWakeTime === (goals?.targetWakeUp || '06:00')
+                    ? {
+                        backgroundColor: theme.colors.primary,
+                        borderColor: theme.colors.primary,
+                      }
+                    : {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderColor: theme.colors.borderSubtle,
+                      },
+                ]}>
+                <Ionicons
+                  name="flag"
+                  size={11}
+                  color={
+                    pickerWakeTime === (goals?.targetWakeUp || '06:00')
+                      ? theme.colors.primaryForeground
+                      : theme.colors.text
+                  }
+                />
+                <Text
+                  style={[
+                    styles.modalPresetText,
+                    {
+                      color:
+                        pickerWakeTime === (goals?.targetWakeUp || '06:00')
+                          ? theme.colors.primaryForeground
+                          : theme.colors.text,
+                    },
+                  ]}>
+                  Target ({formatWakeTimeDisplay(goals?.targetWakeUp || '06:00')})
+                </Text>
+              </Pressable>
+
+              {['05:30', '06:00', '06:30', '07:00'].map((preset) => {
+                const isSelected = pickerWakeTime === preset;
+                return (
+                  <Pressable
+                    key={preset}
+                    onPress={() => {
+                      triggerHaptic('light');
+                      setPickerWakeTime(preset);
+                    }}
+                    style={[
+                      styles.modalPresetPill,
+                      isSelected
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderColor: theme.colors.primary,
+                          }
+                        : {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.borderSubtle,
+                          },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.modalPresetText,
+                        {
+                          color: isSelected
+                            ? theme.colors.primaryForeground
+                            : theme.colors.text,
+                        },
+                      ]}>
+                      {formatWakeTimeDisplay(preset)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* CTA Buttons */}
+            <View style={styles.modalActionsRow}>
+              {routine?.wakeUpTime ? (
+                <Pressable
+                  onPress={() => {
+                    handleResetWakeUp();
+                    setWakeModalVisible(false);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset wake-up time"
+                  style={({ pressed }) => [
+                    styles.modalResetBtn,
+                    { borderColor: theme.colors.borderSubtle },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="trash-outline" size={15} color={theme.colors.error} />
+                  <Text style={[styles.modalResetBtnText, { color: theme.colors.error }]}>
+                    Reset
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                onPress={() => {
+                  handleLogWakeUp(pickerWakeTime);
+                  setWakeModalVisible(false);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Save wake-up time"
+                style={({ pressed }) => [
+                  styles.modalSaveBtn,
+                  { backgroundColor: theme.colors.primary },
+                  pressed && { opacity: 0.85 },
+                ]}>
+                <Ionicons
+                  name="checkmark"
+                  size={16}
+                  color={theme.colors.primaryForeground}
+                />
+                <Text
+                  style={[
+                    styles.modalSaveBtnText,
+                    { color: theme.colors.primaryForeground },
+                  ]}>
+                  Save Wake-up Time
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Screen Header */}
       <View
@@ -1111,7 +1513,11 @@ export default function TodayScreen() {
                     borderColor: theme.colors.border,
                   },
                 ]}>
-                <View style={styles.anchorLeft}>
+                <Pressable
+                  onPress={openWakePicker}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tap to set or edit wake-up time"
+                  style={({ pressed }) => [styles.anchorLeft, pressed && { opacity: 0.8 }]}>
                   <View
                     style={[
                       styles.anchorIconTile,
@@ -1150,15 +1556,15 @@ export default function TodayScreen() {
                       </Text>
                     </Text>
                   </View>
-                </View>
+                </Pressable>
 
                 {/* Wake-up Status / Action Button */}
                 {routine?.wakeUpTime ? (
                   <Pressable
-                    onPress={() => router.push('/add-routine')}
+                    onPress={openWakePicker}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={`Wake-up logged at ${formatWakeTimeDisplay(routine?.wakeUpTime)}, tap to edit`}
+                    accessibilityLabel={`Wake-up logged at ${formatWakeTimeDisplay(routine?.wakeUpTime)}, tap to change`}
                     style={({ pressed }) => [
                       styles.loggedPill,
                       wakeGoalMet
@@ -1189,9 +1595,9 @@ export default function TodayScreen() {
                   </Pressable>
                 ) : (
                   <Pressable
-                    onPress={() => handleLogWakeUp()}
+                    onPress={openWakePicker}
                     accessibilityRole="button"
-                    accessibilityLabel="Log Wake-up"
+                    accessibilityLabel="Log Wake-up time"
                     style={({ pressed }) => [
                       styles.quickActionPill,
                       {
@@ -1200,9 +1606,9 @@ export default function TodayScreen() {
                       },
                       pressed && { opacity: 0.75 },
                     ]}>
-                    <Ionicons name="checkmark-sharp" size={13} color={theme.colors.text} />
+                    <Ionicons name="time-outline" size={13} color={theme.colors.text} />
                     <Text style={[styles.quickActionPillText, { color: theme.colors.text }]}>
-                      Log Wake-up
+                      Log Time
                     </Text>
                   </Pressable>
                 )}
@@ -1934,5 +2340,177 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.bodySm.fontSize,
     fontFamily: TypographyScale.bodySm.fontFamily,
     textAlign: 'center',
+  },
+
+  // In-app Wake-up Time Picker Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: PrimitiveTokens.space[4],
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: PrimitiveTokens.radius['2xl'],
+    borderWidth: 1,
+    padding: PrimitiveTokens.space[5],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: PrimitiveTokens.space[4],
+  },
+  modalTitle: {
+    fontSize: TypographyScale.h4.fontSize,
+    fontFamily: TypographyScale.h4.fontFamily,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  modalSubtitle: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalClockBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: PrimitiveTokens.space[3],
+    paddingVertical: PrimitiveTokens.space[4],
+    paddingHorizontal: PrimitiveTokens.space[4],
+    borderRadius: PrimitiveTokens.radius.xl,
+    borderWidth: 1,
+    marginBottom: PrimitiveTokens.space[4],
+  },
+  modalClockText: {
+    fontSize: 26,
+    fontFamily: TypographyScale.h3.fontFamily,
+    fontWeight: '800',
+    letterSpacing: -0.5,
+  },
+  modalPtsBadge: {
+    paddingHorizontal: PrimitiveTokens.space[2],
+    paddingVertical: 3,
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  modalPtsText: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+  modalSteppersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+    marginBottom: PrimitiveTokens.space[4],
+  },
+  modalStepperBlock: {
+    flex: 1,
+  },
+  modalStepperLabel: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  modalStepperControls: {
+    flexDirection: 'row',
+    gap: PrimitiveTokens.space[1],
+  },
+  modalStepperBtn: {
+    flex: 1,
+    height: 38,
+    borderRadius: PrimitiveTokens.radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalStepperBtnText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '700',
+  },
+  modalPresetsHeading: {
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+  },
+  modalPresetsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: PrimitiveTokens.space[1],
+    marginBottom: PrimitiveTokens.space[5],
+  },
+  modalPresetPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  modalPresetText: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '600',
+  },
+  modalActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[2],
+  },
+  modalResetBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: PrimitiveTokens.space[3],
+    height: 44,
+    borderRadius: PrimitiveTokens.radius.md,
+    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  modalResetBtnText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '600',
+  },
+  modalSaveBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: PrimitiveTokens.space[1],
+    height: 44,
+    borderRadius: PrimitiveTokens.radius.md,
+  },
+  modalSaveBtnText: {
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    fontWeight: '700',
   },
 });

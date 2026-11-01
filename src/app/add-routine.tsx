@@ -552,13 +552,13 @@ export default function AddRoutineScreen() {
                     : PrimitiveTokens.color.amber[700],
                 },
               ]}>
-              ROUTINE SETUP
+              HABITS & GOALS
             </Text>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              {isExistingRoutine ? 'Habits & Daily Goals' : "Plan Today's Routine"}
+              {isExistingRoutine ? 'Apni Habits & Goals' : "Aaj ki Routine Banao"}
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Customize your focus habits and configure your daily benchmark targets.
+              Habits toggle karo (Section 1), apna daily aim set karo (Section 2).
             </Text>
           </View>
 
@@ -873,15 +873,15 @@ export default function AddRoutineScreen() {
               </Card>
 
               {/* ========================================================
-                  SECTION 2: CIRCADIAN TARGETS (DAILY BENCHMARK GOALS)
+                  SECTION 2: DAILY GOALS (AAPKA AIM)
                   ======================================================== */}
               <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    2. DAILY BENCHMARK GOALS
+                    2. DAILY GOALS — AAPKA AIM
                   </Text>
                   <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
-                    Set once. Your score is calculated against these daily targets.
+                    Set once. Aaj ka logged data (Today tab) in targets ke against score calculate karta hai.
                   </Text>
                 </View>
               </View>
@@ -911,10 +911,10 @@ export default function AddRoutineScreen() {
                     </View>
                     <View style={styles.targetInfo}>
                       <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Wake-up Target
+                        Subah Uthne ka Goal
                       </Text>
                       <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Morning rise anchor
+                        Kitne baje uthna chahte ho?
                       </Text>
                     </View>
                   </View>
@@ -986,10 +986,10 @@ export default function AddRoutineScreen() {
                     </View>
                     <View style={styles.targetInfo}>
                       <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Water Target
+                        Paani Peene ka Goal
                       </Text>
                       <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Daily hydration goal
+                        Roz kitna paani peena hai?
                       </Text>
                     </View>
                   </View>
@@ -1061,10 +1061,10 @@ export default function AddRoutineScreen() {
                     </View>
                     <View style={styles.targetInfo}>
                       <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Focus Target
+                        Padhai ka Goal
                       </Text>
                       <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Study &amp; deep work hours
+                        Roz kitne ghante padhna hai?
                       </Text>
                     </View>
                   </View>
@@ -1110,15 +1110,15 @@ export default function AddRoutineScreen() {
               </Card>
 
               {/* ========================================================
-                  SECTION 3: TODAY'S LOGGED WAKE-UP (OPTIONAL LOG CORRECTION)
+                  SECTION 3: AAJ KITNE BAJE UTHE (OPTIONAL CORRECTION)
                   ======================================================== */}
               <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    3. TODAY&apos;S WAKE-UP LOG
+                    3. AAJ KITNE BAJE UTHE?
                   </Text>
                   <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
-                    Optional: Adjust or reset this morning&apos;s recorded rise time.
+                    Subah ka wake-up time adjust karo ya reset karo. (Today tab se bhi log ho sakta hai)
                   </Text>
                 </View>
               </View>

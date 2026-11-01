@@ -552,13 +552,13 @@ export default function AddRoutineScreen() {
                     : PrimitiveTokens.color.amber[700],
                 },
               ]}>
-              DAILY ANCHORS
+              ROUTINE SETUP
             </Text>
             <Text style={[styles.title, { color: theme.colors.text }]}>
-              {isExistingRoutine ? 'Edit Habits & Targets' : "Plan Today's Routine"}
+              {isExistingRoutine ? 'Habits & Daily Goals' : "Plan Today's Routine"}
             </Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Configure your daily circadian targets and choose your focus habits.
+              Customize your focus habits and configure your daily benchmark targets.
             </Text>
           </View>
 
@@ -572,360 +572,17 @@ export default function AddRoutineScreen() {
           ) : (
             <>
               {/* ========================================================
-                  SECTION 1: CIRCADIAN TARGETS
+                  SECTION 1: TODAY'S HABITS
                   ======================================================== */}
-              <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
-                DAILY TARGETS
-              </Text>
-
-              <Card style={styles.groupedCard}>
-                {/* Row 1: Wake-up Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileAmber
-                            : SemanticLightTokens.color.bg.tileAmber,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="sunny"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.amber[400]
-                            : PrimitiveTokens.color.amber[700]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Wake-up Target
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Morning rise anchor
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustWakeTarget(-15)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease wake-up target 15 minutes"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {formatTime12hr(formattedWakeTarget)}
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustWakeTarget(15)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase wake-up target 15 minutes"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
+              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[1] }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
+                    1. FOCUS HABITS
+                  </Text>
+                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
+                    Toggle habits you want to track today, or add custom ones.
+                  </Text>
                 </View>
-
-                <View
-                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
-                />
-
-                {/* Row 2: Water Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileSky
-                            : SemanticLightTokens.color.bg.tileSky,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="water"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.sky[400]
-                            : PrimitiveTokens.color.sky[600]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Water Target
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Daily hydration goal
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustWaterTarget(-0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease water target 0.5 liters"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {targetWater.toFixed(1)} L
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustWaterTarget(0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase water target 0.5 liters"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </View>
-
-                <View
-                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
-                />
-
-                {/* Row 3: Focus Target */}
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: theme.isDark
-                            ? SemanticDarkTokens.color.bg.tileIndigo
-                            : SemanticLightTokens.color.bg.tileIndigo,
-                        },
-                      ]}>
-                      <Ionicons
-                        name="book"
-                        size={18}
-                        color={
-                          theme.isDark
-                            ? PrimitiveTokens.color.indigo[400]
-                            : PrimitiveTokens.color.indigo[600]
-                        }
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        Focus Target
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        Study &amp; deep work hours
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.stepperContainer}>
-                    <Pressable
-                      onPress={() => adjustStudyTarget(-0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Decrease study target 0.5 hours"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="remove" size={16} color={theme.colors.text} />
-                    </Pressable>
-
-                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                      {targetStudy.toFixed(1)} h
-                    </Text>
-
-                    <Pressable
-                      onPress={() => adjustStudyTarget(0.5)}
-                      hitSlop={8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Increase study target 0.5 hours"
-                      style={({ pressed }) => [
-                        styles.stepperBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}>
-                      <Ionicons name="add" size={16} color={theme.colors.text} />
-                    </Pressable>
-                  </View>
-                </View>
-              </Card>
-
-              {/* ========================================================
-                  SECTION 2: TODAY'S LOGGED WAKE-UP (OPTIONAL LOG CORRECTION)
-                  ======================================================== */}
-              <View style={styles.sectionHeadingRow}>
-                <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
-                  TODAY&apos;S WAKE-UP LOG
-                </Text>
-              </View>
-
-              <Card style={styles.groupedCard}>
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: todayWakeUpTime
-                            ? theme.colors.successMuted
-                            : theme.colors.surfaceAlt,
-                        },
-                      ]}>
-                      <Ionicons
-                        name={todayWakeUpTime ? 'checkmark-circle' : 'time-outline'}
-                        size={18}
-                        color={todayWakeUpTime ? theme.colors.success : theme.colors.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        {todayWakeUpTime
-                          ? `Logged at ${formatTime12hr(todayWakeUpTime)}`
-                          : 'Not logged yet today'}
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        {todayWakeUpTime
-                          ? 'Tap steppers to adjust or reset'
-                          : 'You can log morning wake-up from Today screen'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {todayWakeUpTime ? (
-                    <View style={styles.stepperContainer}>
-                      <Pressable
-                        onPress={() => adjustLoggedWakeTime(-15)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Decrease logged wake-up 15 minutes"
-                        style={({ pressed }) => [
-                          styles.stepperBtn,
-                          {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.border,
-                          },
-                          pressed && { opacity: 0.7 },
-                        ]}>
-                        <Ionicons name="remove" size={16} color={theme.colors.text} />
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => adjustLoggedWakeTime(15)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Increase logged wake-up 15 minutes"
-                        style={({ pressed }) => [
-                          styles.stepperBtn,
-                          {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.border,
-                          },
-                          pressed && { opacity: 0.7 },
-                        ]}>
-                        <Ionicons name="add" size={16} color={theme.colors.text} />
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => {
-                          triggerHaptic('light');
-                          setTodayWakeUpTime(null);
-                        }}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Reset logged wake-up"
-                        style={({ pressed }) => [
-                          styles.resetBtn,
-                          { borderColor: theme.colors.borderSubtle },
-                          pressed && { opacity: 0.6 },
-                        ]}>
-                        <Text style={[styles.resetBtnText, { color: theme.colors.textMuted }]}>
-                          Reset
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light');
-                        setTodayWakeUpTime(formattedWakeTarget);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Log wake-up at target time"
-                      style={({ pressed }) => [
-                        styles.logNowBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.75 },
-                      ]}>
-                      <Ionicons name="time-outline" size={14} color={theme.colors.text} />
-                      <Text style={[styles.logNowText, { color: theme.colors.text }]}>
-                        Log Now
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              </Card>
-
-              {/* ========================================================
-                  SECTION 3: TODAY'S HABITS
-                  ======================================================== */}
-              <View style={styles.sectionHeadingRow}>
-                <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
-                  TODAY&apos;S HABITS
-                </Text>
                 <View
                   style={[
                     styles.countBadge,
@@ -1215,6 +872,366 @@ export default function AddRoutineScreen() {
                 )}
               </Card>
 
+              {/* ========================================================
+                  SECTION 2: CIRCADIAN TARGETS (DAILY BENCHMARK GOALS)
+                  ======================================================== */}
+              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
+                <View>
+                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
+                    2. DAILY BENCHMARK GOALS
+                  </Text>
+                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
+                    Set once. Your score is calculated against these daily targets.
+                  </Text>
+                </View>
+              </View>
+
+              <Card style={styles.groupedCard}>
+                {/* Row 1: Wake-up Target */}
+                <View style={styles.targetRow}>
+                  <View style={styles.targetLeft}>
+                    <View
+                      style={[
+                        styles.targetIconCircle,
+                        {
+                          backgroundColor: theme.isDark
+                            ? SemanticDarkTokens.color.bg.tileAmber
+                            : SemanticLightTokens.color.bg.tileAmber,
+                        },
+                      ]}>
+                      <Ionicons
+                        name="sunny"
+                        size={18}
+                        color={
+                          theme.isDark
+                            ? PrimitiveTokens.color.amber[400]
+                            : PrimitiveTokens.color.amber[700]
+                        }
+                      />
+                    </View>
+                    <View style={styles.targetInfo}>
+                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
+                        Wake-up Target
+                      </Text>
+                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                        Morning rise anchor
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.stepperContainer}>
+                    <Pressable
+                      onPress={() => adjustWakeTarget(-15)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease wake-up target 15 minutes"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="remove" size={16} color={theme.colors.text} />
+                    </Pressable>
+
+                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                      {formatTime12hr(formattedWakeTarget)}
+                    </Text>
+
+                    <Pressable
+                      onPress={() => adjustWakeTarget(15)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase wake-up target 15 minutes"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="add" size={16} color={theme.colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View
+                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
+                />
+
+                {/* Row 2: Water Target */}
+                <View style={styles.targetRow}>
+                  <View style={styles.targetLeft}>
+                    <View
+                      style={[
+                        styles.targetIconCircle,
+                        {
+                          backgroundColor: theme.isDark
+                            ? SemanticDarkTokens.color.bg.tileSky
+                            : SemanticLightTokens.color.bg.tileSky,
+                        },
+                      ]}>
+                      <Ionicons
+                        name="water"
+                        size={18}
+                        color={
+                          theme.isDark
+                            ? PrimitiveTokens.color.sky[400]
+                            : PrimitiveTokens.color.sky[600]
+                        }
+                      />
+                    </View>
+                    <View style={styles.targetInfo}>
+                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
+                        Water Target
+                      </Text>
+                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                        Daily hydration goal
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.stepperContainer}>
+                    <Pressable
+                      onPress={() => adjustWaterTarget(-0.5)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease water target 0.5 liters"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="remove" size={16} color={theme.colors.text} />
+                    </Pressable>
+
+                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                      {targetWater.toFixed(1)} L
+                    </Text>
+
+                    <Pressable
+                      onPress={() => adjustWaterTarget(0.5)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase water target 0.5 liters"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="add" size={16} color={theme.colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View
+                  style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
+                />
+
+                {/* Row 3: Focus Target */}
+                <View style={styles.targetRow}>
+                  <View style={styles.targetLeft}>
+                    <View
+                      style={[
+                        styles.targetIconCircle,
+                        {
+                          backgroundColor: theme.isDark
+                            ? SemanticDarkTokens.color.bg.tileIndigo
+                            : SemanticLightTokens.color.bg.tileIndigo,
+                        },
+                      ]}>
+                      <Ionicons
+                        name="book"
+                        size={18}
+                        color={
+                          theme.isDark
+                            ? PrimitiveTokens.color.indigo[400]
+                            : PrimitiveTokens.color.indigo[600]
+                        }
+                      />
+                    </View>
+                    <View style={styles.targetInfo}>
+                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
+                        Focus Target
+                      </Text>
+                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                        Study &amp; deep work hours
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.stepperContainer}>
+                    <Pressable
+                      onPress={() => adjustStudyTarget(-0.5)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Decrease study target 0.5 hours"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="remove" size={16} color={theme.colors.text} />
+                    </Pressable>
+
+                    <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
+                      {targetStudy.toFixed(1)} h
+                    </Text>
+
+                    <Pressable
+                      onPress={() => adjustStudyTarget(0.5)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Increase study target 0.5 hours"
+                      style={({ pressed }) => [
+                        styles.stepperBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}>
+                      <Ionicons name="add" size={16} color={theme.colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+              </Card>
+
+              {/* ========================================================
+                  SECTION 3: TODAY'S LOGGED WAKE-UP (OPTIONAL LOG CORRECTION)
+                  ======================================================== */}
+              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
+                <View>
+                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
+                    3. TODAY&apos;S WAKE-UP LOG
+                  </Text>
+                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
+                    Optional: Adjust or reset this morning&apos;s recorded rise time.
+                  </Text>
+                </View>
+              </View>
+
+              <Card style={styles.groupedCard}>
+                <View style={styles.targetRow}>
+                  <View style={styles.targetLeft}>
+                    <View
+                      style={[
+                        styles.targetIconCircle,
+                        {
+                          backgroundColor: todayWakeUpTime
+                            ? theme.colors.successMuted
+                            : theme.colors.surfaceAlt,
+                        },
+                      ]}>
+                      <Ionicons
+                        name={todayWakeUpTime ? 'checkmark-circle' : 'time-outline'}
+                        size={18}
+                        color={todayWakeUpTime ? theme.colors.success : theme.colors.textSecondary}
+                      />
+                    </View>
+                    <View style={styles.targetInfo}>
+                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
+                        {todayWakeUpTime
+                          ? `Logged at ${formatTime12hr(todayWakeUpTime)}`
+                          : 'Not logged yet today'}
+                      </Text>
+                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
+                        {todayWakeUpTime
+                          ? 'Tap steppers to adjust or reset'
+                          : 'You can log morning wake-up from Today screen'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {todayWakeUpTime ? (
+                    <View style={styles.stepperContainer}>
+                      <Pressable
+                        onPress={() => adjustLoggedWakeTime(-15)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Decrease logged wake-up 15 minutes"
+                        style={({ pressed }) => [
+                          styles.stepperBtn,
+                          {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.border,
+                          },
+                          pressed && { opacity: 0.7 },
+                        ]}>
+                        <Ionicons name="remove" size={16} color={theme.colors.text} />
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => adjustLoggedWakeTime(15)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Increase logged wake-up 15 minutes"
+                        style={({ pressed }) => [
+                          styles.stepperBtn,
+                          {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.border,
+                          },
+                          pressed && { opacity: 0.7 },
+                        ]}>
+                        <Ionicons name="add" size={16} color={theme.colors.text} />
+                      </Pressable>
+
+                      <Pressable
+                        onPress={() => {
+                          triggerHaptic('light');
+                          setTodayWakeUpTime(null);
+                        }}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reset logged wake-up"
+                        style={({ pressed }) => [
+                          styles.resetBtn,
+                          { borderColor: theme.colors.borderSubtle },
+                          pressed && { opacity: 0.6 },
+                        ]}>
+                        <Text style={[styles.resetBtnText, { color: theme.colors.textMuted }]}>
+                          Reset
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic('light');
+                        setTodayWakeUpTime(formattedWakeTarget);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Log wake-up at target time"
+                      style={({ pressed }) => [
+                        styles.logNowBtn,
+                        {
+                          backgroundColor: theme.colors.surfaceAlt,
+                          borderColor: theme.colors.border,
+                        },
+                        pressed && { opacity: 0.75 },
+                      ]}>
+                      <Ionicons name="time-outline" size={14} color={theme.colors.text} />
+                      <Text style={[styles.logNowText, { color: theme.colors.text }]}>
+                        Log Now
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              </Card>
+
               {/* Clean CTA Save Button */}
               <Button
                 title={isExistingRoutine ? 'Save Changes' : 'Save Routine'}
@@ -1330,6 +1347,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: PrimitiveTokens.space[2],
+    paddingHorizontal: PrimitiveTokens.space[1],
+  },
+  sectionSubtitleHint: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    marginTop: 2,
+    marginBottom: PrimitiveTokens.space[1],
     paddingHorizontal: PrimitiveTokens.space[1],
   },
   sectionHeadingRow: {

@@ -782,7 +782,7 @@ export default function TodayScreen() {
             onPress={() => router.push('/add-routine')}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel="Edit Habits"
+            accessibilityLabel="Habits and Goals"
             style={({ pressed }) => [
               styles.editBtn,
               {
@@ -792,7 +792,7 @@ export default function TodayScreen() {
               pressed && { opacity: 0.75 },
             ]}>
             <Ionicons name="options-outline" size={15} color={theme.colors.text} />
-            <Text style={[styles.editText, { color: theme.colors.text }]}>Edit Habits</Text>
+            <Text style={[styles.editText, { color: theme.colors.text }]}>Habits &amp; Goals</Text>
           </Pressable>
         </View>
       </View>
@@ -1075,9 +1075,17 @@ export default function TodayScreen() {
                       Wake-up
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {routine?.wakeUpTime
-                        ? `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · ${breakdown.wakePts}/30 pts`
-                        : `Target: ${formatWakeTimeDisplay(breakdown.targetWakeUp)} · 0/30 pts`}
+                      {routine?.wakeUpTime ? (
+                        <Text style={{ fontWeight: '700', color: theme.colors.text }}>
+                          {formatWakeTimeDisplay(routine?.wakeUpTime)}
+                          {' · '}
+                        </Text>
+                      ) : null}
+                      Goal: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
+                      {' · '}
+                      <Text style={{ color: wakeGoalMet ? theme.colors.success : theme.colors.textMuted }}>
+                        {routine?.wakeUpTime ? `${breakdown.wakePts}/30 pts` : '0/30 pts'}
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -1172,8 +1180,18 @@ export default function TodayScreen() {
                       Water Intake
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {(routine?.waterIntake ?? 0).toFixed(1)}L / {breakdown.targetWater}L ·{' '}
-                      {breakdown.waterPts}/30 pts
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: (routine?.waterIntake ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
+                        }}>
+                        {(routine?.waterIntake ?? 0).toFixed(1)}L
+                      </Text>
+                      {' · '}Goal: {breakdown.targetWater}L
+                      {' · '}
+                      <Text style={{ color: waterGoalMet ? theme.colors.success : theme.colors.textMuted }}>
+                        +{breakdown.waterPts} pts
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -1266,11 +1284,21 @@ export default function TodayScreen() {
                   </View>
                   <View style={styles.anchorDetails}>
                     <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                      Study & Focus
+                      Study &amp; Focus
                     </Text>
                     <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      {(routine?.studyHours ?? 0).toFixed(1)}h / {breakdown.targetStudy}h ·{' '}
-                      {breakdown.studyPts}/40 pts
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          color: (routine?.studyHours ?? 0) > 0 ? theme.colors.text : theme.colors.textSecondary,
+                        }}>
+                        {(routine?.studyHours ?? 0).toFixed(1)}h
+                      </Text>
+                      {' · '}Goal: {breakdown.targetStudy}h
+                      {' · '}
+                      <Text style={{ color: studyGoalMet ? theme.colors.success : theme.colors.textMuted }}>
+                        +{breakdown.studyPts} pts
+                      </Text>
                     </Text>
                   </View>
                 </View>
@@ -1335,9 +1363,29 @@ export default function TodayScreen() {
 
             {/* 3. Today's Habits Section */}
             <View style={styles.sectionHeadingRow}>
-              <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
-                TODAY&apos;S HABITS
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
+                  TODAY&apos;S HABITS
+                </Text>
+                <Pressable
+                  onPress={() => router.push('/add-routine')}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Manage Habits"
+                  style={({ pressed }) => [
+                    styles.manageHabitsPill,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: theme.colors.borderSubtle,
+                    },
+                    pressed && { opacity: 0.7 },
+                  ]}>
+                  <Ionicons name="create-outline" size={11} color={theme.colors.textSecondary} />
+                  <Text style={[styles.manageHabitsText, { color: theme.colors.textSecondary }]}>
+                    Manage
+                  </Text>
+                </Pressable>
+              </View>
               <Text
                 style={[
                   styles.sectionCountText,
@@ -1659,6 +1707,21 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.caption.fontSize,
     fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',
+  },
+  manageHabitsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  manageHabitsText: {
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   /* Daily Anchors */
   anchorsGroup: {

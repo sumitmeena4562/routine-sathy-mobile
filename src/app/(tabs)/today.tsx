@@ -760,12 +760,35 @@ export default function TodayScreen() {
     triggerHaptic('light');
     const [h, m] = pickerWakeTime.split(':').map(Number);
     let totalMins = (isNaN(h) ? 6 : h) * 60 + (isNaN(m) ? 0 : m) + deltaMinutes;
-    // Bound between 03:00 AM (180 mins) and 12:00 PM (720 mins)
-    totalMins = Math.max(180, Math.min(720, totalMins));
+    // Bound between 00:00 (0 mins) and 23:59 (1439 mins)
+    totalMins = Math.max(0, Math.min(1439, totalMins));
     const nextH = String(Math.floor(totalMins / 60)).padStart(2, '0');
     const nextM = String(totalMins % 60).padStart(2, '0');
     setPickerWakeTime(`${nextH}:${nextM}`);
   };
+
+  const setPickerHour = (hour: number) => {
+    triggerHaptic('light');
+    const [, m] = pickerWakeTime.split(':').map(Number);
+    const minute = isNaN(m) ? 0 : m;
+    const nextH = String(Math.max(0, Math.min(23, hour))).padStart(2, '0');
+    const nextM = String(minute).padStart(2, '0');
+    setPickerWakeTime(`${nextH}:${nextM}`);
+  };
+
+  const setPickerMinute = (minute: number) => {
+    triggerHaptic('light');
+    const [h] = pickerWakeTime.split(':').map(Number);
+    const hour = isNaN(h) ? 6 : h;
+    const nextH = String(hour).padStart(2, '0');
+    const nextM = String(Math.max(0, Math.min(59, minute))).padStart(2, '0');
+    setPickerWakeTime(`${nextH}:${nextM}`);
+  };
+
+  const [pickerHourVal, pickerMinuteVal] = (() => {
+    const [h, m] = pickerWakeTime.split(':').map(Number);
+    return [isNaN(h) ? 6 : h, isNaN(m) ? 0 : m];
+  })();
 
   const previewWakePoints = (() => {
     const targetWakeUpStr = goals?.targetWakeUp || '06:00';
@@ -986,83 +1009,139 @@ export default function TodayScreen() {
               </View>
             </View>
 
-            {/* Steppers: Hours & Minutes */}
-            <View style={styles.modalSteppersRow}>
-              {/* Hours Stepper */}
-              <View style={styles.modalStepperBlock}>
-                <Text style={[styles.modalStepperLabel, { color: theme.colors.textSecondary }]}>
-                  Hour
-                </Text>
-                <View style={styles.modalStepperControls}>
-                  <Pressable
-                    onPress={() => adjustPickerMinutes(-60)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Subtract 1 hour"
-                    style={[
-                      styles.modalStepperBtn,
-                      {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}>
-                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>-1h</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => adjustPickerMinutes(60)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add 1 hour"
-                    style={[
-                      styles.modalStepperBtn,
-                      {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}>
-                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>+1h</Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Minutes Stepper */}
-              <View style={styles.modalStepperBlock}>
-                <Text style={[styles.modalStepperLabel, { color: theme.colors.textSecondary }]}>
-                  Minute
-                </Text>
-                <View style={styles.modalStepperControls}>
-                  <Pressable
-                    onPress={() => adjustPickerMinutes(-15)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Subtract 15 minutes"
-                    style={[
-                      styles.modalStepperBtn,
-                      {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}>
-                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>-15m</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() => adjustPickerMinutes(15)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Add 15 minutes"
-                    style={[
-                      styles.modalStepperBtn,
-                      {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}>
-                    <Text style={[styles.modalStepperBtnText, { color: theme.colors.text }]}>+15m</Text>
-                  </Pressable>
-                </View>
+            {/* Interactive Hour Selector (Horizontal Scroll) */}
+            <View style={styles.pickerSectionHeader}>
+              <Text style={[styles.pickerSectionLabel, { color: theme.colors.textSecondary }]}>
+                HOUR (AM / PM)
+              </Text>
+              <View style={styles.fineTuneRow}>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(-60)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-1h</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(60)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+1h</Text>
+                </Pressable>
               </View>
             </View>
 
-            {/* Quick 1-tap presets */}
-            <Text style={[styles.modalPresetsHeading, { color: theme.colors.textMuted }]}>
-              QUICK PRESETS
-            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pickerChipsScroll}>
+              {[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((hour) => {
+                const isSelected = pickerHourVal === hour;
+                const displayH = hour % 12 === 0 ? 12 : hour % 12;
+                const period = hour < 12 ? 'AM' : 'PM';
+                return (
+                  <Pressable
+                    key={hour}
+                    onPress={() => setPickerHour(hour)}
+                    style={[
+                      styles.pickerChip,
+                      isSelected
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderColor: theme.colors.primary,
+                          }
+                        : {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.borderSubtle,
+                          },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.pickerChipText,
+                        {
+                          color: isSelected
+                            ? theme.colors.primaryForeground
+                            : theme.colors.text,
+                        },
+                      ]}>
+                      {String(displayH).padStart(2, '0')} {period}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Interactive Minute Selector (Horizontal Scroll + Micro Step) */}
+            <View style={[styles.pickerSectionHeader, { marginTop: PrimitiveTokens.space[3] }]}>
+              <Text style={[styles.pickerSectionLabel, { color: theme.colors.textSecondary }]}>
+                MINUTE
+              </Text>
+              <View style={styles.fineTuneRow}>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(-1)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-1m</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(1)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+1m</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(-5)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-5m</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => adjustPickerMinutes(5)}
+                  hitSlop={6}
+                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
+                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+5m</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pickerChipsScroll}>
+              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((min) => {
+                const isSelected = pickerMinuteVal === min;
+                return (
+                  <Pressable
+                    key={min}
+                    onPress={() => setPickerMinute(min)}
+                    style={[
+                      styles.pickerChip,
+                      isSelected
+                        ? {
+                            backgroundColor: theme.colors.primary,
+                            borderColor: theme.colors.primary,
+                          }
+                        : {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.borderSubtle,
+                          },
+                    ]}>
+                    <Text
+                      style={[
+                        styles.pickerChipText,
+                        {
+                          color: isSelected
+                            ? theme.colors.primaryForeground
+                            : theme.colors.text,
+                        },
+                      ]}>
+                      :{String(min).padStart(2, '0')}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {/* Quick 1-tap shortcuts */}
             <View style={styles.modalPresetsRow}>
               <Pressable
                 onPress={() => {
@@ -1077,7 +1156,7 @@ export default function TodayScreen() {
                   { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
                 ]}>
                 <Ionicons name="time-outline" size={12} color={theme.colors.text} />
-                <Text style={[styles.modalPresetText, { color: theme.colors.text }]}>Now</Text>
+                <Text style={[styles.modalPresetText, { color: theme.colors.text }]}>Right Now</Text>
               </Pressable>
 
               <Pressable
@@ -1119,42 +1198,6 @@ export default function TodayScreen() {
                   Target ({formatWakeTimeDisplay(goals?.targetWakeUp || '06:00')})
                 </Text>
               </Pressable>
-
-              {['05:30', '06:00', '06:30', '07:00'].map((preset) => {
-                const isSelected = pickerWakeTime === preset;
-                return (
-                  <Pressable
-                    key={preset}
-                    onPress={() => {
-                      triggerHaptic('light');
-                      setPickerWakeTime(preset);
-                    }}
-                    style={[
-                      styles.modalPresetPill,
-                      isSelected
-                        ? {
-                            backgroundColor: theme.colors.primary,
-                            borderColor: theme.colors.primary,
-                          }
-                        : {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.borderSubtle,
-                          },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.modalPresetText,
-                        {
-                          color: isSelected
-                            ? theme.colors.primaryForeground
-                            : theme.colors.text,
-                        },
-                      ]}>
-                      {formatWakeTimeDisplay(preset)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
             </View>
 
             {/* CTA Buttons */}
@@ -2423,31 +2466,50 @@ const styles = StyleSheet.create({
     gap: PrimitiveTokens.space[3],
     marginBottom: PrimitiveTokens.space[4],
   },
-  modalStepperBlock: {
-    flex: 1,
-  },
-  modalStepperLabel: {
-    fontSize: 11,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  modalStepperControls: {
+  // Hour & Minute Selector Chips & Micro Steppers
+  pickerSectionHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: PrimitiveTokens.space[1],
+  },
+  pickerSectionLabel: {
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  fineTuneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: PrimitiveTokens.space[1],
   },
-  modalStepperBtn: {
-    flex: 1,
-    height: 38,
+  microStepBtn: {
+    paddingHorizontal: PrimitiveTokens.space[2],
+    paddingVertical: 3,
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  microStepText: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+  pickerChipsScroll: {
+    flexDirection: 'row',
+    gap: PrimitiveTokens.space[1],
+    paddingVertical: PrimitiveTokens.space[1],
+  },
+  pickerChip: {
+    paddingHorizontal: PrimitiveTokens.space[3],
+    paddingVertical: PrimitiveTokens.space[2],
     borderRadius: PrimitiveTokens.radius.md,
     borderWidth: 1,
+    minWidth: 54,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalStepperBtnText: {
+  pickerChipText: {
     fontSize: TypographyScale.caption.fontSize,
     fontFamily: TypographyScale.caption.fontFamily,
     fontWeight: '700',

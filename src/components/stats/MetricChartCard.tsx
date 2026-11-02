@@ -154,14 +154,14 @@ export function MetricChartCard({
         })}
       </View>
 
-      {/* 2. Range Segmented Control (Week, Month, Year Plus) */}
+      {/* 2. Range Segmented Control (Week vs Month) */}
       <View
         style={[
           styles.segTrack,
           styles.rangeTrack,
           { backgroundColor: theme.colors.surfaceAlt },
         ]}>
-        {(['week', 'month', 'year'] as RangeType[]).map((r) => {
+        {(['week', 'month'] as RangeType[]).map((r) => {
           const isActive = selectedRange === r;
           const labels: Record<RangeType, string> = {
             week: 'Week',
@@ -193,13 +193,6 @@ export function MetricChartCard({
                   ]}>
                   {labels[r]}
                 </Text>
-                {r === 'year' && (
-                  <Ionicons
-                    name="lock-closed"
-                    size={11}
-                    color={isActive ? theme.colors.text : theme.colors.textMuted}
-                  />
-                )}
               </View>
             </Pressable>
           );

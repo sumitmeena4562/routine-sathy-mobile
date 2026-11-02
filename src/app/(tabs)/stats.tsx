@@ -507,7 +507,7 @@ export default function StatsScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 96, 112),
+            paddingBottom: Math.max(insets.bottom + 128, 144),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
@@ -547,32 +547,71 @@ export default function StatsScreen() {
               isEmpty={isEmpty}
             />
 
-            {/* 2. Interactive Metric & Trend Chart Card */}
-            <MetricChartCard
-              days={chartDays}
-              selectedMetric={selectedMetric}
-              onSelectMetric={setSelectedMetric}
-              selectedRange={selectedRange}
-              onSelectRange={setSelectedRange}
-              weekOffset={weekOffset}
-              onNavigateWeek={(dir) => setWeekOffset((prev) => prev + dir)}
-              weekLabel={weekLabel}
-              isTableMode={isTableMode}
-              onToggleTableMode={() => setIsTableMode((prev) => !prev)}
-              onSelectDay={handleOpenDayModal}
-              userGoals={goals}
-              isEmpty={isEmpty}
-            />
+            {/* 2. Interactive Trends: 7-Day Week Bar Chart or 30-Day Monthly Heatmap */}
+            {selectedRange === 'week' ? (
+              <MetricChartCard
+                days={chartDays}
+                selectedMetric={selectedMetric}
+                onSelectMetric={setSelectedMetric}
+                selectedRange={selectedRange}
+                onSelectRange={setSelectedRange}
+                weekOffset={weekOffset}
+                onNavigateWeek={(dir) => setWeekOffset((prev) => prev + dir)}
+                weekLabel={weekLabel}
+                isTableMode={isTableMode}
+                onToggleTableMode={() => setIsTableMode((prev) => !prev)}
+                onSelectDay={handleOpenDayModal}
+                userGoals={goals}
+                isEmpty={isEmpty}
+              />
+            ) : (
+              <View style={styles.monthSection}>
+                {/* Clean Range Switcher Header for Month View */}
+                <View
+                  style={[
+                    styles.monthRangeBar,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}>
+                  <View style={[styles.rangeSegTrack, { backgroundColor: theme.colors.surfaceAlt }]}>
+                    <Pressable
+                      onPress={() => setSelectedRange('week')}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: false }}
+                      style={styles.rangeSegBtn}>
+                      <Text style={[styles.rangeSegBtnText, { color: theme.colors.textSecondary }]}>
+                        Week
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setSelectedRange('month')}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: true }}
+                      style={[
+                        styles.rangeSegBtn,
+                        styles.rangeSegBtnActive,
+                        { backgroundColor: theme.colors.surface },
+                      ]}>
+                      <Text style={[styles.rangeSegBtnText, { color: theme.colors.text, fontWeight: '800' }]}>
+                        Month
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
 
-            {/* 3. Monthly Heatmap Card */}
-            <MonthlyHeatmapCard
-              monthName={today.toLocaleString('en-US', { month: 'long' })}
-              days={heatmapDays}
-              firstDayOffset={firstDayOfMonth}
-              onSelectDay={handleOpenHeatmapDayModal}
-            />
+                {/* 30-Day Interactive Calendar Heatmap */}
+                <MonthlyHeatmapCard
+                  monthName={today.toLocaleString('en-US', { month: 'long' })}
+                  days={heatmapDays}
+                  firstDayOffset={firstDayOfMonth}
+                  onSelectDay={handleOpenHeatmapDayModal}
+                />
+              </View>
+            )}
 
-            {/* 4. Sathy Companion Reflection Card */}
+            {/* 3. Sathy Companion Reflection Card */}
             <SathyInsightCard
               bestDayName={
                 bestDayItem && bestDayItem.score > 0
@@ -674,5 +713,36 @@ const styles = StyleSheet.create({
   retryBtnText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  monthSection: {
+    gap: PrimitiveTokens.space[3],
+  },
+  monthRangeBar: {
+    padding: PrimitiveTokens.space[1],
+    borderRadius: PrimitiveTokens.radius['2xl'],
+    borderWidth: 1,
+  },
+  rangeSegTrack: {
+    flexDirection: 'row',
+    borderRadius: PrimitiveTokens.radius.lg,
+    padding: 3,
+  },
+  rangeSegBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: PrimitiveTokens.radius.md,
+  },
+  rangeSegBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  rangeSegBtnText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
 });

@@ -70,7 +70,7 @@ export function MonthlyHeatmapCard({
           {monthName}
         </Text>
         <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
-          Tap a bar for day details
+          Tap any day for details
         </Text>
       </View>
 

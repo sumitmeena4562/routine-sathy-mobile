@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useTheme } from '@/hooks/use-theme';
 import {
   PrimitiveTokens,
   TypographyScale,
@@ -27,21 +28,43 @@ export function SathyInsightCard({
   isEmpty = false,
   onPressAction,
 }: SathyInsightCardProps) {
+  const theme = useTheme();
+
   const message = isEmpty
     ? 'I will share insights after 3 days of logging. For now, just log one small step today.'
     : bestDayName && bestScore
       ? `Your best day this week was ${bestDayName} (${bestScore} pts). You woke at ${bestWakeTime || '06:00 AM'} that morning. Try an early start tomorrow.`
       : 'Keep building daily consistency. Small steps create unstoppable momentum.';
 
+  const avatarBg = theme.isDark
+    ? 'rgba(91, 219, 139, 0.15)'
+    : 'rgba(30, 158, 90, 0.12)';
+  const iconColor = theme.isDark
+    ? PrimitiveTokens.color.fern[300]
+    : PrimitiveTokens.color.forest[600];
+  const eyebrowColor = theme.isDark
+    ? PrimitiveTokens.color.fern[300]
+    : PrimitiveTokens.color.forest[600];
+  const borderColor = theme.isDark
+    ? 'rgba(91, 219, 139, 0.2)'
+    : PrimitiveTokens.color.fern[200];
+
   return (
-    <View style={styles.card}>
-      <View style={styles.avatarCircle}>
-        <Ionicons name="sparkles" size={17} color="#5BDB8B" />
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor,
+        },
+      ]}>
+      <View style={[styles.avatarCircle, { backgroundColor: avatarBg }]}>
+        <Ionicons name="sparkles" size={17} color={iconColor} />
       </View>
 
       <View style={styles.contentCol}>
-        <Text style={styles.eyebrow}>SATHY NOTICED</Text>
-        <Text style={styles.messageText}>{message}</Text>
+        <Text style={[styles.eyebrow, { color: eyebrowColor }]}>SATHY NOTICED</Text>
+        <Text style={[styles.messageText, { color: theme.colors.text }]}>{message}</Text>
 
         {onPressAction && (
           <Pressable
@@ -65,17 +88,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: PrimitiveTokens.space[3],
     alignItems: 'flex-start',
-    backgroundColor: '#07261B', // Deep forest background
     borderRadius: PrimitiveTokens.radius.xl,
     padding: PrimitiveTokens.space[4],
     borderWidth: 1,
-    borderColor: 'rgba(91, 219, 139, 0.2)',
   },
   avatarCircle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(91, 219, 139, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -87,14 +107,12 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.captionSm.fontSize,
     fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '800',
-    color: '#6EE7B7', // Mint green highlight
     letterSpacing: 0.8,
     marginBottom: 3,
   },
   messageText: {
     fontSize: 12.5,
     fontFamily: TypographyScale.body.fontFamily,
-    color: '#F4F7F4',
     lineHeight: 18,
   },
   ctaBtn: {

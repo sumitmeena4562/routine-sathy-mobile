@@ -295,7 +295,7 @@ function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0):
       date: dateStr,
       isToday,
       score: recordedScore,
-      isDone: recordedScore >= 80,
+      isDone: recordedScore >= 60,
     };
   });
 }
@@ -1331,6 +1331,7 @@ export default function TodayScreen() {
         style={[
           styles.headerBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (Platform.OS === 'android' ? 12 : 8),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
@@ -1390,7 +1391,7 @@ export default function TodayScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 96, 112),
+            paddingBottom: Math.max(insets.bottom + 128, 144),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },

@@ -468,6 +468,7 @@ export default function StatsScreen() {
         style={[
           styles.headerBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (theme.isDark ? 8 : 10),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,

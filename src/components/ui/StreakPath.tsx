@@ -95,7 +95,7 @@ export function StreakPath({ streakCount, days, onSelectDay }: StreakPathProps) 
 
       <HStack justify="space-between" align="center" style={styles.daysRow}>
         {days.map((item, index) => {
-          const isDone = item.isDone || item.score >= 80;
+          const isDone = item.isDone || item.score >= 60;
           const isToday = item.isToday;
 
           let dotBg = theme.colors.surfaceAlt;

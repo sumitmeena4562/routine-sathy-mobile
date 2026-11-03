@@ -40,17 +40,6 @@ const DEFAULT_HABITS: HabitItem[] = [
   { id: 'reading', name: 'Reading', type: 'boolean', icon: 'glasses-outline', enabled: true },
 ];
 
-function formatTime12hr(timeStr: string): string {
-  const [hStr, mStr] = timeStr.split(':');
-  let h = parseInt(hStr, 10);
-  if (isNaN(h)) return timeStr;
-  const m = mStr ? mStr.padStart(2, '0') : '00';
-  const period = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return `${h}:${m} ${period}`;
-}
-
 /**
  * Curated brand palette matching Today dashboard
  */
@@ -230,18 +219,6 @@ export default function AddRoutineScreen() {
 
     loadDefaults();
   }, []);
-
-  // Adjust today's logged wake-up time (if correcting an entry)
-  const adjustLoggedWakeTime = (deltaMinutes: number) => {
-    triggerHaptic('light');
-    const curTime = todayWakeUpTime || '07:00';
-    const [h, m] = curTime.split(':').map(Number);
-    let totalMins = (isNaN(h) ? 7 : h) * 60 + (isNaN(m) ? 0 : m) + deltaMinutes;
-    totalMins = Math.max(240, Math.min(720, totalMins));
-    const nextH = String(Math.floor(totalMins / 60)).padStart(2, '0');
-    const nextM = String(totalMins % 60).padStart(2, '0');
-    setTodayWakeUpTime(`${nextH}:${nextM}`);
-  };
 
   // Habit Selection Toggle
   const toggleHabit = (id: string) => {
@@ -430,6 +407,7 @@ export default function AddRoutineScreen() {
         style={[
           styles.topBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
@@ -518,12 +496,12 @@ export default function AddRoutineScreen() {
           ) : (
             <>
               {/* ========================================================
-                  SECTION 1: TODAY'S HABITS
+                  FOCUS HABITS MANAGEMENT
                   ======================================================== */}
               <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[1] }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    1. FOCUS HABITS
+                    FOCUS HABITS
                   </Text>
                   <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
                     Toggle habits you want to track today, or add custom ones.
@@ -886,151 +864,27 @@ export default function AddRoutineScreen() {
                 </Pressable>
               </Card>
 
-              {/* ========================================================
-                  SECTION 2: TODAY'S WAKE-UP LOG (OPTIONAL CORRECTION)
-                  ======================================================== */}
-              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[6] }]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
-                    2. TODAY&apos;S WAKE-UP LOG
-                  </Text>
-                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
-                    Optional: Adjust or reset this morning&apos;s recorded wake-up time.
-                  </Text>
-                </View>
-              </View>
-
-              <Card style={styles.groupedCard}>
-                <View style={styles.targetRow}>
-                  <View style={styles.targetLeft}>
-                    <View
-                      style={[
-                        styles.targetIconCircle,
-                        {
-                          backgroundColor: todayWakeUpTime
-                            ? theme.colors.successMuted
-                            : theme.colors.surfaceAlt,
-                        },
-                      ]}>
-                      <Ionicons
-                        name={todayWakeUpTime ? 'checkmark-circle' : 'time-outline'}
-                        size={18}
-                        color={todayWakeUpTime ? theme.colors.success : theme.colors.textSecondary}
-                      />
-                    </View>
-                    <View style={styles.targetInfo}>
-                      <Text style={[styles.targetTitle, { color: theme.colors.text }]}>
-                        {todayWakeUpTime
-                          ? `Logged at ${formatTime12hr(todayWakeUpTime)}`
-                          : 'Not logged yet today'}
-                      </Text>
-                      <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                        {todayWakeUpTime
-                          ? 'Tap steppers to adjust or reset'
-                          : 'You can log morning wake-up from Today screen'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {todayWakeUpTime ? (
-                    <View style={styles.stepperContainer}>
-                      <Pressable
-                        onPress={() => adjustLoggedWakeTime(-15)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Decrease logged wake-up 15 minutes"
-                        style={({ pressed }) => [
-                          styles.stepperBtn,
-                          {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.border,
-                          },
-                          pressed && { opacity: 0.7 },
-                        ]}>
-                        <Ionicons name="remove" size={16} color={theme.colors.text} />
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => adjustLoggedWakeTime(15)}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Increase logged wake-up 15 minutes"
-                        style={({ pressed }) => [
-                          styles.stepperBtn,
-                          {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.border,
-                          },
-                          pressed && { opacity: 0.7 },
-                        ]}>
-                        <Ionicons name="add" size={16} color={theme.colors.text} />
-                      </Pressable>
-
-                      <Pressable
-                        onPress={() => {
-                          triggerHaptic('light');
-                          setTodayWakeUpTime(null);
-                        }}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel="Reset logged wake-up"
-                        style={({ pressed }) => [
-                          styles.resetBtn,
-                          { borderColor: theme.colors.borderSubtle },
-                          pressed && { opacity: 0.6 },
-                        ]}>
-                        <Text style={[styles.resetBtnText, { color: theme.colors.textMuted }]}>
-                          Reset
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable
-                      onPress={() => {
-                        triggerHaptic('light');
-                        const now = new Date();
-                        const h = String(now.getHours()).padStart(2, '0');
-                        const m = String(now.getMinutes()).padStart(2, '0');
-                        setTodayWakeUpTime(`${h}:${m}`);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Log wake-up right now"
-                      style={({ pressed }) => [
-                        styles.logNowBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.border,
-                        },
-                        pressed && { opacity: 0.75 },
-                      ]}>
-                      <Ionicons name="time-outline" size={14} color={theme.colors.text} />
-                      <Text style={[styles.logNowText, { color: theme.colors.text }]}>
-                        Log Now
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
-              </Card>
-
               {/* Clean CTA Save Button */}
-              <Button
-                title={isExistingRoutine ? 'Save Changes' : 'Save Routine'}
-                onPress={handleSave}
-                loading={loading}
-                variant="primary"
-                size="lg"
-                pill
-                fullWidth
-                icon={
-                  <Ionicons
-                    name="checkmark-sharp"
-                    size={18}
-                    color={theme.colors.primaryForeground}
-                    style={{ marginRight: 6 }}
-                  />
-                }
-                style={styles.saveBtn}
-              />
+              <View style={{ marginTop: PrimitiveTokens.space[6] }}>
+                <Button
+                  title="Save Habits"
+                  onPress={handleSave}
+                  loading={loading}
+                  variant="primary"
+                  size="lg"
+                  pill
+                  fullWidth
+                  icon={
+                    <Ionicons
+                      name="checkmark-sharp"
+                      size={18}
+                      color={theme.colors.primaryForeground}
+                      style={{ marginRight: 6 }}
+                    />
+                  }
+                  style={styles.saveBtn}
+                />
+              </View>
             </>
           )}
         </ScrollView>

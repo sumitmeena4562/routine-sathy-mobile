@@ -393,6 +393,7 @@ export default function ProfileScreen() {
         style={[
           styles.headerBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (Platform.OS === 'android' ? 14 : 10),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
@@ -413,7 +414,7 @@ export default function ProfileScreen() {
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 96, 112),
+            paddingBottom: Math.max(insets.bottom + 128, 144),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
@@ -446,7 +447,7 @@ export default function ProfileScreen() {
               <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1}>
                 {user?.name || 'Routine User'}
               </Text>
-              <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]} numberOfLines={1}>
+              <Text style={[styles.userEmail, { color: theme.colors.textSecondary }]} numberOfLines={2}>
                 {user?.email || '—'}
               </Text>
               <View style={[styles.roleChip, { backgroundColor: amberTileBg }]}>

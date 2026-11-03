@@ -8,12 +8,9 @@ import {
   PrimitiveTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
+import { DayStreakItem } from '@/types/routine';
 
-export interface StreakDayItem {
-  day: string;
-  score: number;
-  isToday: boolean;
-}
+export type StreakDayItem = DayStreakItem;
 
 export interface StreakHubCardProps {
   currentStreak: number;
@@ -21,7 +18,7 @@ export interface StreakHubCardProps {
   avgScore: number;
   totalDays: number;
   weekDays: StreakDayItem[];
-  range?: 'week' | 'month' | 'year';
+  range?: 'week' | 'month';
   isEmpty?: boolean;
 }
 

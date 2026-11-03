@@ -12,14 +12,9 @@ import { triggerHaptic } from '@/utils/haptics';
 import { Card } from './Card';
 import { Text } from './Text';
 import { HStack, VStack } from './Box';
+import { DayStreakItem } from '@/types/routine';
 
-export interface DayStreakItem {
-  day: string; // 'M', 'T', 'W', etc.
-  date: string;
-  isToday: boolean;
-  score: number; // 0 to 100
-  isDone: boolean;
-}
+export type { DayStreakItem };
 
 export interface StreakPathProps {
   streakCount: number;

@@ -17,7 +17,7 @@ import {
 import { UserGoals } from '@/types/routine';
 
 export type MetricType = 'score' | 'water' | 'study' | 'wake';
-export type RangeType = 'week' | 'month' | 'year';
+export type RangeType = 'week' | 'month';
 
 export interface ChartDayItem {
   dayName: string;
@@ -166,7 +166,6 @@ export function MetricChartCard({
           const labels: Record<RangeType, string> = {
             week: 'Week',
             month: 'Month',
-            year: 'Year',
           };
 
           return (
@@ -199,37 +198,9 @@ export function MetricChartCard({
         })}
       </View>
 
-      {/* 3. Range Content: Year Paywall or Chart/Table */}
-      {selectedRange === 'year' ? (
-        <View style={[styles.lockedCard, { borderColor: theme.colors.borderSubtle }]}>
-          <View style={styles.lockIconCircle}>
-            <Ionicons name="lock-closed" size={20} color={theme.colors.textMuted} />
-          </View>
-          <Text style={[styles.lockedTitle, { color: theme.colors.text }]}>
-            Year view is part of Plus
-          </Text>
-          <Text style={[styles.lockedDesc, { color: theme.colors.textSecondary }]}>
-            See 12 months of water, study and wake-up trends.
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="See Plus plan"
-            style={[
-              styles.plusCtaBtn,
-              {
-                backgroundColor: theme.isDark
-                  ? PrimitiveTokens.color.amber[400]
-                  : PrimitiveTokens.color.amber[500],
-              },
-            ]}>
-            <Text style={styles.plusCtaText}>See Plus</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <>
-          {/* Week Navigator or Month Header */}
-          {selectedRange === 'week' ? (
-            <View style={styles.navigatorRow}>
+      {/* 3. Range Content: Week Navigator / Month Header and Chart/Table */}
+      {selectedRange === 'week' ? (
+        <View style={styles.navigatorRow}>
               <Pressable
                 onPress={() => onNavigateWeek(-1)}
                 disabled={weekOffset <= -2}
@@ -444,8 +415,6 @@ export function MetricChartCard({
               )}
             </>
           )}
-        </>
-      )}
     </Card>
   );
 }
@@ -668,43 +637,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginTop: PrimitiveTokens.space[2],
-  },
-  /* Year Locked */
-  lockedCard: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderRadius: PrimitiveTokens.radius.lg,
-    padding: PrimitiveTokens.space[5],
-    alignItems: 'center',
-    marginVertical: PrimitiveTokens.space[3],
-    gap: PrimitiveTokens.space[2],
-  },
-  lockIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockedTitle: {
-    fontSize: 14,
-    fontFamily: TypographyScale.bodyStrong.fontFamily,
-    fontWeight: '800',
-  },
-  lockedDesc: {
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  plusCtaBtn: {
-    paddingHorizontal: PrimitiveTokens.space[4],
-    paddingVertical: PrimitiveTokens.space[2],
-    borderRadius: PrimitiveTokens.radius.md,
-    marginTop: PrimitiveTokens.space[1],
-  },
-  plusCtaText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#052418',
   },
 });
 

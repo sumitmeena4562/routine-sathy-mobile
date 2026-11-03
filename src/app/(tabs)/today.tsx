@@ -43,6 +43,8 @@ import {
   TrendDay,
   UserGoals,
 } from '@/types/routine';
+import { cleanHabitName, getHabitBrandMeta } from '@/constants/habits';
+import { formatLocalDate, formatTime12hr as formatWakeTimeDisplay } from '@/utils/dateTime';
 import { triggerHaptic } from '@/utils/haptics';
 
 function getTimeGreeting(): string {
@@ -50,98 +52,6 @@ function getTimeGreeting(): string {
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
-}
-
-function formatWakeTimeDisplay(timeStr?: string | null): string {
-  if (!timeStr) return '--:--';
-  const [hStr, mStr] = timeStr.split(':');
-  let h = parseInt(hStr, 10);
-  if (isNaN(h)) return timeStr;
-  const m = mStr ? mStr.padStart(2, '0') : '00';
-  const period = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return `${h}:${m} ${period}`;
-}
-
-function cleanHabitName(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
-    return 'Workout';
-  }
-  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
-    return 'Meditation';
-  }
-  if (lower.includes('read') || lower.includes('book')) {
-    return 'Reading';
-  }
-  return name.replace(/\s*\/\s*.*$/, '');
-}
-
-/**
- * Curated brand palette for circadian habits.
- */
-function getHabitBrandMeta(name: string, isDark: boolean): {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tileBg: string;
-} {
-  const lower = name.toLowerCase();
-
-  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
-    return {
-      icon: 'barbell',
-      iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
-    };
-  }
-  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
-    return {
-      icon: 'leaf',
-      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
-    };
-  }
-  if (lower.includes('read') || lower.includes('book')) {
-    return {
-      icon: 'glasses',
-      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
-    };
-  }
-  if (lower.includes('study') || lower.includes('focus') || lower.includes('course')) {
-    return {
-      icon: 'school',
-      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-    };
-  }
-  if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
-    return {
-      icon: 'water',
-      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
-    };
-  }
-  if (lower.includes('walk') || lower.includes('run') || lower.includes('step')) {
-    return {
-      icon: 'footsteps',
-      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
-    };
-  }
-  if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night')) {
-    return {
-      icon: 'moon',
-      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-    };
-  }
-  return {
-    icon: 'sparkles',
-    iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
-    tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
-  };
 }
 
 /**
@@ -256,13 +166,6 @@ function calcScoreBreakdown(
     targetWater,
     targetStudy,
   };
-}
-
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0): DayStreakItem[] {

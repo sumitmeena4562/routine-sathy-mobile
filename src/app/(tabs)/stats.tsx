@@ -35,16 +35,8 @@ import {
   PrimitiveTokens,
   TypographyScale,
 } from '@/theme/tokens.generated';
+import { formatLocalDate, WEEKDAY_NAMES_SHORT as WEEKDAY_NAMES } from '@/utils/dateTime';
 import { RoutineData, RoutineStats, UserGoals } from '@/types/routine';
-
-function formatLocalDate(d: Date): string {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-const WEEKDAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function StatsScreen() {
   const theme = useTheme();
@@ -238,108 +230,59 @@ export default function StatsScreen() {
   // 2. Generate Days for the Chart (Week or Month view)
   const currentDayIndex = today.getDay();
   const chartDays: ChartDayItem[] = [];
-  let weekLabel = 'This Week';
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - currentDayIndex + weekOffset * 7);
 
-  if (selectedRange === 'week') {
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDayIndex + weekOffset * 7);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const startMonth = startOfWeek.toLocaleString('en-US', { month: 'short' });
+  const endMonth = endOfWeek.toLocaleString('en-US', { month: 'short' });
+  const weekLabel =
+    startMonth === endMonth
+      ? `${startMonth} ${startOfWeek.getDate()} – ${endOfWeek.getDate()}`
+      : `${startMonth} ${startOfWeek.getDate()} – ${endMonth} ${endOfWeek.getDate()}`;
 
-    const startMonth = startOfWeek.toLocaleString('en-US', { month: 'short' });
-    const endMonth = endOfWeek.toLocaleString('en-US', { month: 'short' });
-    weekLabel =
-      startMonth === endMonth
-        ? `${startMonth} ${startOfWeek.getDate()} – ${endOfWeek.getDate()}`
-        : `${startMonth} ${startOfWeek.getDate()} – ${endMonth} ${endOfWeek.getDate()}`;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
 
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
-      const dStr = formatLocalDate(d);
-      const r = routinesByDate.get(dStr);
+    const water = r?.waterIntake ?? 0;
+    const study = r?.studyHours ?? 0;
+    const wake = r?.wakeUpTime;
 
-      const water = r?.waterIntake ?? 0;
-      const study = r?.studyHours ?? 0;
-      const wake = r?.wakeUpTime;
-
-      // Calculate exact score breakdown using user's real targets
-      const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
-      const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
-      let wakePts = 0;
-      if (wake) {
-        const [h, m] = wake.split(':').map(Number);
-        const mins = (h || 0) * 60 + (m || 0);
-        if (mins <= targetWakeMins) {
-          wakePts = 30;
-        } else if (mins < targetWakeMins + 240) {
-          wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
-        }
+    // Calculate exact score breakdown using user's real targets
+    const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
+    const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
+    let wakePts = 0;
+    if (wake) {
+      const [h, m] = wake.split(':').map(Number);
+      const mins = (h || 0) * 60 + (m || 0);
+      if (mins <= targetWakeMins) {
+        wakePts = 30;
+      } else if (mins < targetWakeMins + 240) {
+        wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
       }
-
-      const recordedScore = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
-
-      chartDays.push({
-        dayName: dStr === todayStr ? 'Today' : WEEKDAY_NAMES[d.getDay()],
-        dayNumber: d.getDate(),
-        dateStr: dStr,
-        isToday: dStr === todayStr,
-        score: recordedScore,
-        waterIntake: water,
-        studyHours: study,
-        wakeMinutesFromTarget: 0,
-        wakeUpTime: wake,
-        wakePts,
-        waterPts,
-        studyPts,
-      });
     }
-  } else {
-    // Month View (current month's days, e.g. 1 to 31)
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
-      const d = new Date(year, month, dayNum);
-      const dStr = formatLocalDate(d);
-      const r = routinesByDate.get(dStr);
+    const recordedScore = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
 
-      const water = r?.waterIntake ?? 0;
-      const study = r?.studyHours ?? 0;
-      const wake = r?.wakeUpTime;
-
-      const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
-      const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
-      let wakePts = 0;
-      if (wake) {
-        const [h, m] = wake.split(':').map(Number);
-        const mins = (h || 0) * 60 + (m || 0);
-        if (mins <= targetWakeMins) {
-          wakePts = 30;
-        } else if (mins < targetWakeMins + 240) {
-          wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
-        }
-      }
-
-      const recordedScore = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
-
-      chartDays.push({
-        dayName: WEEKDAY_NAMES[d.getDay()],
-        dayNumber: dayNum,
-        dateStr: dStr,
-        isToday: dStr === todayStr,
-        score: recordedScore,
-        waterIntake: water,
-        studyHours: study,
-        wakeMinutesFromTarget: 0,
-        wakeUpTime: wake,
-        wakePts,
-        waterPts,
-        studyPts,
-      });
-    }
+    chartDays.push({
+      dayName: dStr === todayStr ? 'Today' : WEEKDAY_NAMES[d.getDay()],
+      dayNumber: d.getDate(),
+      dateStr: dStr,
+      isToday: dStr === todayStr,
+      score: recordedScore,
+      waterIntake: water,
+      studyHours: study,
+      wakeMinutesFromTarget: 0,
+      wakeUpTime: wake,
+      wakePts,
+      waterPts,
+      studyPts,
+    });
   }
 
   // Dynamic Average Score for the active view

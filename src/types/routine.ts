@@ -47,6 +47,14 @@ export interface TrendDay {
   score: number;
 }
 
+export interface DayStreakItem {
+  day: string; // 'M', 'T', 'W', etc.
+  date?: string; // YYYY-MM-DD
+  isToday: boolean;
+  score: number; // 0 to 100
+  isDone?: boolean;
+}
+
 export interface RoutineStats {
   currentStreak: number;
   maxStreak: number;

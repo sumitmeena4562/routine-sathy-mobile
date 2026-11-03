@@ -32,79 +32,8 @@ import {
   TypographyScale,
 } from '@/theme/tokens.generated';
 import { HabitItem, RoutineActivity } from '@/types/routine';
+import { DEFAULT_HABITS, getHabitBrandMeta } from '@/constants/habits';
 import { triggerHaptic } from '@/utils/haptics';
-
-const DEFAULT_HABITS: HabitItem[] = [
-  { id: 'workout', name: 'Workout', type: 'boolean', icon: 'barbell-outline', enabled: true },
-  { id: 'meditation', name: 'Meditation', type: 'boolean', icon: 'leaf-outline', enabled: true },
-  { id: 'reading', name: 'Reading', type: 'boolean', icon: 'glasses-outline', enabled: true },
-];
-
-/**
- * Curated brand palette matching Today dashboard
- */
-function getHabitBrandMeta(name: string, isDark: boolean): {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tileBg: string;
-} {
-  const lower = name.toLowerCase();
-
-  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
-    return {
-      icon: 'barbell',
-      iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
-    };
-  }
-  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath') || lower.includes('yoga')) {
-    return {
-      icon: 'leaf',
-      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
-    };
-  }
-  if (lower.includes('read') || lower.includes('book')) {
-    return {
-      icon: 'glasses',
-      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
-    };
-  }
-  if (lower.includes('study') || lower.includes('focus') || lower.includes('course') || lower.includes('work')) {
-    return {
-      icon: 'school',
-      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-    };
-  }
-  if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
-    return {
-      icon: 'water',
-      iconColor: isDark ? PrimitiveTokens.color.sky[400] : PrimitiveTokens.color.sky[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileSky : SemanticLightTokens.color.bg.tileSky,
-    };
-  }
-  if (lower.includes('walk') || lower.includes('run') || lower.includes('step') || lower.includes('jog')) {
-    return {
-      icon: 'footsteps',
-      iconColor: isDark ? PrimitiveTokens.color.fern[300] : PrimitiveTokens.color.fern[500],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileMint : SemanticLightTokens.color.bg.tileMint,
-    };
-  }
-  if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night') || lower.includes('rest')) {
-    return {
-      icon: 'moon',
-      iconColor: isDark ? PrimitiveTokens.color.indigo[400] : PrimitiveTokens.color.indigo[600],
-      tileBg: isDark ? SemanticDarkTokens.color.bg.tileIndigo : SemanticLightTokens.color.bg.tileIndigo,
-    };
-  }
-  return {
-    icon: 'sparkles',
-    iconColor: isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[700],
-    tileBg: isDark ? SemanticDarkTokens.color.bg.tileAmber : SemanticLightTokens.color.bg.tileAmber,
-  };
-}
 
 export default function AddRoutineScreen() {
   const router = useRouter();

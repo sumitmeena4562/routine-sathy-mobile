@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,54 +13,30 @@ import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
-import { AmbientAtmosphere, Card } from '@/components/ui';
+import { AmbientAtmosphere } from '@/components/ui';
+import {
+  ChartDayItem,
+  DayDetailData,
+  DayDetailModal,
+  HeatmapDayItem,
+  MetricChartCard,
+  MetricType,
+  MonthlyHeatmapCard,
+  RangeType,
+  SathyInsightCard,
+  StatsSkeleton,
+  StreakDayItem,
+  StreakHubCard,
+} from '@/components/stats';
 import { useTheme } from '@/hooks/use-theme';
 import { routineService } from '@/services/routine';
-import { RoutineStats } from '@/types/routine';
-
-function getCircadianTip(): {
-  title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tileBg: string;
-  body: string;
-} {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) {
-    return {
-      title: 'Morning Sunlight & Circadian Anchor',
-      icon: 'sunny',
-      iconColor: '#D97706',
-      tileBg: '#FEF3C7',
-      body: 'Getting 10-15 minutes of outdoor sunlight within an hour of waking resets your master biological clock and boosts daytime energy.',
-    };
-  }
-  if (hour >= 12 && hour < 17) {
-    return {
-      title: 'Midday Cognitive Peak & Hydration',
-      icon: 'flash',
-      iconColor: '#0284C7',
-      tileBg: '#E0F2FE',
-      body: 'Core body temperature and cognitive performance peak mid-afternoon. Maintain steady hydration to prevent the afternoon slump.',
-    };
-  }
-  if (hour >= 17 && hour < 22) {
-    return {
-      title: 'Evening Wind-Down & Melatonin Support',
-      icon: 'partly-sunny',
-      iconColor: '#7C3AED',
-      tileBg: '#F3E8FF',
-      body: 'Dim harsh overhead lighting and minimize bright screen exposure to allow natural melatonin production for restorative deep sleep.',
-    };
-  }
-  return {
-    title: 'Night Recovery & Cellular Repair',
-    icon: 'moon',
-    iconColor: '#4F46E5',
-    tileBg: '#EEF2FF',
-    body: 'During deep delta-wave sleep, your brain clears metabolic waste and tissue repairs. Keep your sleeping space dark, quiet, and cool (~19°C).',
-  };
-}
+import { Storage } from '@/utils/storage';
+import {
+  PrimitiveTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
+import { formatLocalDate, WEEKDAY_NAMES_SHORT as WEEKDAY_NAMES } from '@/utils/dateTime';
+import { RoutineData, RoutineStats, UserGoals } from '@/types/routine';
 
 export default function StatsScreen() {
   const theme = useTheme();
@@ -69,18 +45,133 @@ export default function StatsScreen() {
 
   const isTablet = windowWidth >= 768;
   const containerMaxWidth = isTablet ? 520 : 440;
-  const horizontalPadding = isTablet ? 32 : 22;
+  const horizontalPadding = isTablet ? 32 : 16;
 
+  // Data State
   const [stats, setStats] = useState<RoutineStats | null>(null);
+  const [history, setHistory] = useState<RoutineData[]>([]);
+  const [goals, setGoals] = useState<UserGoals | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
-  const fetchStats = useCallback(async () => {
+  // Interactive UI Controls
+  const [selectedMetric, setSelectedMetric] = useState<MetricType>('score');
+  const [selectedRange, setSelectedRange] = useState<RangeType>('week');
+  const [weekOffset, setWeekOffset] = useState<number>(0); // 0 = current week, -1 = earlier, etc.
+  const [isTableMode, setIsTableMode] = useState(false);
+  const [selectedDayDetail, setSelectedDayDetail] = useState<DayDetailData | null>(null);
+
+  // Stable references for SWR
+  const statsRef = useRef<RoutineStats | null>(null);
+  useEffect(() => {
+    statsRef.current = stats;
+  }, [stats]);
+
+  // Offline-first instant hydration from local cache
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [cachedStats, cachedHistory, cachedGoals] = await Promise.all([
+          Storage.getItem('cached_stats_summary'),
+          Storage.getItem('cached_stats_history'),
+          Storage.getItem('cached_user_goals'),
+        ]);
+
+        if (!active) return;
+
+        if (cachedStats) {
+          try {
+            const parsed = JSON.parse(cachedStats);
+            if (parsed) {
+              setStats(parsed);
+              setLoading(false);
+            }
+          } catch {}
+        }
+        if (cachedHistory) {
+          try {
+            const parsed = JSON.parse(cachedHistory);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setHistory(parsed);
+              setLoading(false);
+            }
+          } catch {}
+        }
+        if (cachedGoals) {
+          try {
+            const parsed = JSON.parse(cachedGoals);
+            if (parsed) setGoals(parsed);
+          } catch {}
+        }
+      } catch {
+        // Fall back cleanly to live network fetch
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch Stats, Routine History & User Goals in parallel
+  const fetchData = useCallback(async (isManualRefresh = false) => {
     try {
-      const data = await routineService.getRoutineStats();
-      setStats(data);
-    } catch {
-      // Fallback
+      if (!statsRef.current && !isManualRefresh) {
+        setLoading(true);
+      }
+      setHasError(false);
+
+      if (__DEV__) {
+        console.log('📊 [STATS] Fetching stats, 40-day history, and goals...');
+      }
+
+      const [statsData, historyData, goalsData] = await Promise.all([
+        routineService.getRoutineStats().catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load stats:', err);
+          return null;
+        }),
+        routineService.getRoutineHistory(1, 40).catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load history:', err);
+          return [];
+        }),
+        routineService.getUserGoals().catch((err) => {
+          if (__DEV__) console.warn('⚠️ [STATS] Failed to load goals:', err);
+          return null;
+        }),
+      ]);
+
+      if (statsData) {
+        setStats(statsData);
+        Storage.setItem('cached_stats_summary', JSON.stringify(statsData)).catch(() => {});
+        if (__DEV__) {
+          console.log('📈 [STATS] Loaded Stats:', {
+            currentStreak: statsData.currentStreak,
+            maxStreak: statsData.maxStreak,
+            totalDays: statsData.totalDays,
+            avgScore: statsData.avgScore,
+          });
+        }
+      }
+      if (historyData && historyData.length > 0) {
+        setHistory(historyData);
+        Storage.setItem('cached_stats_history', JSON.stringify(historyData)).catch(() => {});
+        if (__DEV__) {
+          console.log(`📜 [STATS] Loaded History: ${historyData.length} records`);
+        }
+      }
+      if (goalsData) {
+        setGoals(goalsData);
+        Storage.setItem('cached_user_goals', JSON.stringify(goalsData)).catch(() => {});
+      }
+    } catch (err) {
+      if (__DEV__) {
+        console.error('❌ [STATS] Error in fetchData:', err);
+      }
+      if (!statsRef.current) {
+        setHasError(true);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -89,17 +180,226 @@ export default function StatsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchStats();
-    }, [fetchStats])
+      fetchData(false);
+    }, [fetchData])
   );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchStats();
-  }, [fetchStats]);
+    fetchData(true);
+  }, [fetchData]);
 
-  const tip = getCircadianTip();
-  const currentStreak = stats?.currentStreak || 0;
+  // Build a lookup map of historical routines by YYYY-MM-DD
+  const routinesByDate = new Map<string, RoutineData>();
+  for (const r of history) {
+    if (r.date) routinesByDate.set(r.date, r);
+  }
+
+  // Also build score map from server stats last7DaysScores for seamless fallback
+  const statsScoresMap = new Map<string, number>();
+  if (stats?.last7DaysScores) {
+    for (const item of stats.last7DaysScores) {
+      statsScoresMap.set(item.date, item.score);
+    }
+  }
+
+  const today = new Date();
+  const todayStr = formatLocalDate(today);
+
+  const targetWater = goals?.targetWater ?? 3.0;
+  const targetStudy = goals?.targetStudy ?? 4.0;
+  const targetWakeUpStr = goals?.targetWakeUp ?? '06:00';
+  const [th, tm] = targetWakeUpStr.split(':').map(Number);
+  const targetWakeMins = (th || 0) * 60 + (tm || 0);
+
+  // 1. Generate 7 days for the Sunrise Streak Path (last 6 days leading up to Today)
+  const streakWeekDays: StreakDayItem[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    const scoreVal = r?.score ?? statsScoresMap.get(dStr) ?? 0;
+    streakWeekDays.push({
+      day: i === 0 ? 'Today' : WEEKDAY_NAMES[d.getDay()],
+      score: scoreVal,
+      isToday: i === 0,
+    });
+  }
+
+  // 2. Generate Days for the Chart (Week or Month view)
+  const currentDayIndex = today.getDay();
+  const chartDays: ChartDayItem[] = [];
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - currentDayIndex + weekOffset * 7);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+  const startMonth = startOfWeek.toLocaleString('en-US', { month: 'short' });
+  const endMonth = endOfWeek.toLocaleString('en-US', { month: 'short' });
+  const weekLabel =
+    startMonth === endMonth
+      ? `${startMonth} ${startOfWeek.getDate()} – ${endOfWeek.getDate()}`
+      : `${startMonth} ${startOfWeek.getDate()} – ${endMonth} ${endOfWeek.getDate()}`;
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startOfWeek);
+    d.setDate(startOfWeek.getDate() + i);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+
+    const water = r?.waterIntake ?? 0;
+    const study = r?.studyHours ?? 0;
+    const wake = r?.wakeUpTime;
+
+    // Calculate exact score breakdown using user's real targets
+    const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
+    const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
+    let wakePts = 0;
+    if (wake) {
+      const [h, m] = wake.split(':').map(Number);
+      const mins = (h || 0) * 60 + (m || 0);
+      if (mins <= targetWakeMins) {
+        wakePts = 30;
+      } else if (mins < targetWakeMins + 240) {
+        wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
+      }
+    }
+
+    const recordedScore = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
+
+    chartDays.push({
+      dayName: dStr === todayStr ? 'Today' : WEEKDAY_NAMES[d.getDay()],
+      dayNumber: d.getDate(),
+      dateStr: dStr,
+      isToday: dStr === todayStr,
+      score: recordedScore,
+      waterIntake: water,
+      studyHours: study,
+      wakeMinutesFromTarget: 0,
+      wakeUpTime: wake,
+      wakePts,
+      waterPts,
+      studyPts,
+    });
+  }
+
+  // Dynamic Average Score for the active view
+  const activeScores = chartDays.filter((d) => d.score > 0).map((d) => d.score);
+  const dynamicAvgScore =
+    activeScores.length > 0
+      ? Math.round(activeScores.reduce((a, b) => a + b, 0) / activeScores.length)
+      : stats?.avgScore || 0;
+
+  // 3. Generate Monthly Heatmap Days
+  const curYear = today.getFullYear();
+  const curMonth = today.getMonth();
+  const totalDaysInCurMonth = new Date(curYear, curMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(curYear, curMonth, 1).getDay(); // 0 = Sun
+
+  const heatmapDays: HeatmapDayItem[] = [];
+  for (let dayNum = 1; dayNum <= totalDaysInCurMonth; dayNum++) {
+    const d = new Date(curYear, curMonth, dayNum);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    heatmapDays.push({
+      dayNumber: dayNum,
+      dateStr: dStr,
+      score: r?.score || 0,
+      isToday: dStr === todayStr,
+      hasData: Boolean(r),
+    });
+  }
+
+  // 4. Determine Sathy's Best Day Insight
+  let bestDayItem: ChartDayItem | null = null;
+  for (const d of chartDays) {
+    if (!bestDayItem || d.score > bestDayItem.score) {
+      bestDayItem = d;
+    }
+  }
+
+  const isEmpty = (stats?.totalDays || 0) === 0 && history.length === 0;
+
+  const formatModalDate = (dStr: string, isToday: boolean, dayName: string) => {
+    if (isToday) {
+      return 'TODAY, ' + today.toLocaleString('en-US', { month: 'short', day: 'numeric' }).toUpperCase();
+    }
+    const [y, m, d] = dStr.split('-').map(Number);
+    const dateObj = new Date(y, (m || 1) - 1, d || 1);
+    const mName = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+    return `${dayName.toUpperCase()}, ${mName} ${d}`;
+  };
+
+  const formatTimeAMPM = (timeStr?: string | null): string | undefined => {
+    if (!timeStr) return undefined;
+    const [hStr, mStr] = timeStr.split(':');
+    const h = parseInt(hStr, 10);
+    const m = mStr || '00';
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const displayH = h % 12 || 12;
+    return `${displayH}:${m} ${ampm}`;
+  };
+
+  // Handler when user taps any day in chart or heatmap
+  const handleOpenDayModal = (day: ChartDayItem) => {
+    if (__DEV__) {
+      console.log(`👆 [USER ACTION] Inspected Day: ${day.dayName} (${day.dateStr}) | Score: ${day.score} | Wake: ${day.wakeUpTime || 'N/A'} | Water: ${day.waterIntake}L | Study: ${day.studyHours}h`);
+    }
+    setSelectedDayDetail({
+      dayName: day.dayName,
+      dateStr: formatModalDate(day.dateStr, day.isToday, day.dayName),
+      score: day.score,
+      wakeUpTime: day.wakeUpTime ? formatTimeAMPM(day.wakeUpTime) : undefined,
+      wakePts: day.wakePts,
+      waterIntake: day.waterIntake,
+      waterPts: day.waterPts,
+      studyHours: day.studyHours,
+      studyPts: day.studyPts,
+    });
+  };
+
+  const handleOpenHeatmapDayModal = (dayNumber: number) => {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const d = new Date(year, month, dayNumber);
+    const dStr = formatLocalDate(d);
+    const r = routinesByDate.get(dStr);
+    const isTodayDay = dStr === todayStr;
+
+    const water = r?.waterIntake ?? 0;
+    const study = r?.studyHours ?? 0;
+    const wake = r?.wakeUpTime;
+
+    const waterPts = Math.min(30, Math.round((water / targetWater) * 30));
+    const studyPts = Math.min(40, Math.round((study / targetStudy) * 40));
+    let wakePts = 0;
+    if (wake) {
+      const [h, m] = wake.split(':').map(Number);
+      const mins = (h || 0) * 60 + (m || 0);
+      if (mins <= targetWakeMins) {
+        wakePts = 30;
+      } else if (mins < targetWakeMins + 240) {
+        wakePts = Math.max(0, Math.round(30 - ((mins - targetWakeMins) / 240) * 30));
+      }
+    }
+
+    const score = r?.score ?? statsScoresMap.get(dStr) ?? (waterPts + studyPts + wakePts);
+    const dayName = isTodayDay ? 'Today' : WEEKDAY_NAMES[d.getDay()];
+
+    setSelectedDayDetail({
+      dayName,
+      dateStr: formatModalDate(dStr, isTodayDay, dayName),
+      score,
+      wakeUpTime: wake ? formatTimeAMPM(wake) : undefined,
+      wakePts,
+      waterIntake: water,
+      waterPts,
+      studyHours: study,
+      studyPts,
+    });
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -111,18 +411,29 @@ export default function StatsScreen() {
         style={[
           styles.headerBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (theme.isDark ? 8 : 10),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
-          <Text style={styles.headerEyebrow}>RHYTHM ANALYTICS</Text>
+          <Text
+            style={[
+              styles.headerEyebrow,
+              {
+                color: theme.isDark
+                  ? PrimitiveTokens.color.fern[400]
+                  : PrimitiveTokens.color.forest[600],
+              },
+            ]}>
+            PROGRESS
+          </Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
-            Consistency
+            Your consistency
           </Text>
           <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-            Your habit streaks and daily rhythm score over time.
+            How your three daily steps add up over time.
           </Text>
         </View>
       </View>
@@ -133,199 +444,144 @@ export default function StatsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#F59E0B"
+            tintColor={theme.colors.success}
           />
         }
         contentContainerStyle={[
           styles.scrollContent,
           {
             maxWidth: containerMaxWidth,
-            paddingBottom: Math.max(insets.bottom + 36, 44),
+            paddingBottom: Math.max(insets.bottom + 128, 144),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
           },
         ]}>
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#F59E0B" />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Calculating consistency trends...
+        {loading && !stats ? (
+          <StatsSkeleton />
+        ) : hasError && !stats ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="cloud-offline-outline" size={32} color={theme.colors.textMuted} />
+            <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
+              Couldn&apos;t load progress
             </Text>
+            <Text style={[styles.errorSubtitle, { color: theme.colors.textSecondary }]}>
+              Check your connection and tap below to retry.
+            </Text>
+            <Pressable
+              onPress={() => fetchData(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading progress"
+              style={[styles.retryBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
+              <Ionicons name="refresh" size={15} color={theme.colors.text} />
+              <Text style={[styles.retryBtnText, { color: theme.colors.text }]}>
+                Retry
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.content}>
-            {/* 1. Unified Streak & Consistency Hub Card */}
-            <Card style={styles.streakHubCard}>
-              <View style={styles.streakTopRow}>
-                <View style={styles.flameIconBox}>
-                  <Ionicons name="flame" size={28} color="#EA580C" />
-                </View>
+            {/* 1. Streak & Sunrise Path Hub Card */}
+            <StreakHubCard
+              currentStreak={stats?.currentStreak || 0}
+              maxStreak={stats?.maxStreak || 0}
+              avgScore={dynamicAvgScore}
+              totalDays={stats?.totalDays || 0}
+              weekDays={streakWeekDays}
+              range={selectedRange}
+              isEmpty={isEmpty}
+            />
 
-                <View style={styles.streakCountCol}>
-                  <View style={styles.streakNumberRow}>
-                    <Text style={[styles.streakCount, { color: theme.colors.text }]}>
-                      {currentStreak}
-                    </Text>
-                    <Text style={[styles.streakDaysUnit, { color: theme.colors.textSecondary }]}>
-                      {currentStreak === 1 ? 'DAY STREAK' : 'DAYS STREAK'}
-                    </Text>
+            {/* 2. Interactive Trends: 7-Day Week Bar Chart or 30-Day Monthly Heatmap */}
+            {selectedRange === 'week' ? (
+              <MetricChartCard
+                days={chartDays}
+                selectedMetric={selectedMetric}
+                onSelectMetric={setSelectedMetric}
+                selectedRange={selectedRange}
+                onSelectRange={setSelectedRange}
+                weekOffset={weekOffset}
+                onNavigateWeek={(dir) => setWeekOffset((prev) => prev + dir)}
+                weekLabel={weekLabel}
+                isTableMode={isTableMode}
+                onToggleTableMode={() => setIsTableMode((prev) => !prev)}
+                onSelectDay={handleOpenDayModal}
+                userGoals={goals}
+                isEmpty={isEmpty}
+              />
+            ) : (
+              <View style={styles.monthSection}>
+                {/* Clean Range Switcher Header for Month View */}
+                <View
+                  style={[
+                    styles.monthRangeBar,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}>
+                  <View style={[styles.rangeSegTrack, { backgroundColor: theme.colors.surfaceAlt }]}>
+                    <Pressable
+                      onPress={() => setSelectedRange('week')}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: false }}
+                      style={styles.rangeSegBtn}>
+                      <Text style={[styles.rangeSegBtnText, { color: theme.colors.textSecondary }]}>
+                        Week
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setSelectedRange('month')}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: true }}
+                      style={[
+                        styles.rangeSegBtn,
+                        styles.rangeSegBtnActive,
+                        { backgroundColor: theme.colors.surface },
+                      ]}>
+                      <Text style={[styles.rangeSegBtnText, { color: theme.colors.text, fontWeight: '800' }]}>
+                        Month
+                      </Text>
+                    </Pressable>
                   </View>
-                  <Text style={styles.streakNote}>
-                    {currentStreak > 0
-                      ? 'Great momentum! Keep logging daily.'
-                      : 'Log today\'s routine to start your streak.'}
-                  </Text>
                 </View>
+
+                {/* 30-Day Interactive Calendar Heatmap */}
+                <MonthlyHeatmapCard
+                  monthName={today.toLocaleString('en-US', { month: 'long' })}
+                  days={heatmapDays}
+                  firstDayOffset={firstDayOfMonth}
+                  onSelectDay={handleOpenHeatmapDayModal}
+                />
               </View>
-
-              {/* Integrated 3-Metric Summary Strip */}
-              <View style={[styles.metricsStrip, { borderTopColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]}>
-                <View style={styles.metricItem}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    BEST STREAK
-                  </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                    {stats?.maxStreak || 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                  </Text>
-                </View>
-
-                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
-
-                <View style={styles.metricItem}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    AVG SCORE
-                  </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                    {stats?.avgScore ? Math.round(stats.avgScore) : 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> %</Text>
-                  </Text>
-                </View>
-
-                <View style={[styles.metricDivider, { backgroundColor: theme.isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F9' }]} />
-
-                <View style={styles.metricItem}>
-                  <Text style={[styles.metricHeader, { color: theme.colors.textSecondary }]}>
-                    TOTAL LOGGED
-                  </Text>
-                  <Text style={[styles.metricNumber, { color: theme.colors.text }]}>
-                    {stats?.totalDays || 0}
-                    <Text style={[styles.metricUnit, { color: theme.colors.textMuted }]}> d</Text>
-                  </Text>
-                </View>
-              </View>
-            </Card>
-
-            {/* 2. Sleek 7-Day Rhythm Trend Card (Precision Pill Columns) */}
-            {stats?.last7DaysScores && stats.last7DaysScores.length > 0 && (
-              <Card style={styles.trendCard}>
-                <View style={styles.trendHeader}>
-                  <View style={styles.trendTitleRow}>
-                    <Ionicons name="trending-up" size={17} color="#D97706" />
-                    <Text style={[styles.trendTitle, { color: theme.colors.text }]}>
-                      Last 7 Days Rhythm
-                    </Text>
-                  </View>
-                  <Text style={[styles.trendSubtitle, { color: theme.colors.textSecondary }]}>
-                    SCORE %
-                  </Text>
-                </View>
-
-                {/* Sleek Pill Chart */}
-                <View style={styles.trendBarsRow}>
-                  {stats.last7DaysScores.map((day, idx) => {
-                    const isToday = idx === (stats.last7DaysScores?.length || 0) - 1;
-                    const barHeight = Math.max(Math.round((day.score / 100) * 72), 6);
-                    const barColor =
-                      day.score >= 80
-                        ? '#10B981'
-                        : day.score >= 50
-                        ? '#F59E0B'
-                        : day.score > 0
-                        ? '#EF4444'
-                        : 'transparent';
-
-                    return (
-                      <View key={day.date} style={styles.trendBarCol}>
-                        {/* Score Label above Bar */}
-                        <Text
-                          style={[
-                            styles.barScoreLabel,
-                            {
-                              color: isToday
-                                ? '#10B981'
-                                : day.score > 0
-                                ? theme.colors.textSecondary
-                                : 'transparent',
-                              fontWeight: isToday ? '800' : '600',
-                            },
-                          ]}>
-                          {day.score > 0 ? `${day.score}%` : '—'}
-                        </Text>
-
-                        {/* Slender Pill Track & Fill */}
-                        <View
-                          style={[
-                            styles.trendBarTrack,
-                            {
-                              backgroundColor: theme.isDark
-                                ? 'rgba(255, 255, 255, 0.08)'
-                                : '#F1F5F9',
-                              borderColor: isToday ? '#10B981' : 'transparent',
-                              borderWidth: isToday && day.score === 0 ? 1 : 0,
-                            },
-                          ]}>
-                          <View
-                            style={[
-                              styles.trendBarFill,
-                              {
-                                height: barHeight,
-                                backgroundColor: barColor,
-                              },
-                            ]}
-                          />
-                        </View>
-
-                        {/* Weekday Label */}
-                        <Text
-                          style={[
-                            styles.trendDayText,
-                            {
-                              color: isToday ? '#0F172A' : theme.colors.textSecondary,
-                              fontWeight: isToday ? '800' : '600',
-                            },
-                          ]}>
-                          {isToday ? 'Today' : day.dayName}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </Card>
             )}
 
-            {/* 3. Contextual Circadian Rhythm Insight Card (Time of Day Adaptive) */}
-            <Card style={styles.tipCard}>
-              <View style={styles.tipHeader}>
-                <View style={[styles.tipIconCircle, { backgroundColor: tip.tileBg }]}>
-                  <Ionicons name={tip.icon} size={18} color={tip.iconColor} />
-                </View>
-                <View style={styles.tipHeaderTextCol}>
-                  <Text style={[styles.tipTitle, { color: theme.colors.text }]}>
-                    {tip.title}
-                  </Text>
-                  <Text style={[styles.tipSubtitle, { color: theme.colors.textSecondary }]}>
-                    Circadian Science Insight
-                  </Text>
-                </View>
-              </View>
-              <Text style={[styles.tipBody, { color: theme.colors.textSecondary }]}>
-                {tip.body}
-              </Text>
-            </Card>
+            {/* 3. Sathy Companion Reflection Card */}
+            <SathyInsightCard
+              bestDayName={
+                bestDayItem && bestDayItem.score > 0
+                  ? bestDayItem.isToday
+                    ? 'today'
+                    : bestDayItem.dayName
+                  : undefined
+              }
+              bestScore={bestDayItem && bestDayItem.score > 0 ? bestDayItem.score : undefined}
+              bestWakeTime={
+                bestDayItem && bestDayItem.score > 0
+                  ? formatTimeAMPM(bestDayItem.wakeUpTime)
+                  : undefined
+              }
+              isEmpty={isEmpty}
+            />
           </View>
         )}
       </ScrollView>
+
+      {/* Day Breakdown Bottom Sheet Modal */}
+      <DayDetailModal
+        visible={Boolean(selectedDayDetail)}
+        onClose={() => setSelectedDayDetail(null)}
+        data={selectedDayDetail}
+      />
     </View>
   );
 }
@@ -336,227 +592,101 @@ const styles = StyleSheet.create({
   },
   headerBar: {
     zIndex: 10,
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   headerBarInner: {
     width: '100%',
     alignSelf: 'center',
   },
   headerEyebrow: {
-    fontSize: 11.5,
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '800',
     letterSpacing: 0.8,
-    color: '#D97706', // Warm Amber
     textTransform: 'uppercase',
     marginBottom: 2,
   },
   title: {
-    fontSize: 27,
+    fontSize: 24,
+    fontFamily: TypographyScale.h2.fontFamily,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
   subtitle: {
-    fontSize: 13.5,
-    lineHeight: 19,
-    marginTop: 4,
+    fontSize: 12,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    lineHeight: 17,
+    marginTop: 2,
   },
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 8,
-  },
-  loadingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 13.5,
-    fontWeight: '500',
+    paddingTop: 6,
   },
   content: {
     width: '100%',
-    gap: 16,
+    gap: PrimitiveTokens.space[3],
   },
-  /* 1. Unified Streak Hub Card */
-  streakHubCard: {
-    padding: 20,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  streakTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    marginBottom: 18,
-  },
-  flameIconBox: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: '#FFF7ED',
-    borderWidth: 1,
-    borderColor: '#FFEDD5',
+  errorContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  streakCountCol: {
-    flex: 1,
-  },
-  streakNumberRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
     gap: 8,
   },
-  streakCount: {
-    fontSize: 34,
-    fontWeight: '900',
-    letterSpacing: -1,
-  },
-  streakDaysUnit: {
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.6,
-  },
-  streakNote: {
-    fontSize: 12.5,
-    fontWeight: '600',
-    color: '#D97706',
-    marginTop: 2,
-  },
-  metricsStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingTop: 16,
-    borderTopWidth: 1,
-  },
-  metricItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  metricHeader: {
-    fontSize: 10.5,
+  errorTitle: {
+    fontSize: 16,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
     fontWeight: '700',
-    letterSpacing: 0.5,
+    marginTop: 4,
   },
-  metricNumber: {
-    fontSize: 19,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  metricUnit: {
+  errorSubtitle: {
     fontSize: 13,
-    fontWeight: '600',
-  },
-  metricDivider: {
-    width: 1,
-    height: 26,
-  },
-  /* 2. Sleek 7-Day Trend Card */
-  trendCard: {
-    padding: 18,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  trendHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  trendTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  trendTitle: {
-    fontSize: 14.5,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-  },
-  trendSubtitle: {
-    fontSize: 10.5,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-  },
-  trendBarsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    gap: 8,
-    height: 110,
-    paddingHorizontal: 4,
-  },
-  trendBarCol: {
-    flex: 1,
-    alignItems: 'center',
-    height: '100%',
-    justifyContent: 'flex-end',
-    gap: 6,
-  },
-  barScoreLabel: {
-    fontSize: 10,
-    height: 14,
+    fontFamily: TypographyScale.body.fontFamily,
     textAlign: 'center',
+    marginBottom: 8,
   },
-  trendBarTrack: {
-    width: 14, // Slender pill width instead of giant chunky 45px block
-    height: 72,
-    borderRadius: 7,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-  },
-  trendBarFill: {
-    width: '100%',
-    borderRadius: 7,
-  },
-  trendDayText: {
-    fontSize: 11,
-    marginTop: 2,
-  },
-  /* 3. Circadian Tip Card */
-  tipCard: {
-    padding: 18,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 10,
-  },
-  tipHeader: {
+  retryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
   },
-  tipIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  monthSection: {
+    gap: PrimitiveTokens.space[3],
+  },
+  monthRangeBar: {
+    padding: PrimitiveTokens.space[1],
+    borderRadius: PrimitiveTokens.radius['2xl'],
+    borderWidth: 1,
+  },
+  rangeSegTrack: {
+    flexDirection: 'row',
+    borderRadius: PrimitiveTokens.radius.lg,
+    padding: 3,
+  },
+  rangeSegBtn: {
+    flex: 1,
+    paddingVertical: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: PrimitiveTokens.radius.md,
   },
-  tipHeaderTextCol: {
-    flex: 1,
+  rangeSegBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  tipTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-  },
-  tipSubtitle: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 1,
-  },
-  tipBody: {
-    fontSize: 13,
-    lineHeight: 18.5,
+  rangeSegBtnText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
 });

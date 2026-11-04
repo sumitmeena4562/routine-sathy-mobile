@@ -12,6 +12,7 @@ export const authService = {
    * Register a new user with name, email and password.
    */
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
+    if (__DEV__) console.log(`📝 [AUTH] Registering user ${credentials.email}...`);
     const response = await api.post<AuthResponse>('/auth/register', credentials);
     if (response.data.token) {
       await authService.saveSession(response.data);
@@ -23,6 +24,7 @@ export const authService = {
    * Login an existing user with email and password.
    */
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    if (__DEV__) console.log(`🔑 [AUTH] Logging in as ${credentials.email}...`);
     const response = await api.post<AuthResponse>('/auth/login', credentials);
     if (response.data.token) {
       await authService.saveSession(response.data);
@@ -36,6 +38,7 @@ export const authService = {
   async getCurrentUser(): Promise<User> {
     const response = await api.get<User>('/auth/me');
     await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(response.data));
+    if (__DEV__) console.log('👤 [AUTH] Current User:', response.data.email);
     return response.data;
   },
 
@@ -53,6 +56,7 @@ export const authService = {
       role: auth.role,
     };
     await Storage.setItem(USER_STORAGE_KEY, JSON.stringify(userProfile));
+    if (__DEV__) console.log(`💾 [AUTH] Session saved for ${auth.email}`);
   },
 
   /**
@@ -61,6 +65,7 @@ export const authService = {
   async clearSession(): Promise<void> {
     await Storage.removeItem(AUTH_TOKEN_STORAGE_KEY);
     await Storage.removeItem(USER_STORAGE_KEY);
+    if (__DEV__) console.log('🚪 [AUTH] Session cleared / user logged out');
   },
 
   /**

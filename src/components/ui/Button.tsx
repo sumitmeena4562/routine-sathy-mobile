@@ -11,13 +11,14 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
-
 import { useTheme } from '@/hooks/use-theme';
+import { triggerHaptic } from '@/utils/haptics';
+import { PrimitiveTokens } from '@/theme/tokens.generated';
 
 export type ButtonVariant =
   | 'primary'
   | 'secondary'
+  | 'dark'
   | 'outline'
   | 'glass'
   | 'ghost'
@@ -63,8 +64,8 @@ export function Button({
 
   const handlePress = (e: GestureResponderEvent) => {
     if (disabled || loading) return;
-    if (haptic && Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (haptic) {
+      triggerHaptic('light');
     }
     onPress?.(e);
   };
@@ -97,6 +98,10 @@ export function Button({
     case 'primary':
       backgroundColor = theme.colors.primary;
       textColor = theme.colors.primaryForeground;
+      break;
+    case 'dark':
+      backgroundColor = theme.colors.brand;
+      textColor = theme.colors.brandForeground;
       break;
     case 'secondary':
       backgroundColor = theme.colors.backgroundElement;
@@ -213,6 +218,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     position: 'relative',
+    minHeight: 48,
   },
   contentRow: {
     flexDirection: 'row',
@@ -221,6 +227,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   text: {
+    fontFamily: PrimitiveTokens.font.family.bold,
     fontWeight: '700',
     letterSpacing: -0.2,
   },

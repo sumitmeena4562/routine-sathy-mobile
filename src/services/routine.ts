@@ -55,6 +55,17 @@ export const routineService = {
   },
 
   /**
+   * Updates or saves custom habit definitions for the user.
+   */
+  async updateUserHabits(habits: HabitItem[]): Promise<HabitItem[]> {
+    const response = await api.put<{ success: boolean; habits: HabitItem[] }>(
+      '/auth/habits',
+      { habits }
+    );
+    return response.data.habits || [];
+  },
+
+  /**
    * Retrieves default targets/goals for the user.
    */
   async getUserGoals(): Promise<UserGoals> {
@@ -88,5 +99,15 @@ export const routineService = {
       totalDays: raw?.totalDays || 0,
       last7DaysScores: raw?.last7DaysScores || [],
     };
+  },
+
+  /**
+   * Retrieves paginated routine history with full day details.
+   */
+  async getRoutineHistory(page: number = 1, limit: number = 35): Promise<RoutineData[]> {
+    const response = await api.get<{ data: RoutineData[]; pagination?: any }>(
+      `/routines?page=${page}&limit=${limit}`
+    );
+    return response.data?.data || [];
   },
 };

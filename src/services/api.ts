@@ -59,6 +59,10 @@ function getApiBaseUrl(): string {
       }
     }
 
+    if (process.env.EXPO_PUBLIC_LOCAL_IP) {
+      return `http://${process.env.EXPO_PUBLIC_LOCAL_IP}:5001/api`;
+    }
+
     return 'http://localhost:5001/api';
   }
 
@@ -66,19 +70,26 @@ function getApiBaseUrl(): string {
   return configuredUrl || cloudBackendUrl;
 }
 
+const resolvedBaseUrl = getApiBaseUrl();
+if (__DEV__) {
+  console.log(`🌐 [API INIT] Base URL resolved to: ${resolvedBaseUrl}`);
+}
+
 // eslint-disable-next-line import/no-named-as-default-member
 export const api = axios.create({
-  baseURL: getApiBaseUrl(),
-  timeout: 15000,
+  baseURL: resolvedBaseUrl,
+  timeout: 25000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
 
-// Request Interceptor: Attach JWT Token automatically if present
+// Request Interceptor: Attach JWT Token automatically if present & log request
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    (config as any)._requestStartTime = Date.now();
+
     try {
       const token = await Storage.getItem(AUTH_TOKEN_STORAGE_KEY);
       if (token && config.headers) {
@@ -87,15 +98,97 @@ api.interceptors.request.use(
     } catch {
       // Continue without token
     }
+
+    if (__DEV__) {
+      const method = (config.method || 'GET').toUpperCase();
+      const fullUrl = `${config.baseURL || ''}${config.url || ''}`;
+      console.log(`\n🌐 [API REQ] ${method} ${fullUrl}`);
+      if (config.params) {
+        console.log(`   Query:`, JSON.stringify(config.params));
+      }
+      if (config.data) {
+        let loggedData = config.data;
+        if (typeof loggedData === 'string') {
+          try {
+            const parsed = JSON.parse(loggedData);
+            if (parsed && typeof parsed === 'object' && 'password' in parsed) {
+              loggedData = { ...parsed, password: '••••••••' };
+            }
+          } catch {
+            // Keep original
+          }
+        } else if (typeof loggedData === 'object' && loggedData !== null && 'password' in loggedData) {
+          loggedData = { ...loggedData, password: '••••••••' };
+        }
+        console.log(`   Payload:`, typeof loggedData === 'object' ? JSON.stringify(loggedData, null, 2) : loggedData);
+      }
+    }
+
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    if (__DEV__) {
+      console.error('❌ [API REQ ERROR]', error);
+    }
+    return Promise.reject(error);
+  }
 );
 
-// Response Interceptor: Format error message cleanly
+// Response Interceptor: Format error message cleanly & log response
 api.interceptors.response.use(
-  (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
+  (response) => {
+    if (__DEV__) {
+      const startTime = (response.config as any)?._requestStartTime;
+      const duration = startTime ? `${Date.now() - startTime}ms` : '';
+      const method = (response.config.method || 'GET').toUpperCase();
+      const url = response.config.url || '';
+      console.log(`✅ [API RES] ${response.status} ${method} ${url} (${duration})`);
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          console.log(`   Data: [Array with ${response.data.length} items]`);
+        } else if (typeof response.data === 'object' && response.data !== null) {
+          const json = JSON.stringify(response.data);
+          if (json.length > 500) {
+            console.log(`   Data: ${json.slice(0, 500)}... (truncated)`);
+          } else {
+            console.log(`   Data:`, json);
+          }
+        } else {
+          console.log(`   Data:`, response.data);
+        }
+      }
+    }
+    return response;
+  },
+  async (error: AxiosError<{ message?: string }>) => {
+    const config = error.config as (InternalAxiosRequestConfig & { _retryCount?: number }) | undefined;
+
+    // Auto-retry once for idempotent GET/HEAD requests on transient network drops or timeouts
+    if (
+      config &&
+      (!config._retryCount || config._retryCount < 1) &&
+      (config.method?.toUpperCase() === 'GET' || config.method?.toUpperCase() === 'HEAD') &&
+      (error.message === 'Network Error' || error.code === 'ECONNABORTED' || error.message.includes('timeout'))
+    ) {
+      config._retryCount = (config._retryCount || 0) + 1;
+      if (__DEV__) {
+        console.warn(`🔄 [API RETRY] Retrying ${config.method?.toUpperCase()} ${config.url} after transient network drop...`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return api(config);
+    }
+
+    if (__DEV__) {
+      const method = (error.config?.method || 'GET').toUpperCase();
+      const url = error.config?.url || '';
+      const status = error.response?.status || 'ERR';
+      console.error(`❌ [API ERR] ${status} ${method} ${url}`);
+      console.error(`   Message:`, error.message);
+      if (error.response?.data) {
+        console.error(`   Error Data:`, JSON.stringify(error.response.data, null, 2));
+      }
+    }
+
     let errorMessage = 'An unexpected error occurred. Please try again.';
 
     if (error.response?.data?.message) {

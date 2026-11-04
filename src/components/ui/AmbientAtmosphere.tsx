@@ -16,8 +16,8 @@ export interface AmbientAtmosphereProps {
 export function AmbientAtmosphere({ style, opacity = 1 }: AmbientAtmosphereProps) {
   const theme = useTheme();
 
-  const glowColor = theme.isDark ? '#1E1B4B' : '#FED7AA';
-  const effectiveOpacity = theme.isDark ? 0.08 : 0.18;
+  const glowColor = theme.isDark ? '#FFC94D' : '#FED7AA';
+  const effectiveOpacity = theme.isDark ? 0.12 : 0.18;
 
   return (
     <View pointerEvents="none" style={[styles.container, { opacity: opacity * effectiveOpacity }, style]}>

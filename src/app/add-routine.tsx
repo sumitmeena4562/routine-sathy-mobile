@@ -1,11 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -13,7 +16,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 
 import {
   AmbientAtmosphere,
@@ -23,71 +25,15 @@ import {
 } from '@/components/ui';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
+import {
+  PrimitiveTokens,
+  SemanticDarkTokens,
+  SemanticLightTokens,
+  TypographyScale,
+} from '@/theme/tokens.generated';
 import { HabitItem, RoutineActivity } from '@/types/routine';
-
-const DEFAULT_HABITS: HabitItem[] = [
-  { id: 'workout', name: 'Workout / Exercise', type: 'boolean', icon: 'barbell-outline', enabled: true },
-  { id: 'meditation', name: 'Meditation / Mindfulness', type: 'boolean', icon: 'leaf-outline', enabled: true },
-  { id: 'reading', name: 'Reading', type: 'boolean', icon: 'book-outline', enabled: true },
-];
-
-/**
- * Curated brand palette for habits matching Today dashboard
- */
-function getHabitBrandMeta(name: string): {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  tileBg: string;
-} {
-  const lower = name.toLowerCase();
-  if (lower.includes('workout') || lower.includes('exercise') || lower.includes('gym')) {
-    return {
-      icon: 'barbell',
-      iconColor: '#EA580C', // Sunrise Orange
-      tileBg: '#FFF7ED',
-    };
-  }
-  if (lower.includes('meditat') || lower.includes('mindful') || lower.includes('breath')) {
-    return {
-      icon: 'leaf',
-      iconColor: '#059669', // Sacred Botanical Green
-      tileBg: '#ECFDF5',
-    };
-  }
-  if (lower.includes('read') || lower.includes('book') || lower.includes('study')) {
-    return {
-      icon: 'book',
-      iconColor: '#4F46E5', // Deep Insight Indigo
-      tileBg: '#EEF2FF',
-    };
-  }
-  if (lower.includes('water') || lower.includes('drink') || lower.includes('hydrat')) {
-    return {
-      icon: 'water',
-      iconColor: '#0284C7', // Pure Sky Flow
-      tileBg: '#F0F9FF',
-    };
-  }
-  if (lower.includes('walk') || lower.includes('run') || lower.includes('step')) {
-    return {
-      icon: 'footsteps',
-      iconColor: '#0D9488', // Earth Teal
-      tileBg: '#F0FDFA',
-    };
-  }
-  if (lower.includes('sleep') || lower.includes('bed') || lower.includes('night')) {
-    return {
-      icon: 'moon',
-      iconColor: '#7C3AED', // Twilight Violet
-      tileBg: '#F5F3FF',
-    };
-  }
-  return {
-    icon: 'sparkles',
-    iconColor: '#D97706', // Golden Dawn Spark
-    tileBg: '#FEF3C7',
-  };
-}
+import { DEFAULT_HABITS, getHabitBrandMeta } from '@/constants/habits';
+import { triggerHaptic } from '@/utils/haptics';
 
 export default function AddRoutineScreen() {
   const router = useRouter();
@@ -100,38 +46,50 @@ export default function AddRoutineScreen() {
   const containerMaxWidth = isTablet ? 520 : 460;
   const horizontalPadding = isTablet ? 32 : isCompact ? 16 : 20;
 
-  // Practical defaults
-  const [wakeHour, setWakeHour] = useState(6);
-  const [wakeMin, setWakeMin] = useState(0);
-  const [waterIntake, setWaterIntake] = useState(2.0);
-  const [studyHours, setStudyHours] = useState(4.0);
-  const [habits, setHabits] = useState<HabitItem[]>(DEFAULT_HABITS);
-  const [selectedHabitIds, setSelectedHabitIds] = useState<Set<string>>(
-    new Set(['workout', 'meditation', 'reading'])
-  );
-  // Track existing completion state so editing targets never resets completed habits
+  // Track if today's routine exists (edit mode vs create mode)
+  const [isExistingRoutine, setIsExistingRoutine] = useState(false);
+
+  // Today's Logged Progress (preserved so editing habits doesn't wipe today's metrics)
+  const [todayWakeUpTime, setTodayWakeUpTime] = useState<string | null>(null);
+  const [todayWaterLogged, setTodayWaterLogged] = useState(0);
+  const [todayStudyLogged, setTodayStudyLogged] = useState(0);
   const [existingCompletionMap, setExistingCompletionMap] = useState<
     Record<string, boolean | string | number>
   >({});
 
+  // Habits management
+  const [habits, setHabits] = useState<HabitItem[]>(DEFAULT_HABITS);
+  const [selectedHabitIds, setSelectedHabitIds] = useState<Set<string>>(
+    new Set(['workout', 'meditation'])
+  );
+
+  // Inline custom habit creation
+  const [isAddingHabit, setIsAddingHabit] = useState(false);
+  const [newHabitName, setNewHabitName] = useState('');
+  const [addingHabitLoading, setAddingHabitLoading] = useState(false);
+
+  // UI state
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [toast, setToast] = useState<{
     visible: boolean;
     type: 'success' | 'error';
     message: string;
   } | null>(null);
 
-  // Load defaults and today's existing routine (if in Edit mode)
+  // Load defaults and user habits
   useEffect(() => {
     async function loadDefaults() {
       try {
-        const [todayRoutineRes, serverHabitsRes, serverGoalsRes] = await Promise.allSettled([
+        const [todayRoutineRes, serverHabitsRes] = await Promise.allSettled([
           routineService.getTodayRoutine(),
           routineService.getUserHabits(),
-          routineService.getUserGoals(),
         ]);
 
-        // 1. Process habits list with deduplication by name
+        // 1. Process server habit definitions
+        let loadedHabits = DEFAULT_HABITS;
+        const activeIds = new Set<string>();
+
         if (serverHabitsRes.status === 'fulfilled' && serverHabitsRes.value.length > 0) {
           const seen = new Set<string>();
           const deduped: HabitItem[] = [];
@@ -140,100 +98,58 @@ export default function AddRoutineScreen() {
             if (!seen.has(key)) {
               seen.add(key);
               deduped.push(h);
+              if (h.enabled !== false) {
+                activeIds.add(h.id);
+              }
             }
           }
-          setHabits(deduped);
+          loadedHabits = deduped;
+        } else {
+          activeIds.add('workout');
+          activeIds.add('meditation');
         }
+        setHabits(loadedHabits);
 
-        // 2. If today's routine exists, prefill from it (Edit mode)
+        // 2. Process today's saved routine (if exists)
         if (todayRoutineRes.status === 'fulfilled' && todayRoutineRes.value) {
           const r = todayRoutineRes.value;
+          setIsExistingRoutine(true);
+
           if (r.wakeUpTime) {
-            const [h, m] = r.wakeUpTime.split(':').map(Number);
-            if (!isNaN(h) && !isNaN(m)) {
-              setWakeHour(h);
-              setWakeMin(m);
-            }
+            setTodayWakeUpTime(r.wakeUpTime);
           }
-          if (r.waterIntake !== undefined && r.waterIntake > 0) {
-            setWaterIntake(r.waterIntake);
+          if (r.waterIntake !== undefined) {
+            setTodayWaterLogged(r.waterIntake);
           }
-          if (r.studyHours !== undefined && r.studyHours > 0) {
-            setStudyHours(r.studyHours);
+          if (r.studyHours !== undefined) {
+            setTodayStudyLogged(r.studyHours);
           }
+
           if (r.activities && r.activities.length > 0) {
-            const activeIds = new Set<string>();
             const compMap: Record<string, boolean | string | number> = {};
             r.activities.forEach((act) => {
               const id = act.activityId || act.name;
-              activeIds.add(id);
               compMap[id] = act.value;
               compMap[act.name] = act.value;
+              // If the routine actively includes this habit, select it
+              activeIds.add(id);
             });
-            setSelectedHabitIds(activeIds);
             setExistingCompletionMap(compMap);
-            return;
           }
         }
 
-        // 3. Fallback to user goals if no routine logged yet today
-        if (serverGoalsRes.status === 'fulfilled' && serverGoalsRes.value) {
-          const g = serverGoalsRes.value;
-          if (g.targetWakeUp) {
-            const [h, m] = g.targetWakeUp.split(':').map(Number);
-            if (!isNaN(h) && !isNaN(m)) {
-              setWakeHour(h);
-              setWakeMin(m);
-            }
-          }
-          if (g.targetWater) setWaterIntake(g.targetWater);
-          if (g.targetStudy) setStudyHours(g.targetStudy);
-        }
-
-        if (serverHabitsRes.status === 'fulfilled' && serverHabitsRes.value.length > 0) {
-          const enabledIds = new Set(
-            serverHabitsRes.value.filter((h) => h.enabled).map((h) => h.id)
-          );
-          if (enabledIds.size > 0) setSelectedHabitIds(enabledIds);
-        }
+        setSelectedHabitIds(activeIds);
       } catch {
-        // Safe fallback to practical defaults
+        // Safe fallback
+      } finally {
+        setInitialLoading(false);
       }
     }
+
     loadDefaults();
   }, []);
 
-  const triggerHaptic = useCallback((type: 'light' | 'success' | 'warning') => {
-    if (Platform.OS !== 'web') {
-      if (type === 'success') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-      } else if (type === 'warning') {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-      } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-      }
-    }
-  }, []);
-
-  const adjustWakeTime = (deltaMinutes: number) => {
-    triggerHaptic('light');
-    let totalMins = wakeHour * 60 + wakeMin + deltaMinutes;
-    // Bound between 04:00 AM (240 mins) and 10:00 AM (600 mins)
-    totalMins = Math.max(240, Math.min(600, totalMins));
-    setWakeHour(Math.floor(totalMins / 60));
-    setWakeMin(totalMins % 60);
-  };
-
-  const adjustWater = (delta: number) => {
-    triggerHaptic('light');
-    setWaterIntake((prev) => Math.max(0.5, Math.min(6.0, Math.round((prev + delta) * 10) / 10)));
-  };
-
-  const adjustStudy = (delta: number) => {
-    triggerHaptic('light');
-    setStudyHours((prev) => Math.max(0.5, Math.min(12.0, Math.round((prev + delta) * 10) / 10)));
-  };
-
+  // Habit Selection Toggle
   const toggleHabit = (id: string) => {
     triggerHaptic('light');
     setSelectedHabitIds((prev) => {
@@ -247,14 +163,105 @@ export default function AddRoutineScreen() {
     });
   };
 
-  const formattedWakeTime = `${String(wakeHour).padStart(2, '0')}:${String(wakeMin).padStart(2, '0')}`;
+  // Add Custom Habit Handler
+  const handleAddCustomHabit = async () => {
+    const trimmed = newHabitName.trim();
+    if (!trimmed) {
+      setToast({ visible: true, type: 'error', message: 'Please enter a habit name.' });
+      triggerHaptic('warning');
+      return;
+    }
+    if (trimmed.length < 2) {
+      setToast({ visible: true, type: 'error', message: 'Habit name must be at least 2 characters.' });
+      triggerHaptic('warning');
+      return;
+    }
+    const lower = trimmed.toLowerCase();
+    if (habits.some((h) => h.name.trim().toLowerCase() === lower)) {
+      setToast({ visible: true, type: 'error', message: `"${trimmed}" already exists.` });
+      triggerHaptic('warning');
+      return;
+    }
 
+    setAddingHabitLoading(true);
+    triggerHaptic('light');
+
+    const newHabit: HabitItem = {
+      id: `habit-${Date.now()}`,
+      name: trimmed,
+      type: 'boolean',
+      enabled: true,
+    };
+
+    const updatedHabits = [...habits, newHabit];
+    setHabits(updatedHabits);
+    setSelectedHabitIds((prev) => new Set([...prev, newHabit.id]));
+
+    try {
+      await routineService.updateUserHabits(updatedHabits);
+      triggerHaptic('success');
+      setToast({ visible: true, type: 'success', message: `Habit "${trimmed}" added!` });
+      setNewHabitName('');
+      setIsAddingHabit(false);
+    } catch {
+      setToast({ visible: true, type: 'error', message: 'Could not sync habit to server.' });
+      triggerHaptic('warning');
+    } finally {
+      setAddingHabitLoading(false);
+    }
+  };
+
+  // Delete Habit Handler
+  const handleDeleteHabit = (habit: HabitItem) => {
+    triggerHaptic('warning');
+
+    const performDelete = async () => {
+      const updatedHabits = habits.filter((h) => h.id !== habit.id);
+      setHabits(updatedHabits);
+      setSelectedHabitIds((prev) => {
+        const next = new Set(prev);
+        next.delete(habit.id);
+        return next;
+      });
+
+      try {
+        await routineService.updateUserHabits(updatedHabits);
+        triggerHaptic('success');
+        setToast({ visible: true, type: 'success', message: `Habit "${habit.name}" removed.` });
+      } catch {
+        setToast({ visible: true, type: 'error', message: 'Could not remove habit from server.' });
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.confirm(`Remove "${habit.name}" from your active habits?`)) {
+        performDelete();
+      }
+    } else {
+      Alert.alert(
+        'Remove Habit',
+        `Are you sure you want to remove "${habit.name}" from your active habits?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: performDelete },
+        ]
+      );
+    }
+  };
+
+  // Save All Changes (Syncs Habits and Today's Routine)
   const handleSave = async () => {
     triggerHaptic('light');
     setLoading(true);
     setToast(null);
 
-    // Build activities preserving existing completion state
+    // 1. Sync updated habit preferences to profile
+    const syncedHabits = habits.map((h) => ({
+      ...h,
+      enabled: selectedHabitIds.has(h.id),
+    }));
+
+    // 2. Prepare today's routine activities with existing completion preserved
     const activities: RoutineActivity[] = habits
       .filter((h) => selectedHabitIds.has(h.id))
       .map((h) => ({
@@ -264,17 +271,36 @@ export default function AddRoutineScreen() {
       }));
 
     try {
+      if (__DEV__) {
+        console.log('⚙️ [ADD ROUTINE] 1/2 Persisting updated habits...');
+      }
+
+      // Step 1: Save updated habit list
+      await routineService.updateUserHabits(syncedHabits);
+
+      if (__DEV__) {
+        console.log('💾 [ADD ROUTINE] 2/2 Saving routine with selected habits...');
+      }
+
+      // Step 2: Save the routine activities for today
       await routineService.saveRoutine({
         date: getTodayDateString(),
-        wakeUpTime: formattedWakeTime,
-        waterIntake,
-        studyHours,
+        wakeUpTime: todayWakeUpTime || undefined,
+        waterIntake: todayWaterLogged,
+        studyHours: todayStudyLogged,
         activities,
       });
 
       triggerHaptic('success');
-      router.replace('/(tabs)/today');
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/(tabs)/today');
+      }
     } catch (err: unknown) {
+      if (__DEV__) {
+        console.error('❌ [ADD ROUTINE ERROR]', err);
+      }
       const msg = err instanceof Error ? err.message : 'Could not save routine. Please try again.';
       setToast({ visible: true, type: 'error', message: msg });
       triggerHaptic('warning');
@@ -288,6 +314,8 @@ export default function AddRoutineScreen() {
     month: 'short',
     day: 'numeric',
   });
+
+  const previewMeta = getHabitBrandMeta(newHabitName || 'Custom Habit', theme.isDark);
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
@@ -303,11 +331,12 @@ export default function AddRoutineScreen() {
         />
       )}
 
-      {/* Clean Top Bar */}
+      {/* Screen Top Bar */}
       <View
         style={[
           styles.topBar,
           {
+            backgroundColor: theme.colors.background,
             paddingTop: insets.top + (Platform.OS === 'android' ? 10 : 6),
             paddingLeft: insets.left + horizontalPadding,
             paddingRight: insets.right + horizontalPadding,
@@ -315,15 +344,21 @@ export default function AddRoutineScreen() {
         ]}>
         <View style={[styles.topBarInner, { maxWidth: containerMaxWidth }]}>
           <Pressable
-            onPress={() => router.replace('/(tabs)/today')}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/today');
+              }
+            }}
             hitSlop={12}
             accessibilityRole="button"
             accessibilityLabel="Close"
             style={({ pressed }) => [
               styles.closeButton,
               {
-                backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
               },
               pressed && styles.pressed,
             ]}>
@@ -334,8 +369,8 @@ export default function AddRoutineScreen() {
             style={[
               styles.datePill,
               {
-                backgroundColor: theme.isDark ? '#1E293B' : '#FFFFFF',
-                borderColor: theme.isDark ? '#334155' : '#E2E8F0',
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
               },
             ]}>
             <Text style={[styles.dateBadgeText, { color: theme.colors.textSecondary }]}>
@@ -361,271 +396,426 @@ export default function AddRoutineScreen() {
           ]}>
           {/* Header Title Section */}
           <View style={styles.header}>
-            <Text style={styles.eyebrow}>DAILY ANCHORS</Text>
-            <Text style={[styles.title, { color: theme.colors.text }]}>
-              Plan Today&apos;s Routine
-            </Text>
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
-              Set simple daily targets and choose your focus habits.
-            </Text>
-          </View>
-
-          {/* Section 1: Unified Daily Targets */}
-          <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
-            DAILY TARGETS
-          </Text>
-
-          <Card style={styles.groupedCard}>
-            {/* Row 1: Wake-up Time Stepper */}
-            <View style={styles.targetRow}>
-              <View style={styles.targetLeft}>
-                <View style={[styles.targetIconCircle, { backgroundColor: '#FFF7ED' }]}>
-                  <Ionicons name="sunny" size={18} color="#D97706" />
-                </View>
-                <View style={styles.targetInfo}>
-                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Wake-up</Text>
-                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                    Morning rise anchor
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.stepperContainer}>
-                <Pressable
-                  onPress={() => adjustWakeTime(-15)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="remove" size={16} color={theme.colors.text} />
-                </Pressable>
-
-                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                  {formattedWakeTime}
-                </Text>
-
-                <Pressable
-                  onPress={() => adjustWakeTime(15)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="add" size={16} color={theme.colors.text} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' }]} />
-
-            {/* Row 2: Hydration Stepper */}
-            <View style={styles.targetRow}>
-              <View style={styles.targetLeft}>
-                <View style={[styles.targetIconCircle, { backgroundColor: '#F0F9FF' }]}>
-                  <Ionicons name="water" size={18} color="#0284C7" />
-                </View>
-                <View style={styles.targetInfo}>
-                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Water</Text>
-                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                    Daily hydration goal
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.stepperContainer}>
-                <Pressable
-                  onPress={() => adjustWater(-0.5)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="remove" size={16} color={theme.colors.text} />
-                </Pressable>
-
-                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                  {waterIntake.toFixed(1)} L
-                </Text>
-
-                <Pressable
-                  onPress={() => adjustWater(0.5)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="add" size={16} color={theme.colors.text} />
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={[styles.divider, { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' }]} />
-
-            {/* Row 3: Deep Focus Stepper */}
-            <View style={styles.targetRow}>
-              <View style={styles.targetLeft}>
-                <View style={[styles.targetIconCircle, { backgroundColor: '#F5F3FF' }]}>
-                  <Ionicons name="hourglass" size={18} color="#7C3AED" />
-                </View>
-                <View style={styles.targetInfo}>
-                  <Text style={[styles.targetTitle, { color: theme.colors.text }]}>Focus</Text>
-                  <Text style={[styles.targetSubtitle, { color: theme.colors.textSecondary }]}>
-                    Study &amp; deep work hours
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.stepperContainer}>
-                <Pressable
-                  onPress={() => adjustStudy(-0.5)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="remove" size={16} color={theme.colors.text} />
-                </Pressable>
-
-                <Text style={[styles.stepperValueText, { color: theme.colors.text }]}>
-                  {studyHours.toFixed(1)} h
-                </Text>
-
-                <Pressable
-                  onPress={() => adjustStudy(0.5)}
-                  hitSlop={8}
-                  style={({ pressed }) => [
-                    styles.stepperBtn,
-                    {
-                      backgroundColor: theme.isDark ? '#1E293B' : '#F1F5F9',
-                      borderColor: theme.isDark ? '#334155' : '#E2E8F0',
-                    },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="add" size={16} color={theme.colors.text} />
-                </Pressable>
-              </View>
-            </View>
-          </Card>
-
-          {/* Section 2: Habits Selection */}
-          <View style={styles.sectionHeadingRow}>
-            <Text style={[styles.groupLabel, { color: theme.colors.textSecondary }]}>
-              TODAY&apos;S HABITS
-            </Text>
-            <View
+            <Text
               style={[
-                styles.countBadge,
+                styles.eyebrow,
                 {
-                  backgroundColor: theme.isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
-                  borderColor: theme.isDark ? '#065F46' : '#A7F3D0',
+                  color: theme.isDark
+                    ? PrimitiveTokens.color.amber[400]
+                    : PrimitiveTokens.color.amber[700],
                 },
               ]}>
-              <Text style={styles.countBadgeText}>{selectedHabitIds.size} ACTIVE</Text>
-            </View>
+              HABITS MANAGEMENT
+            </Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>
+              {isExistingRoutine ? 'Manage Habits' : 'Set Up Daily Habits'}
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
+              Select which habits to track today or create new custom ones.
+            </Text>
           </View>
 
-          <Card style={styles.groupedCard}>
-            {habits.map((habit, index) => {
-              const isSelected = selectedHabitIds.has(habit.id);
-              const isLast = index === habits.length - 1;
-              const meta = getHabitBrandMeta(habit.name);
-
-              return (
-                <React.Fragment key={habit.id}>
-                  <Pressable
-                    onPress={() => toggleHabit(habit.id)}
-                    style={({ pressed }) => [
-                      styles.habitRow,
-                      pressed && { opacity: 0.75 },
+          {initialLoading ? (
+            <View style={styles.loaderBox}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text style={[styles.loaderText, { color: theme.colors.textSecondary }]}>
+                Loading rhythm settings...
+              </Text>
+            </View>
+          ) : (
+            <>
+              {/* ========================================================
+                  FOCUS HABITS MANAGEMENT
+                  ======================================================== */}
+              <View style={[styles.sectionHeadingRow, { marginTop: PrimitiveTokens.space[1] }]}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.groupLabel, { color: theme.colors.textSecondary, marginBottom: 0 }]}>
+                    FOCUS HABITS
+                  </Text>
+                  <Text style={[styles.sectionSubtitleHint, { color: theme.colors.textMuted }]}>
+                    Toggle habits you want to track today, or add custom ones.
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.countBadge,
+                    {
+                      backgroundColor:
+                        selectedHabitIds.size > 0
+                          ? theme.isDark
+                            ? 'rgba(30, 158, 90, 0.2)'
+                            : '#E3F3E9'
+                          : theme.colors.surfaceAlt,
+                      borderColor:
+                        selectedHabitIds.size > 0
+                          ? theme.isDark
+                            ? 'rgba(91, 219, 139, 0.4)'
+                            : PrimitiveTokens.color.fern[200]
+                          : theme.colors.borderSubtle,
+                    },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.countBadgeText,
+                      {
+                        color:
+                          selectedHabitIds.size > 0
+                            ? theme.colors.success
+                            : theme.colors.textMuted,
+                      },
                     ]}>
-                    <View style={styles.habitLeft}>
-                      {/* Habit Icon Circle */}
-                      <View
-                        style={[
-                          styles.habitIconCircle,
-                          {
-                            backgroundColor: theme.isDark
-                              ? 'rgba(255, 255, 255, 0.08)'
-                              : meta.tileBg,
-                          },
+                    {selectedHabitIds.size} ACTIVE
+                  </Text>
+                </View>
+              </View>
+
+              <Card style={styles.groupedCard}>
+                {habits.map((habit, index) => {
+                  const isSelected = selectedHabitIds.has(habit.id);
+                  const isLast = index === habits.length - 1 && !isAddingHabit;
+                  const meta = getHabitBrandMeta(habit.name, theme.isDark);
+
+                  return (
+                    <React.Fragment key={habit.id}>
+                      <Pressable
+                        onPress={() => toggleHabit(habit.id)}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: isSelected }}
+                        accessibilityLabel={`${habit.name}, ${isSelected ? 'active' : 'inactive'}`}
+                        style={({ pressed }) => [
+                          styles.habitRow,
+                          pressed && { opacity: 0.75 },
                         ]}>
-                        <Ionicons name={meta.icon} size={18} color={meta.iconColor} />
-                      </View>
+                        <View style={styles.habitLeft}>
+                          {/* Habit Icon Circle */}
+                          <View
+                            style={[
+                              styles.habitIconCircle,
+                              { backgroundColor: meta.tileBg },
+                            ]}>
+                            <Ionicons name={meta.icon} size={18} color={meta.iconColor} />
+                          </View>
 
-                      {/* Habit Name */}
-                      <Text
-                        style={[
-                          styles.habitRowName,
-                          {
-                            color: isSelected ? theme.colors.text : theme.colors.textSecondary,
-                            fontWeight: isSelected ? '700' : '500',
-                          },
-                        ]}>
-                        {habit.name}
-                      </Text>
-                    </View>
+                          {/* Habit Name */}
+                          <Text
+                            style={[
+                              styles.habitRowName,
+                              {
+                                color: isSelected ? theme.colors.text : theme.colors.textSecondary,
+                                fontWeight: isSelected ? '700' : '500',
+                              },
+                            ]}
+                            numberOfLines={1}>
+                            {habit.name}
+                          </Text>
+                        </View>
 
-                    {/* Clean Checkbox Indicator */}
-                    {isSelected ? (
-                      <View style={styles.checkFilledCircle}>
-                        <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                      </View>
-                    ) : (
-                      <View
-                        style={[
-                          styles.checkEmptyCircle,
-                          { borderColor: theme.isDark ? '#475569' : '#CBD5E1' },
-                        ]}
-                      />
-                    )}
-                  </Pressable>
+                        {/* Right Actions: Delete icon + Checkbox */}
+                        <View style={styles.habitRightActions}>
+                          <Pressable
+                            onPress={() => handleDeleteHabit(habit)}
+                            hitSlop={10}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Delete ${habit.name}`}
+                            style={({ pressed }) => [
+                              styles.trashBtn,
+                              pressed && { opacity: 0.6 },
+                            ]}>
+                            <Ionicons
+                              name="trash-outline"
+                              size={16}
+                              color={theme.colors.textMuted}
+                            />
+                          </Pressable>
 
-                  {!isLast && (
+                          {/* Checkbox indicator */}
+                          {isSelected ? (
+                            <View
+                              style={[
+                                styles.checkFilledCircle,
+                                { backgroundColor: theme.colors.success },
+                              ]}>
+                              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                            </View>
+                          ) : (
+                            <View
+                              style={[
+                                styles.checkEmptyCircle,
+                                { borderColor: theme.colors.border },
+                              ]}
+                            />
+                          )}
+                        </View>
+                      </Pressable>
+
+                      {!isLast && (
+                        <View
+                          style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Inline Add Custom Habit Expansion */}
+                {isAddingHabit ? (
+                  <View
+                    style={[
+                      styles.addHabitExpanded,
+                      {
+                        backgroundColor: theme.colors.surfaceAlt,
+                        borderTopColor: theme.colors.borderSubtle,
+                      },
+                    ]}>
+                    <Text style={[styles.addHabitPrompt, { color: theme.colors.text }]}>
+                      New Habit Name
+                    </Text>
+
                     <View
                       style={[
-                        styles.divider,
-                        { backgroundColor: theme.isDark ? '#334155' : '#F1F5F9' },
-                      ]}
-                    />
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </Card>
+                        styles.addHabitInputWrapper,
+                        {
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.border,
+                        },
+                      ]}>
+                      <Ionicons
+                        name={previewMeta.icon}
+                        size={17}
+                        color={previewMeta.iconColor}
+                        style={{ marginRight: 8 }}
+                      />
+                      <TextInput
+                        value={newHabitName}
+                        onChangeText={setNewHabitName}
+                        placeholder="e.g. Morning Walk, Journal, Cold Shower"
+                        placeholderTextColor={theme.colors.textMuted}
+                        style={[styles.habitTextInput, { color: theme.colors.text }]}
+                        autoFocus
+                        maxLength={40}
+                        returnKeyType="done"
+                        onSubmitEditing={handleAddCustomHabit}
+                      />
+                    </View>
 
-          {/* Clean CTA Save Button */}
-          <Button
-            title="Save Routine"
-            onPress={handleSave}
-            loading={loading}
-            variant="primary"
-            size="lg"
-            pill
-            fullWidth
-            icon={<Ionicons name="checkmark-sharp" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />}
-            style={styles.saveBtn}
-          />
+                    {newHabitName.trim().length > 0 && (
+                      <View style={styles.previewRow}>
+                        <Text style={[styles.previewLabel, { color: theme.colors.textMuted }]}>
+                          Preview:
+                        </Text>
+                        <View
+                          style={[
+                            styles.previewPill,
+                            { backgroundColor: previewMeta.tileBg },
+                          ]}>
+                          <Ionicons
+                            name={previewMeta.icon}
+                            size={13}
+                            color={previewMeta.iconColor}
+                          />
+                          <Text
+                            style={[
+                              styles.previewPillText,
+                              { color: previewMeta.iconColor },
+                            ]}>
+                            {newHabitName.trim()}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+
+                    <View style={styles.addHabitActions}>
+                      <Pressable
+                        onPress={() => {
+                          triggerHaptic('light');
+                          setIsAddingHabit(false);
+                          setNewHabitName('');
+                        }}
+                        style={({ pressed }) => [
+                          styles.cancelAddBtn,
+                          { borderColor: theme.colors.border },
+                          pressed && { opacity: 0.7 },
+                        ]}>
+                        <Text style={[styles.cancelAddText, { color: theme.colors.textSecondary }]}>
+                          Cancel
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={handleAddCustomHabit}
+                        disabled={addingHabitLoading || newHabitName.trim().length === 0}
+                        style={({ pressed }) => [
+                          styles.confirmAddBtn,
+                          {
+                            backgroundColor:
+                              newHabitName.trim().length > 0
+                                ? theme.colors.primary
+                                : theme.colors.borderSubtle,
+                          },
+                          pressed && { opacity: 0.8 },
+                        ]}>
+                        {addingHabitLoading ? (
+                          <ActivityIndicator size="small" color={theme.colors.primaryForeground} />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name="add"
+                              size={16}
+                              color={
+                                newHabitName.trim().length > 0
+                                  ? theme.colors.primaryForeground
+                                  : theme.colors.textMuted
+                              }
+                            />
+                            <Text
+                              style={[
+                                styles.confirmAddText,
+                                {
+                                  color:
+                                    newHabitName.trim().length > 0
+                                      ? theme.colors.primaryForeground
+                                      : theme.colors.textMuted,
+                                },
+                              ]}>
+                              Add Habit
+                            </Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <View
+                      style={[styles.divider, { backgroundColor: theme.colors.borderSubtle }]}
+                    />
+                    <Pressable
+                      onPress={() => {
+                        triggerHaptic('light');
+                        setIsAddingHabit(true);
+                      }}
+                      style={({ pressed }) => [
+                        styles.addHabitTriggerRow,
+                        pressed && { opacity: 0.75 },
+                      ]}>
+                      <View
+                        style={[
+                          styles.addHabitTriggerIcon,
+                          {
+                            backgroundColor: theme.isDark
+                              ? 'rgba(30, 158, 90, 0.2)'
+                              : '#E3F3E9',
+                          },
+                        ]}>
+                        <Ionicons
+                          name="add"
+                          size={18}
+                          color={theme.colors.success}
+                        />
+                      </View>
+                      <Text
+                        style={[
+                          styles.addHabitTriggerText,
+                          { color: theme.colors.success },
+                        ]}>
+                        Add Custom Habit
+                      </Text>
+                    </Pressable>
+                  </>
+                )}
+              </Card>
+
+              {/* Profile Target Info Banner */}
+              <Card
+                style={[
+                  styles.targetBannerCard,
+                  {
+                    backgroundColor: theme.isDark
+                      ? 'rgba(251, 191, 36, 0.08)'
+                      : 'rgba(251, 191, 36, 0.12)',
+                    borderColor: theme.isDark
+                      ? 'rgba(251, 191, 36, 0.25)'
+                      : PrimitiveTokens.color.amber[200],
+                  },
+                ]}>
+                <View style={styles.targetBannerContent}>
+                  <View
+                    style={[
+                      styles.targetBannerIconCircle,
+                      {
+                        backgroundColor: theme.isDark
+                          ? SemanticDarkTokens.color.bg.tileAmber
+                          : SemanticLightTokens.color.bg.tileAmber,
+                      },
+                    ]}>
+                    <Ionicons
+                      name="flag"
+                      size={18}
+                      color={
+                        theme.isDark
+                          ? PrimitiveTokens.color.amber[400]
+                          : PrimitiveTokens.color.amber[700]
+                      }
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.targetBannerTitle, { color: theme.colors.text }]}>
+                      Looking for Daily Targets?
+                    </Text>
+                    <Text
+                      style={[
+                        styles.targetBannerDesc,
+                        { color: theme.colors.textSecondary },
+                      ]}>
+                      Your benchmark targets for Wake-up, Water, and Study are configured in Profile Settings.
+                    </Text>
+                  </View>
+                </View>
+                <Pressable
+                  onPress={() => {
+                    triggerHaptic('light');
+                    router.push('/(tabs)/profile');
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open Target Settings in Profile"
+                  style={({ pressed }) => [
+                    styles.targetBannerBtn,
+                    {
+                      backgroundColor: theme.colors.surface,
+                      borderColor: theme.colors.borderSubtle,
+                    },
+                    pressed && { opacity: 0.75 },
+                  ]}>
+                  <Text style={[styles.targetBannerBtnText, { color: theme.colors.text }]}>
+                    Open Target Settings in Profile
+                  </Text>
+                  <Ionicons name="arrow-forward" size={14} color={theme.colors.text} />
+                </Pressable>
+              </Card>
+
+              {/* Clean CTA Save Button */}
+              <View style={{ marginTop: PrimitiveTokens.space[6] }}>
+                <Button
+                  title="Save Habits"
+                  onPress={handleSave}
+                  loading={loading}
+                  variant="primary"
+                  size="lg"
+                  pill
+                  fullWidth
+                  icon={
+                    <Ionicons
+                      name="checkmark-sharp"
+                      size={18}
+                      color={theme.colors.primaryForeground}
+                      style={{ marginRight: 6 }}
+                    />
+                  }
+                  style={styles.saveBtn}
+                />
+              </View>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -651,34 +841,25 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: PrimitiveTokens.radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
   },
   pressed: {
     opacity: 0.75,
     transform: [{ scale: 0.96 }],
   },
   datePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
+    paddingHorizontal: PrimitiveTokens.space[3],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
   },
   dateBadgeText: {
-    fontSize: 12.5,
-    fontWeight: '600',
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
     letterSpacing: 0.2,
   },
   keyboardView: {
@@ -687,79 +868,100 @@ const styles = StyleSheet.create({
   scrollContent: {
     width: '100%',
     alignSelf: 'center',
-    paddingTop: 12,
+    paddingTop: PrimitiveTokens.space[3],
   },
   header: {
-    marginBottom: 22,
+    marginBottom: PrimitiveTokens.space[5],
   },
   eyebrow: {
-    fontSize: 11.5,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
     fontWeight: '800',
-    color: '#D97706',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: PrimitiveTokens.space[1],
   },
   title: {
-    fontSize: 27,
-    fontWeight: '800',
-    letterSpacing: -0.6,
+    fontSize: TypographyScale.h2.fontSize,
+    fontFamily: TypographyScale.h2.fontFamily,
+    fontWeight: TypographyScale.h2.fontWeight,
+    letterSpacing: TypographyScale.h2.letterSpacing,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    lineHeight: TypographyScale.bodySm.lineHeight,
+    marginTop: PrimitiveTokens.space[1],
+  },
+  loaderBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: PrimitiveTokens.space[3],
+  },
+  loaderText: {
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
   },
   groupLabel: {
-    fontSize: 11.5,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
     fontWeight: '800',
     letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    marginBottom: PrimitiveTokens.space[2],
+    paddingHorizontal: PrimitiveTokens.space[1],
+  },
+  sectionSubtitleHint: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    marginTop: 2,
+    marginBottom: PrimitiveTokens.space[1],
+    paddingHorizontal: PrimitiveTokens.space[1],
   },
   sectionHeadingRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 24,
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    marginTop: PrimitiveTokens.space[5],
+    marginBottom: PrimitiveTokens.space[2],
+    paddingHorizontal: PrimitiveTokens.space[1],
   },
   countBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: PrimitiveTokens.space[2],
+    paddingVertical: PrimitiveTokens.space['0_5'],
+    borderRadius: PrimitiveTokens.radius.sm,
     borderWidth: 1,
   },
   countBadgeText: {
-    fontSize: 10.5,
+    fontSize: TypographyScale.micro.fontSize,
+    fontFamily: TypographyScale.micro.fontFamily,
     fontWeight: '800',
-    color: '#059669',
     letterSpacing: 0.5,
   },
   groupedCard: {
-    padding: 2,
-    borderRadius: 18,
+    padding: PrimitiveTokens.space['0_5'],
+    borderRadius: PrimitiveTokens.radius.xl,
     overflow: 'hidden',
+    borderWidth: 1,
   },
   targetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: PrimitiveTokens.space['3_5'],
+    paddingVertical: PrimitiveTokens.space[3],
   },
   targetLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: PrimitiveTokens.space[3],
   },
   targetIconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: PrimitiveTokens.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -767,86 +969,259 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   targetTitle: {
-    fontSize: 15,
+    fontSize: TypographyScale.body.fontSize,
+    fontFamily: TypographyScale.body.fontFamily,
     fontWeight: '700',
   },
   targetSubtitle: {
-    fontSize: 12,
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     marginTop: 2,
   },
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: PrimitiveTokens.space[2],
   },
   stepperBtn: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: PrimitiveTokens.radius.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperValueText: {
-    fontSize: 14.5,
+    fontSize: TypographyScale.bodySm.fontSize,
+    fontFamily: TypographyScale.bodySm.fontFamily,
     fontWeight: '700',
     minWidth: 54,
     textAlign: 'center',
   },
+  resetBtn: {
+    paddingHorizontal: PrimitiveTokens.space[2],
+    paddingVertical: PrimitiveTokens.space[1],
+    borderRadius: PrimitiveTokens.radius.md,
+    borderWidth: 1,
+  },
+  resetBtnText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '600',
+  },
+  logNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[1],
+    paddingHorizontal: PrimitiveTokens.space['2_5'],
+    paddingVertical: PrimitiveTokens.space['1_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  logNowText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
   divider: {
     height: 1,
-    marginHorizontal: 14,
+    marginHorizontal: PrimitiveTokens.space['3_5'],
   },
   habitRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: PrimitiveTokens.space['3_5'],
+    paddingVertical: PrimitiveTokens.space[3],
   },
   habitLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    gap: 12,
+    gap: PrimitiveTokens.space[3],
   },
   habitIconCircle: {
     width: 38,
     height: 38,
-    borderRadius: 12,
+    borderRadius: PrimitiveTokens.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   habitRowName: {
-    fontSize: 14.5,
+    fontSize: TypographyScale.body.fontSize,
+    fontFamily: TypographyScale.body.fontFamily,
     flex: 1,
+  },
+  habitRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+  },
+  trashBtn: {
+    padding: PrimitiveTokens.space[1],
   },
   checkFilledCircle: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: '#059669',
+    borderRadius: PrimitiveTokens.radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.3,
-    shadowRadius: 2,
-    elevation: 2,
   },
   checkEmptyCircle: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: PrimitiveTokens.radius.full,
     borderWidth: 2,
     backgroundColor: 'transparent',
   },
+  /* Add custom habit trigger row */
+  addHabitTriggerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+    paddingHorizontal: PrimitiveTokens.space['3_5'],
+    paddingVertical: PrimitiveTokens.space[3],
+  },
+  addHabitTriggerIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: PrimitiveTokens.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addHabitTriggerText: {
+    fontSize: TypographyScale.body.fontSize,
+    fontFamily: TypographyScale.body.fontFamily,
+    fontWeight: '700',
+  },
+  /* Add habit expanded form */
+  addHabitExpanded: {
+    padding: PrimitiveTokens.space['3_5'],
+    borderTopWidth: 1,
+  },
+  addHabitPrompt: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: PrimitiveTokens.space[2],
+  },
+  addHabitInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    borderRadius: PrimitiveTokens.radius.lg,
+    borderWidth: 1,
+    paddingHorizontal: PrimitiveTokens.space[3],
+  },
+  habitTextInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: TypographyScale.body.fontSize,
+    fontFamily: TypographyScale.body.fontFamily,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[2],
+    marginTop: PrimitiveTokens.space[2],
+  },
+  previewLabel: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '600',
+  },
+  previewPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[1],
+    paddingHorizontal: PrimitiveTokens.space[2],
+    paddingVertical: PrimitiveTokens.space['0_5'],
+    borderRadius: PrimitiveTokens.radius.full,
+  },
+  previewPillText: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+  addHabitActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: PrimitiveTokens.space[2],
+    marginTop: PrimitiveTokens.space[3],
+  },
+  cancelAddBtn: {
+    paddingHorizontal: PrimitiveTokens.space[3],
+    paddingVertical: PrimitiveTokens.space[2],
+    borderRadius: PrimitiveTokens.radius.full,
+    borderWidth: 1,
+  },
+  cancelAddText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '600',
+  },
+  confirmAddBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[1],
+    paddingHorizontal: PrimitiveTokens.space[4],
+    paddingVertical: PrimitiveTokens.space[2],
+    borderRadius: PrimitiveTokens.radius.full,
+  },
+  confirmAddText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '700',
+  },
   saveBtn: {
-    marginTop: 26,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 3,
+    marginTop: PrimitiveTokens.space[6],
+  },
+  targetBannerCard: {
+    marginTop: PrimitiveTokens.space[6],
+    borderRadius: PrimitiveTokens.radius.xl,
+    padding: PrimitiveTokens.space[4],
+    borderWidth: 1,
+  },
+  targetBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: PrimitiveTokens.space[3],
+  },
+  targetBannerIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  targetBannerTitle: {
+    fontSize: TypographyScale.bodyStrong.fontSize,
+    fontFamily: TypographyScale.bodyStrong.fontFamily,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  targetBannerDesc: {
+    fontSize: TypographyScale.captionSm.fontSize,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    lineHeight: 16,
+  },
+  targetBannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: PrimitiveTokens.space[1],
+    paddingVertical: PrimitiveTokens.space[2],
+    paddingHorizontal: PrimitiveTokens.space[3],
+    borderRadius: PrimitiveTokens.radius.md,
+    borderWidth: 1,
+    marginTop: PrimitiveTokens.space[3],
+  },
+  targetBannerBtnText: {
+    fontSize: TypographyScale.caption.fontSize,
+    fontFamily: TypographyScale.caption.fontFamily,
+    fontWeight: '600',
   },
 });

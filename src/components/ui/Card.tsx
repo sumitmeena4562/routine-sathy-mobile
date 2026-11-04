@@ -12,7 +12,7 @@ import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/hooks/use-theme';
 
-export type CardVariant = 'surface' | 'elevated' | 'outline' | 'muted';
+export type CardVariant = 'surface' | 'elevated' | 'outline' | 'muted' | 'mint' | 'dark';
 
 export interface CardProps {
   children: React.ReactNode;
@@ -73,6 +73,16 @@ export function Card({
       backgroundColor = theme.colors.backgroundElement;
       borderColor = 'transparent';
       borderWidth = 0;
+      break;
+    case 'mint':
+      backgroundColor = theme.isDark ? 'rgba(30, 158, 90, 0.18)' : '#E3F3E9';
+      borderColor = theme.isDark ? 'rgba(91, 219, 139, 0.25)' : theme.colors.border;
+      borderWidth = theme.borderWidth.thin;
+      break;
+    case 'dark':
+      backgroundColor = theme.isDark ? '#07261B' : '#0B3D2E';
+      borderColor = 'rgba(207, 227, 214, 0.15)';
+      borderWidth = theme.borderWidth.thin;
       break;
   }
 

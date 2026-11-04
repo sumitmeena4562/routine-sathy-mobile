@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import * as Notifications from 'expo-notifications';
 import { CircadianAlarmConfig, DEFAULT_ALARM_CONFIG } from '../types/alarm';
 import { alarmScheduler } from '../services/alarmScheduler';
 import { alarmAudio } from '../services/alarmAudio';
@@ -49,32 +48,15 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
 
   // Listen for alarm notifications received while app is running
   useEffect(() => {
-    const subscription = Notifications.addNotificationReceivedListener((notification) => {
-      const data = notification.request.content.data;
-      if (data?.type === 'sathy-alarm-notification') {
-        setIsRinging(true);
-        alarmAudio.startRinging(
-          config.sound || 'sunrise-forest',
-          config.gradualRampMinutes ?? 2
-        );
-      }
+    const unsubscribe = alarmScheduler.registerListeners(() => {
+      setIsRinging(true);
+      alarmAudio.startRinging(
+        config.sound || 'sunrise-forest',
+        config.gradualRampMinutes ?? 2
+      );
     });
 
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const data = response.notification.request.content.data;
-      if (data?.type === 'sathy-alarm-notification') {
-        setIsRinging(true);
-        alarmAudio.startRinging(
-          config.sound || 'sunrise-forest',
-          config.gradualRampMinutes ?? 2
-        );
-      }
-    });
-
-    return () => {
-      subscription.remove();
-      responseSubscription.remove();
-    };
+    return unsubscribe;
   }, [config.sound, config.gradualRampMinutes]);
 
   const updateConfig = useCallback(async (updates: Partial<CircadianAlarmConfig>) => {
@@ -120,29 +102,8 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     setIsRinging(false);
     await alarmAudio.stop();
     const snoozeDuration = minutes || config.snoozeMinutes || 5;
-    const snoozeDate = new Date(Date.now() + snoozeDuration * 60 * 1000);
-
-    try {
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '⏰ Alarm Snooze',
-          body: 'Your 5-minute circadian snooze is up! Time to get moving.',
-          sound: true,
-          data: {
-            type: 'sathy-alarm-notification',
-            sound: config.sound,
-            mission: config.mission,
-          },
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: snoozeDate,
-        },
-      });
-    } catch {
-      // Snooze fallback
-    }
-  }, [config.snoozeMinutes, config.sound, config.mission]);
+    await alarmScheduler.scheduleSnooze(snoozeDuration, config);
+  }, [config]);
 
   // For developer/user test trigger
   const triggerTestAlarm = useCallback(async () => {

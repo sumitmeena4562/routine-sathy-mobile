@@ -87,7 +87,8 @@
           "color": "#F59E0B"
         }
       ],
-      "expo-updates"
+      "expo-updates",
+      "expo-audio"
     ],
     "updates": {
       "url": "https://u.expo.dev/cf011c13-414a-48e2-9a4a-91ed457440f7"

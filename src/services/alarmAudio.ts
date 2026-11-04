@@ -1,9 +1,8 @@
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { AlarmSoundId } from '../types/alarm';
 
-// Reliable high-quality royalty-free ambient circadian loops (Hosted on fast CDN)
+// Reliable high-quality royalty-free ambient circadian loops (Hosted on fast Google actions CDN)
 const SOUND_SOURCES: Record<AlarmSoundId, string> = {
   'sunrise-forest': 'https://actions.google.com/sounds/v1/nature/morning_birds.ogg',
   'ocean-waves': 'https://actions.google.com/sounds/v1/water/waves_crashing.ogg',
@@ -11,8 +10,18 @@ const SOUND_SOURCES: Record<AlarmSoundId, string> = {
   'energetic-dawn': 'https://actions.google.com/sounds/v1/foley/wind_chimes_ringing.ogg',
 };
 
+// Safe runtime resolution for expo-audio
+function getAudioModule(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-audio');
+  } catch {
+    return null;
+  }
+}
+
 class AlarmAudioService {
-  private soundObject: Audio.Sound | null = null;
+  private player: any = null;
   private isRinging: boolean = false;
   private rampTimer: ReturnType<typeof setInterval> | null = null;
   private hapticTimer: ReturnType<typeof setInterval> | null = null;
@@ -20,19 +29,21 @@ class AlarmAudioService {
 
   async initAudioMode() {
     try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: true,
-      });
+      const audioMod = getAudioModule();
+      if (audioMod?.setAudioModeAsync) {
+        await audioMod.setAudioModeAsync({
+          playsInSilentMode: true,
+          staysActiveInBackground: true,
+          shouldDuckAndroid: true,
+        });
+      }
     } catch {
       // Audio mode fallback
     }
   }
 
   /**
-   * Play preview of selected sound tone (plays 4 seconds then stops)
+   * Play preview of selected sound tone (plays 5 seconds then stops)
    */
   async playPreview(soundId: AlarmSoundId): Promise<() => void> {
     await this.stop();
@@ -40,17 +51,22 @@ class AlarmAudioService {
 
     try {
       const uri = SOUND_SOURCES[soundId] || SOUND_SOURCES['sunrise-forest'];
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true, volume: 0.8, isLooping: false }
-      );
-      this.soundObject = sound;
+      const audioMod = getAudioModule();
+
+      if (audioMod?.createAudioPlayer) {
+        const player = audioMod.createAudioPlayer({ uri });
+        if (player) {
+          player.volume = 0.8;
+          player.loop = false;
+          player.play();
+          this.player = player;
+        }
+      }
 
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
 
-      // Auto stop after 5s
       const timer = setTimeout(() => {
         this.stop();
       }, 5000);
@@ -60,91 +76,117 @@ class AlarmAudioService {
         this.stop();
       };
     } catch {
-      // Audio preview error fallback
-      return () => {};
+      return () => {
+        this.stop();
+      };
     }
   }
 
   /**
-   * Start ringing the alarm with optional gradual volume ramping
+   * Start ringing the alarm with progressive volume crescendo (volume ramping from 10% to 100%)
    */
-  async startRinging(soundId: AlarmSoundId, rampMinutes: 0 | 2 | 5 = 2) {
+  async startRinging(soundId: AlarmSoundId = 'sunrise-forest', rampMinutes: 0 | 2 | 5 = 2): Promise<void> {
     if (this.isRinging) return;
     this.isRinging = true;
 
     await this.initAudioMode();
 
+    const uri = SOUND_SOURCES[soundId] || SOUND_SOURCES['sunrise-forest'];
+    this.currentVolume = rampMinutes === 0 ? 1.0 : 0.1;
+
     try {
-      const uri = SOUND_SOURCES[soundId] || SOUND_SOURCES['sunrise-forest'];
-      this.currentVolume = rampMinutes > 0 ? 0.1 : 1.0;
-
-      const { sound } = await Audio.Sound.createAsync(
-        { uri },
-        { shouldPlay: true, isLooping: true, volume: this.currentVolume }
-      );
-      this.soundObject = sound;
-
-      // Start volume ramping
-      if (rampMinutes > 0) {
-        const totalSteps = 20;
-        const intervalMs = (rampMinutes * 60 * 1000) / totalSteps;
-        const stepVolume = (1.0 - 0.1) / totalSteps;
-
-        this.rampTimer = setInterval(async () => {
-          if (!this.isRinging || !this.soundObject) {
-            if (this.rampTimer) clearInterval(this.rampTimer);
-            return;
-          }
-          this.currentVolume = Math.min(1.0, this.currentVolume + stepVolume);
-          try {
-            await this.soundObject.setVolumeAsync(this.currentVolume);
-          } catch {
-            // Ignore volume set error
-          }
-          if (this.currentVolume >= 1.0 && this.rampTimer) {
-            clearInterval(this.rampTimer);
-          }
-        }, intervalMs);
-      }
-
-      // Start gentle rhythmic haptic pulsation
-      if (Platform.OS !== 'web') {
-        this.hapticTimer = setInterval(() => {
-          if (!this.isRinging) {
-            if (this.hapticTimer) clearInterval(this.hapticTimer);
-            return;
-          }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }, 3000);
+      const audioMod = getAudioModule();
+      if (audioMod?.createAudioPlayer) {
+        const player = audioMod.createAudioPlayer({ uri });
+        if (player) {
+          player.volume = this.currentVolume;
+          player.loop = true;
+          player.play();
+          this.player = player;
+        }
       }
     } catch {
-      // Ringing fallback
+      // Audio player fallback
+    }
+
+    // Start rhythmic circadian haptics (gentle pulses)
+    this.startRhythmicHaptics();
+
+    // If gradual crescendo ramp requested, increase volume incrementally
+    if (rampMinutes > 0) {
+      const totalSteps = 20;
+      const stepDurationMs = (rampMinutes * 60 * 1000) / totalSteps;
+      const volumeIncrement = (1.0 - 0.1) / totalSteps;
+
+      this.rampTimer = setInterval(() => {
+        if (!this.isRinging || !this.player) {
+          if (this.rampTimer) clearInterval(this.rampTimer);
+          return;
+        }
+
+        this.currentVolume = Math.min(1.0, this.currentVolume + volumeIncrement);
+        try {
+          if (this.player) {
+            this.player.volume = this.currentVolume;
+          }
+        } catch {
+          // Ignore volume update error
+        }
+
+        if (this.currentVolume >= 1.0 && this.rampTimer) {
+          clearInterval(this.rampTimer);
+          this.rampTimer = null;
+        }
+      }, stepDurationMs);
     }
   }
 
+  private startRhythmicHaptics() {
+    if (Platform.OS === 'web') return;
+
+    // Pattern: pulse, pulse, pause...
+    let pulseCount = 0;
+    this.hapticTimer = setInterval(() => {
+      if (!this.isRinging) {
+        if (this.hapticTimer) clearInterval(this.hapticTimer);
+        return;
+      }
+
+      pulseCount++;
+      if (pulseCount % 3 !== 0) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+    }, 800);
+  }
+
   /**
-   * Silence & stop the alarm audio & haptics
+   * Stop alarm sound and haptics completely
    */
-  async stop() {
+  async stop(): Promise<void> {
     this.isRinging = false;
 
     if (this.rampTimer) {
       clearInterval(this.rampTimer);
       this.rampTimer = null;
     }
+
     if (this.hapticTimer) {
       clearInterval(this.hapticTimer);
       this.hapticTimer = null;
     }
 
-    if (this.soundObject) {
+    if (this.player) {
       try {
-        await this.soundObject.stopAsync();
-        await this.soundObject.unloadAsync();
+        if (typeof this.player.pause === 'function') {
+          this.player.pause();
+        }
+        if (typeof this.player.remove === 'function') {
+          this.player.remove();
+        }
       } catch {
-        // Ignore stop error
+        // Player cleanup error ignored
       } finally {
-        this.soundObject = null;
+        this.player = null;
       }
     }
   }

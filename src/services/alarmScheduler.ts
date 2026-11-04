@@ -1,4 +1,3 @@
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { CircadianAlarmConfig, DEFAULT_ALARM_CONFIG } from '../types/alarm';
@@ -8,16 +7,33 @@ const STORAGE_KEY = 'sathy_circadian_alarm_config';
 const ALARM_NOTIFICATION_TAG = 'sathy-alarm-notification';
 const BEDTIME_NOTIFICATION_TAG = 'sathy-bedtime-notification';
 
-// Set notification behavior when app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Safe lazy accessor for expo-notifications
+function getNotifications(): any {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('expo-notifications');
+  } catch {
+    return null;
+  }
+}
+
+// Set notification behavior if module is present
+try {
+  const notif = getNotifications();
+  if (notif?.setNotificationHandler) {
+    notif.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }
+} catch {
+  // Notification handler fallback
+}
 
 class AlarmSchedulerService {
   private hasInitializedChannels = false;
@@ -25,18 +41,21 @@ class AlarmSchedulerService {
   async initChannels() {
     if (this.hasInitializedChannels || Platform.OS !== 'android') return;
     try {
-      await Notifications.setNotificationChannelAsync('circadian-alarm', {
+      const notif = getNotifications();
+      if (!notif?.setNotificationChannelAsync) return;
+
+      await notif.setNotificationChannelAsync('circadian-alarm', {
         name: 'Circadian Wake Alarm',
-        importance: Notifications.AndroidImportance.MAX,
+        importance: notif.AndroidImportance?.MAX ?? 5,
         vibrationPattern: [0, 500, 250, 500],
         lightColor: '#F59E0B',
-        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        lockscreenVisibility: notif.AndroidNotificationVisibility?.PUBLIC ?? 1,
         bypassDnd: true,
       });
 
-      await Notifications.setNotificationChannelAsync('circadian-bedtime', {
+      await notif.setNotificationChannelAsync('circadian-bedtime', {
         name: 'Circadian Bedtime Wind-Down',
-        importance: Notifications.AndroidImportance.HIGH,
+        importance: notif.AndroidImportance?.HIGH ?? 4,
         lightColor: '#6366F1',
       });
 
@@ -48,10 +67,13 @@ class AlarmSchedulerService {
 
   async requestPermissions(): Promise<boolean> {
     try {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      const notif = getNotifications();
+      if (!notif?.getPermissionsAsync) return false;
+
+      const { status: existingStatus } = await notif.getPermissionsAsync();
       let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
+      if (existingStatus !== 'granted' && notif.requestPermissionsAsync) {
+        const { status } = await notif.requestPermissionsAsync();
         finalStatus = status;
       }
       return finalStatus === 'granted';
@@ -96,11 +118,14 @@ class AlarmSchedulerService {
    */
   async cancelScheduledAlarms(): Promise<void> {
     try {
-      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      const notif = getNotifications();
+      if (!notif?.getAllScheduledNotificationsAsync) return;
+
+      const scheduled = await notif.getAllScheduledNotificationsAsync();
       for (const item of scheduled) {
-        const data = item.content.data;
+        const data = item.content?.data;
         if (data?.type === ALARM_NOTIFICATION_TAG || data?.type === BEDTIME_NOTIFICATION_TAG) {
-          await Notifications.cancelScheduledNotificationAsync(item.identifier);
+          await notif.cancelScheduledNotificationAsync(item.identifier);
         }
       }
     } catch {
@@ -128,71 +153,73 @@ class AlarmSchedulerService {
     let nextBedtimeDate: Date | null = null;
 
     if (nextAlarmDate) {
-      try {
-        // Schedule Morning Anchor Alarm
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: '🌅 Morning Anchor Alarm',
-            body: config.mission === 'water'
-              ? 'Good morning! Drink 1 glass of water to silence the alarm & log 250ml.'
-              : 'Good morning! Time to anchor your circadian rhythm.',
-            sound: true,
-            priority: Notifications.AndroidNotificationPriority.MAX,
-            data: {
-              type: ALARM_NOTIFICATION_TAG,
-              time: config.time,
-              sound: config.sound,
-              mission: config.mission,
-              gradualRamp: config.gradualRampMinutes,
+      const notif = getNotifications();
+      if (notif?.scheduleNotificationAsync) {
+        try {
+          // Schedule Morning Anchor Alarm
+          await notif.scheduleNotificationAsync({
+            content: {
+              title: '🌅 Morning Anchor Alarm',
+              body: config.mission === 'water'
+                ? 'Good morning! Drink 1 glass of water to silence the alarm & log 250ml.'
+                : 'Good morning! Time to anchor your circadian rhythm.',
+              sound: true,
+              priority: notif.AndroidNotificationPriority?.MAX,
+              data: {
+                type: ALARM_NOTIFICATION_TAG,
+                time: config.time,
+                sound: config.sound,
+                mission: config.mission,
+                gradualRamp: config.gradualRampMinutes,
+              },
             },
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: nextAlarmDate,
-            channelId: 'circadian-alarm',
-          },
-        });
-      } catch {
-        // Schedule fallback
-      }
+            trigger: {
+              type: notif.SchedulableTriggerInputTypes?.DATE ?? 'date',
+              date: nextAlarmDate,
+              channelId: 'circadian-alarm',
+            },
+          });
+        } catch {
+          // Schedule fallback
+        }
 
-      // Schedule Bedtime Wind-Down Reverse Alarm if enabled
-      if (config.bedtimeReminderEnabled) {
-        const recommendations = calculateSleepCycles(config.time);
-        const optimal = recommendations.find((r) => r.isRecommended) || recommendations[0];
+        // Schedule Bedtime Wind-Down Reverse Alarm if enabled
+        if (config.bedtimeReminderEnabled) {
+          const recommendations = calculateSleepCycles(config.time);
+          const optimal = recommendations.find((r) => r.isRecommended) || recommendations[0];
 
-        if (optimal) {
-          const [bHourStr, bMinStr] = optimal.bedtime.split(':');
-          const bHour = parseInt(bHourStr, 10);
-          const bMin = parseInt(bMinStr, 10);
+          if (optimal) {
+            const [bHourStr, bMinStr] = optimal.bedtime.split(':');
+            const bHour = parseInt(bHourStr, 10);
+            const bMin = parseInt(bMinStr, 10);
 
-          const bedtimeDate = new Date(nextAlarmDate);
-          // If bedtime is PM (e.g. 10:30 PM) and alarm is AM (6:00 AM), it's the night before
-          bedtimeDate.setDate(nextAlarmDate.getDate() - 1);
-          bedtimeDate.setHours(bHour, bMin, 0, 0);
+            const bedtimeDate = new Date(nextAlarmDate);
+            bedtimeDate.setDate(nextAlarmDate.getDate() - 1);
+            bedtimeDate.setHours(bHour, bMin, 0, 0);
 
-          const now = new Date();
-          if (bedtimeDate.getTime() > now.getTime()) {
-            nextBedtimeDate = bedtimeDate;
-            try {
-              await Notifications.scheduleNotificationAsync({
-                content: {
-                  title: '🌙 Circadian Bedtime Wind-Down',
-                  body: `Sleep by ${optimal.bedtime} to catch 5 full REM sleep cycles before your ${config.time} AM anchor.`,
-                  sound: true,
-                  data: {
-                    type: BEDTIME_NOTIFICATION_TAG,
-                    bedtime: optimal.bedtime,
+            const now = new Date();
+            if (bedtimeDate.getTime() > now.getTime()) {
+              nextBedtimeDate = bedtimeDate;
+              try {
+                await notif.scheduleNotificationAsync({
+                  content: {
+                    title: '🌙 Circadian Bedtime Wind-Down',
+                    body: `Sleep by ${optimal.bedtime} to catch 5 full REM sleep cycles before your ${config.time} AM anchor.`,
+                    sound: true,
+                    data: {
+                      type: BEDTIME_NOTIFICATION_TAG,
+                      bedtime: optimal.bedtime,
+                    },
                   },
-                },
-                trigger: {
-                  type: Notifications.SchedulableTriggerInputTypes.DATE,
-                  date: bedtimeDate,
-                  channelId: 'circadian-bedtime',
-                },
-              });
-            } catch {
-              // Bedtime schedule fallback
+                  trigger: {
+                    type: notif.SchedulableTriggerInputTypes?.DATE ?? 'date',
+                    date: bedtimeDate,
+                    channelId: 'circadian-bedtime',
+                  },
+                });
+              } catch {
+                // Bedtime schedule fallback
+              }
             }
           }
         }
@@ -200,6 +227,67 @@ class AlarmSchedulerService {
     }
 
     return { nextAlarm: nextAlarmDate, nextBedtime: nextBedtimeDate };
+  }
+
+  /**
+   * Schedule a snooze notification
+   */
+  async scheduleSnooze(minutes: number, config: CircadianAlarmConfig): Promise<void> {
+    const notif = getNotifications();
+    if (!notif?.scheduleNotificationAsync) return;
+
+    const snoozeDate = new Date(Date.now() + minutes * 60 * 1000);
+    try {
+      await notif.scheduleNotificationAsync({
+        content: {
+          title: '⏰ Alarm Snooze',
+          body: `Your ${minutes}-minute circadian snooze is up! Time to get moving.`,
+          sound: true,
+          data: {
+            type: ALARM_NOTIFICATION_TAG,
+            sound: config.sound,
+            mission: config.mission,
+          },
+        },
+        trigger: {
+          type: notif.SchedulableTriggerInputTypes?.DATE ?? 'date',
+          date: snoozeDate,
+        },
+      });
+    } catch {
+      // Snooze fallback
+    }
+  }
+
+  /**
+   * Listen for incoming notifications when app is foregrounded or clicked
+   */
+  registerListeners(onAlarmFired: (data: any) => void): () => void {
+    const notif = getNotifications();
+    if (!notif) return () => {};
+
+    try {
+      const sub1 = notif.addNotificationReceivedListener?.((notification: any) => {
+        const data = notification?.request?.content?.data;
+        if (data?.type === ALARM_NOTIFICATION_TAG) {
+          onAlarmFired(data);
+        }
+      });
+
+      const sub2 = notif.addNotificationResponseReceivedListener?.((response: any) => {
+        const data = response?.notification?.request?.content?.data;
+        if (data?.type === ALARM_NOTIFICATION_TAG) {
+          onAlarmFired(data);
+        }
+      });
+
+      return () => {
+        sub1?.remove?.();
+        sub2?.remove?.();
+      };
+    } catch {
+      return () => {};
+    }
   }
 }
 

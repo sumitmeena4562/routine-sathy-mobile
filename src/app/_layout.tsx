@@ -18,6 +18,8 @@ import {
 import { RoutineThemeProvider } from '@/context/ThemeContext';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { AuthProvider } from '@/context/AuthContext';
+import { AlarmProvider } from '@/context/AlarmContext';
+import { AlarmRingingModal } from '@/components/ui/AlarmRingingModal';
 import { useTheme } from '@/hooks/use-theme';
 import { PrimitiveTokens } from '@/theme/tokens.generated';
 
@@ -72,6 +74,7 @@ function RootNavigator() {
         <Stack.Screen name="add-routine" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" options={{ headerShown: false }} />
       </Stack>
+      <AlarmRingingModal />
     </ThemeProvider>
   );
 }
@@ -105,7 +108,9 @@ export default function RootLayout() {
     <RoutineThemeProvider>
       <OnboardingProvider>
         <AuthProvider>
-          <RootNavigator />
+          <AlarmProvider>
+            <RootNavigator />
+          </AlarmProvider>
         </AuthProvider>
       </OnboardingProvider>
     </RoutineThemeProvider>

@@ -23,9 +23,12 @@ import {
   SathyCompanionCard,
   StreakPath,
   Toast,
+  AlarmCard,
+  AlarmSetupModal,
 } from '@/components/ui';
 import { DayStreakItem } from '@/components/ui/StreakPath';
 import { useAuth } from '@/context/AuthContext';
+import { useAlarmContext } from '@/context/AlarmContext';
 import { useTheme } from '@/hooks/use-theme';
 import { getTodayDateString, routineService } from '@/services/routine';
 import { Storage } from '@/utils/storage';
@@ -283,6 +286,9 @@ export default function TodayScreen() {
     message: string;
   } | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [showAlarmModal, setShowAlarmModal] = useState(false);
+  const { isRinging: isAlarmRinging } = useAlarmContext();
+  const prevAlarmRingingRef = useRef(isAlarmRinging);
   const prevScoreRef = useRef<number | null>(null);
 
   // Synchronized state tracker & debounced save queue for rapid taps
@@ -422,6 +428,14 @@ export default function TodayScreen() {
     setRefreshing(true);
     fetchData();
   }, [fetchData]);
+
+  // If alarm is dismissed, auto-refresh Today screen so water intake & wake up time immediately show up
+  useEffect(() => {
+    if (prevAlarmRingingRef.current && !isAlarmRinging) {
+      fetchData();
+    }
+    prevAlarmRingingRef.current = isAlarmRinging;
+  }, [isAlarmRinging, fetchData]);
 
   const displayActivities = computeDisplayActivities(userHabits, routine);
   const totalHabits = displayActivities.length;
@@ -1662,6 +1676,9 @@ export default function TodayScreen() {
                 )}
               </View>
 
+              {/* Circadian Wake Alarm Card */}
+              <AlarmCard onOpenSettings={() => setShowAlarmModal(true)} />
+
               {/* Anchor B: Water Intake */}
               <View
                 style={[
@@ -2023,6 +2040,12 @@ export default function TodayScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Circadian Alarm Setup Sheet */}
+      <AlarmSetupModal
+        visible={showAlarmModal}
+        onClose={() => setShowAlarmModal(false)}
+      />
     </View>
   );
 }

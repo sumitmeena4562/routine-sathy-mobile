@@ -30,6 +30,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useThemeContext } from '@/context/ThemeContext';
 import { useTheme } from '@/hooks/use-theme';
 import { authService } from '@/services/auth';
+import { alarmScheduler } from '@/services/alarmScheduler';
 import { routineService } from '@/services/routine';
 import {
   PrimitiveTokens,
@@ -223,6 +224,15 @@ export default function ProfileScreen() {
     if (key === 'sound') {
       setSoundEnabled(val);
       Storage.setItem(STORAGE_KEY_SOUND, String(val)).catch(() => {});
+    }
+
+    if (key === 'morning') {
+      setMorningReminder(val);
+      alarmScheduler.scheduleDailyReminder('morning', val).catch(() => {});
+    }
+    if (key === 'evening') {
+      setEveningReminder(val);
+      alarmScheduler.scheduleDailyReminder('evening', val).catch(() => {});
     }
 
     if (key === 'morning' || key === 'evening') {

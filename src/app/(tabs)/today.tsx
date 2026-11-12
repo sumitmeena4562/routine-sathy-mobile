@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -26,7 +25,6 @@ import {
   AlarmCard,
   AlarmSetupModal,
 } from '@/components/ui';
-import { DayStreakItem } from '@/components/ui/StreakPath';
 import { useAuth } from '@/context/AuthContext';
 import { useAlarmContext } from '@/context/AlarmContext';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,226 +38,26 @@ import {
 } from '@/theme/tokens.generated';
 import {
   HabitItem,
-  RoutineActivity,
   RoutineData,
   RoutineStats,
-  TrendDay,
   UserGoals,
 } from '@/types/routine';
 import { cleanHabitName, getHabitBrandMeta } from '@/constants/habits';
-import { formatLocalDate, formatTime12hr as formatWakeTimeDisplay } from '@/utils/dateTime';
+import { formatTime12hr as formatWakeTimeDisplay } from '@/utils/dateTime';
 import { triggerHaptic } from '@/utils/haptics';
+import {
+  calcScoreBreakdown,
+  computeDisplayActivities,
+  generateWeekDays,
+} from '@/features/today/scoreFormula';
+import { WakePickerModal } from '@/features/today/WakePickerModal';
+import { offlineQueue } from '@/utils/offlineQueue';
 
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
-}
-
-/**
- * Distributes fractional score points into integers using the Largest Remainder Method
- * so that the sum of the components (wake + water + study) strictly equals totalScore.
- */
-function distributeScorePoints(
-  rawWake: number,
-  rawWater: number,
-  rawStudy: number,
-  totalScore: number
-): { wake: number; water: number; study: number } {
-  if (totalScore <= 0) {
-    return { wake: 0, water: 0, study: 0 };
-  }
-
-  const items = [
-    { key: 'wake' as const, max: 30, floor: Math.floor(rawWake), rem: rawWake - Math.floor(rawWake) },
-    { key: 'water' as const, max: 30, floor: Math.floor(rawWater), rem: rawWater - Math.floor(rawWater) },
-    { key: 'study' as const, max: 40, floor: Math.floor(rawStudy), rem: rawStudy - Math.floor(rawStudy) },
-  ];
-
-  const currentSum = items[0].floor + items[1].floor + items[2].floor;
-  let needed = totalScore - currentSum;
-
-  const result = {
-    wake: items[0].floor,
-    water: items[1].floor,
-    study: items[2].floor,
-  };
-
-  // Sort by largest remainder descending
-  const sorted = [...items].sort((a, b) => b.rem - a.rem);
-
-  for (const item of sorted) {
-    if (needed > 0 && result[item.key] < item.max) {
-      result[item.key] += 1;
-      needed -= 1;
-    }
-  }
-
-  // Safety for edge case where totalScore was clamped below floor sum
-  if (needed < 0) {
-    const revSorted = [...items].sort((a, b) => a.rem - b.rem);
-    for (const item of revSorted) {
-      if (needed < 0 && result[item.key] > 0) {
-        result[item.key] -= 1;
-        needed += 1;
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Continuous / Progressive Score Formula (Wake 30 · Water 30 · Study 40).
- * Matches landing page specification.
- */
-function calcScoreBreakdown(
-  wakeUpTime?: string | null,
-  waterIntake: number = 0,
-  studyHours: number = 0,
-  goals?: UserGoals | null
-) {
-  const targetWakeUpStr = goals?.targetWakeUp || '06:00';
-  const targetWater = goals?.targetWater || 3.0;
-  const targetStudy = goals?.targetStudy || 4.0;
-
-  // 1. Wake-up Score (Max 30)
-  let wakePts = 0;
-  if (wakeUpTime) {
-    const [h, m] = wakeUpTime.split(':').map(Number);
-    const wakeMinutes = (h || 0) * 60 + (m || 0);
-
-    const [th, tm] = targetWakeUpStr.split(':').map(Number);
-    const targetWakeMinutes = (th || 0) * 60 + (tm || 0);
-    const limitWakeMinutes = targetWakeMinutes + 240; // 4 hours after target
-
-    if (wakeMinutes <= targetWakeMinutes) {
-      wakePts = 30;
-    } else if (wakeMinutes < limitWakeMinutes) {
-      const penalty = ((wakeMinutes - targetWakeMinutes) / 240) * 30;
-      wakePts = Math.max(0, 30 - penalty);
-    }
-  }
-
-  // 2. Water Score (Max 30)
-  let waterPts = 0;
-  if (waterIntake > 0 && targetWater > 0) {
-    waterPts = Math.min(30, (waterIntake / targetWater) * 30);
-  }
-
-  // 3. Study Score (Max 40)
-  let studyPts = 0;
-  if (studyHours > 0 && targetStudy > 0) {
-    studyPts = Math.min(40, (studyHours / targetStudy) * 40);
-  }
-
-  const totalScore = Math.max(0, Math.min(100, Math.round(wakePts + waterPts + studyPts)));
-  const distributed = distributeScorePoints(wakePts, waterPts, studyPts, totalScore);
-
-  return {
-    rawWakePts: wakePts,
-    rawWaterPts: waterPts,
-    rawStudyPts: studyPts,
-    wakePts: distributed.wake,
-    waterPts: distributed.water,
-    studyPts: distributed.study,
-    totalScore,
-    targetWakeUp: targetWakeUpStr,
-    targetWater,
-    targetStudy,
-  };
-}
-
-function generateWeekDays(last7DaysScores?: TrendDay[], todayScore: number = 0): DayStreakItem[] {
-  const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const today = new Date();
-  const currentDayIndex = (today.getDay() + 6) % 7; // Monday = 0, Sunday = 6
-
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - currentDayIndex);
-
-  const scoresByDate = new Map<string, number>();
-  if (last7DaysScores) {
-    for (const item of last7DaysScores) {
-      scoresByDate.set(item.date, item.score);
-    }
-  }
-
-  return daysOfWeek.map((dayLabel, index) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + index);
-    const dateStr = formatLocalDate(d);
-    const isToday = index === currentDayIndex;
-
-    const recordedScore = isToday
-      ? todayScore
-      : scoresByDate.get(dateStr) ?? 0;
-
-    return {
-      day: dayLabel,
-      date: dateStr,
-      isToday,
-      score: recordedScore,
-      isDone: recordedScore >= 60,
-    };
-  });
-}
-
-/**
- * Builds the merged activities list:
- * - Uses active habits configured in the user profile (enabled !== false).
- * - Matches completion values from today's saved routine if present.
- * - Filters out any habits that the user has explicitly disabled.
- */
-function computeDisplayActivities(
-  userHabits: HabitItem[],
-  routine: RoutineData | null
-): RoutineActivity[] {
-  const rawHabits = userHabits && userHabits.length > 0
-    ? userHabits
-    : [
-        { id: 'workout', name: 'Workout / Exercise', enabled: true },
-        { id: 'meditation', name: 'Meditation / Mindfulness', enabled: true },
-        { id: 'reading', name: 'Reading', enabled: false },
-      ];
-
-  const activeHabits = rawHabits.filter((h) => h.enabled !== false);
-  const seenKeys = new Set<string>();
-  const list: RoutineActivity[] = [];
-
-  for (const habit of activeHabits) {
-    const key = cleanHabitName(habit.name).toLowerCase();
-    seenKeys.add(key);
-
-    const saved = routine?.activities?.find(
-      (a) => a.activityId === habit.id || cleanHabitName(a.name).toLowerCase() === key
-    );
-
-    list.push({
-      activityId: habit.id,
-      name: habit.name,
-      value: Boolean(saved?.value),
-    });
-  }
-
-  // Also include any extra saved routine activity that isn't explicitly disabled
-  if (routine?.activities) {
-    for (const act of routine.activities) {
-      const key = cleanHabitName(act.name).toLowerCase();
-      if (!seenKeys.has(key)) {
-        const isExplicitlyDisabled = rawHabits.some(
-          (h) => h.enabled === false && (h.id === act.activityId || cleanHabitName(h.name).toLowerCase() === key)
-        );
-        if (!isExplicitlyDisabled) {
-          seenKeys.add(key);
-          list.push(act);
-        }
-      }
-    }
-  }
-
-  return list;
 }
 
 export default function TodayScreen() {
@@ -366,6 +164,9 @@ export default function TodayScreen() {
     if (__DEV__) {
       console.log('🔄 [TODAY] Fetching today routine, goals, stats & habits...');
     }
+    // Attempt background flush of any pending offline mutations
+    await offlineQueue.flushPendingRoutine().catch(() => {});
+
     try {
       const [routineRes, goalsRes, statsRes, habitsRes] = await Promise.allSettled([
         routineService.getTodayRoutine(getTodayDateString()),
@@ -529,16 +330,19 @@ export default function TodayScreen() {
       if (__DEV__) {
         console.error('❌ [USER ACTION ERROR] Sync routine failed:', err);
       }
+      const failedData = pendingRoutineRef.current;
+      if (failedData) {
+        offlineQueue.queuePendingRoutine(failedData).catch(() => {});
+      }
       setToast({
         visible: true,
-        type: 'error',
-        message: 'Could not sync routine changes.',
+        type: 'info',
+        message: 'Saved offline. Changes will sync when online.',
       });
-      fetchData();
     } finally {
       isSyncingRef.current = false;
     }
-  }, [fetchData]);
+  }, []);
 
   // Synchronously updates local state for 0ms instant UI feedback, while debouncing network POSTs
   const queueRoutineMutation = useCallback(
@@ -726,78 +530,12 @@ export default function TodayScreen() {
     }, 0);
   }, [queueRoutineMutation]);
 
-  // Modal State & Helpers for In-app Wake-up Time Picker
+  // Modal State for In-app Wake-up Time Picker
   const [wakeModalVisible, setWakeModalVisible] = useState(false);
-  const [pickerWakeTime, setPickerWakeTime] = useState<string>('06:30');
-
   const openWakePicker = useCallback(() => {
     triggerHaptic('light');
-    if (routine?.wakeUpTime) {
-      setPickerWakeTime(routine.wakeUpTime);
-    } else {
-      const now = new Date();
-      if (now.getHours() < 10) {
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        setPickerWakeTime(`${h}:${m}`);
-      } else {
-        setPickerWakeTime(goals?.targetWakeUp || '06:00');
-      }
-    }
     setWakeModalVisible(true);
-  }, [routine, goals]);
-
-  const adjustPickerMinutes = (deltaMinutes: number) => {
-    triggerHaptic('light');
-    const [h, m] = pickerWakeTime.split(':').map(Number);
-    let totalMins = (isNaN(h) ? 6 : h) * 60 + (isNaN(m) ? 0 : m) + deltaMinutes;
-    // Bound between 00:00 (0 mins) and 23:59 (1439 mins)
-    totalMins = Math.max(0, Math.min(1439, totalMins));
-    const nextH = String(Math.floor(totalMins / 60)).padStart(2, '0');
-    const nextM = String(totalMins % 60).padStart(2, '0');
-    setPickerWakeTime(`${nextH}:${nextM}`);
-  };
-
-  const setPickerHour = (hour: number) => {
-    triggerHaptic('light');
-    const [, m] = pickerWakeTime.split(':').map(Number);
-    const minute = isNaN(m) ? 0 : m;
-    const nextH = String(Math.max(0, Math.min(23, hour))).padStart(2, '0');
-    const nextM = String(minute).padStart(2, '0');
-    setPickerWakeTime(`${nextH}:${nextM}`);
-  };
-
-  const setPickerMinute = (minute: number) => {
-    triggerHaptic('light');
-    const [h] = pickerWakeTime.split(':').map(Number);
-    const hour = isNaN(h) ? 6 : h;
-    const nextH = String(hour).padStart(2, '0');
-    const nextM = String(Math.max(0, Math.min(59, minute))).padStart(2, '0');
-    setPickerWakeTime(`${nextH}:${nextM}`);
-  };
-
-  const [pickerHourVal, pickerMinuteVal] = (() => {
-    const [h, m] = pickerWakeTime.split(':').map(Number);
-    return [isNaN(h) ? 6 : h, isNaN(m) ? 0 : m];
-  })();
-
-  const previewWakePoints = (() => {
-    const targetWakeUpStr = goals?.targetWakeUp || '06:00';
-    const [h, m] = pickerWakeTime.split(':').map(Number);
-    const wakeMinutes = (h || 0) * 60 + (m || 0);
-
-    const [th, tm] = targetWakeUpStr.split(':').map(Number);
-    const targetWakeMinutes = (th || 0) * 60 + (tm || 0);
-    const limitWakeMinutes = targetWakeMinutes + 240;
-
-    if (wakeMinutes <= targetWakeMinutes) {
-      return 30;
-    } else if (wakeMinutes < limitWakeMinutes) {
-      const penalty = ((wakeMinutes - targetWakeMinutes) / 240) * 30;
-      return Math.round(Math.max(0, 30 - penalty));
-    }
-    return 0;
-  })();
+  }, []);
 
   // Quick Action: Toggle Habit Completion
   const handleToggleHabit = useCallback(
@@ -900,348 +638,14 @@ export default function TodayScreen() {
       )}
 
       {/* In-app Wake-up Time Picker Modal */}
-      <Modal
+      <WakePickerModal
         visible={wakeModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setWakeModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setWakeModalVisible(false)}
-          />
-          <View
-            style={[
-              styles.modalCard,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
-              },
-            ]}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                  {routine?.wakeUpTime ? 'Edit Wake-up Time' : 'Log Wake-up Time'}
-                </Text>
-                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-                  Target: {formatWakeTimeDisplay(goals?.targetWakeUp || '06:00')}
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setWakeModalVisible(false)}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel="Close time picker"
-                style={[styles.modalCloseBtn, { backgroundColor: theme.colors.surfaceAlt }]}>
-                <Ionicons name="close" size={18} color={theme.colors.text} />
-              </Pressable>
-            </View>
-
-            {/* Prominent Selected Clock Display */}
-            <View
-              style={[
-                styles.modalClockBox,
-                {
-                  backgroundColor: theme.isDark
-                    ? 'rgba(251, 191, 36, 0.08)'
-                    : 'rgba(251, 191, 36, 0.12)',
-                  borderColor: theme.isDark
-                    ? 'rgba(251, 191, 36, 0.3)'
-                    : PrimitiveTokens.color.amber[300],
-                },
-              ]}>
-              <Ionicons
-                name="sunny"
-                size={24}
-                color={
-                  theme.isDark
-                    ? PrimitiveTokens.color.amber[400]
-                    : PrimitiveTokens.color.amber[600]
-                }
-              />
-              <Text
-                style={[
-                  styles.modalClockText,
-                  {
-                    color: theme.isDark
-                      ? PrimitiveTokens.color.amber[300]
-                      : PrimitiveTokens.color.amber[800],
-                  },
-                ]}>
-                {formatWakeTimeDisplay(pickerWakeTime)}
-              </Text>
-              <View
-                style={[
-                  styles.modalPtsBadge,
-                  {
-                    backgroundColor:
-                      previewWakePoints >= 30
-                        ? theme.colors.successMuted
-                        : theme.colors.surfaceAlt,
-                    borderColor:
-                      previewWakePoints >= 30
-                        ? theme.colors.successBorder
-                        : theme.colors.borderSubtle,
-                  },
-                ]}>
-                <Text
-                  style={[
-                    styles.modalPtsText,
-                    {
-                      color:
-                        previewWakePoints >= 30
-                          ? theme.colors.success
-                          : theme.colors.textSecondary,
-                    },
-                  ]}>
-                  {previewWakePoints}/30 pts
-                </Text>
-              </View>
-            </View>
-
-            {/* Interactive Hour Selector (Horizontal Scroll) */}
-            <View style={styles.pickerSectionHeader}>
-              <Text style={[styles.pickerSectionLabel, { color: theme.colors.textSecondary }]}>
-                HOUR (AM / PM)
-              </Text>
-              <View style={styles.fineTuneRow}>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(-60)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-1h</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(60)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+1h</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pickerChipsScroll}>
-              {[4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((hour) => {
-                const isSelected = pickerHourVal === hour;
-                const displayH = hour % 12 === 0 ? 12 : hour % 12;
-                const period = hour < 12 ? 'AM' : 'PM';
-                return (
-                  <Pressable
-                    key={hour}
-                    onPress={() => setPickerHour(hour)}
-                    style={[
-                      styles.pickerChip,
-                      isSelected
-                        ? {
-                            backgroundColor: theme.colors.primary,
-                            borderColor: theme.colors.primary,
-                          }
-                        : {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.borderSubtle,
-                          },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.pickerChipText,
-                        {
-                          color: isSelected
-                            ? theme.colors.primaryForeground
-                            : theme.colors.text,
-                        },
-                      ]}>
-                      {String(displayH).padStart(2, '0')} {period}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Interactive Minute Selector (Horizontal Scroll + Micro Step) */}
-            <View style={[styles.pickerSectionHeader, { marginTop: PrimitiveTokens.space[3] }]}>
-              <Text style={[styles.pickerSectionLabel, { color: theme.colors.textSecondary }]}>
-                MINUTE
-              </Text>
-              <View style={styles.fineTuneRow}>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(-1)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-1m</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(1)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+1m</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(-5)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>-5m</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => adjustPickerMinutes(5)}
-                  hitSlop={6}
-                  style={[styles.microStepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}>
-                  <Text style={[styles.microStepText, { color: theme.colors.text }]}>+5m</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pickerChipsScroll}>
-              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((min) => {
-                const isSelected = pickerMinuteVal === min;
-                return (
-                  <Pressable
-                    key={min}
-                    onPress={() => setPickerMinute(min)}
-                    style={[
-                      styles.pickerChip,
-                      isSelected
-                        ? {
-                            backgroundColor: theme.colors.primary,
-                            borderColor: theme.colors.primary,
-                          }
-                        : {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.borderSubtle,
-                          },
-                    ]}>
-                    <Text
-                      style={[
-                        styles.pickerChipText,
-                        {
-                          color: isSelected
-                            ? theme.colors.primaryForeground
-                            : theme.colors.text,
-                        },
-                      ]}>
-                      :{String(min).padStart(2, '0')}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            {/* Quick 1-tap shortcuts */}
-            <View style={styles.modalPresetsRow}>
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light');
-                  const now = new Date();
-                  const h = String(now.getHours()).padStart(2, '0');
-                  const m = String(now.getMinutes()).padStart(2, '0');
-                  setPickerWakeTime(`${h}:${m}`);
-                }}
-                style={[
-                  styles.modalPresetPill,
-                  { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
-                ]}>
-                <Ionicons name="time-outline" size={12} color={theme.colors.text} />
-                <Text style={[styles.modalPresetText, { color: theme.colors.text }]}>Right Now</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() => {
-                  triggerHaptic('light');
-                  setPickerWakeTime(goals?.targetWakeUp || '06:00');
-                }}
-                style={[
-                  styles.modalPresetPill,
-                  pickerWakeTime === (goals?.targetWakeUp || '06:00')
-                    ? {
-                        backgroundColor: theme.colors.primary,
-                        borderColor: theme.colors.primary,
-                      }
-                    : {
-                        backgroundColor: theme.colors.surfaceAlt,
-                        borderColor: theme.colors.borderSubtle,
-                      },
-                ]}>
-                <Ionicons
-                  name="flag"
-                  size={11}
-                  color={
-                    pickerWakeTime === (goals?.targetWakeUp || '06:00')
-                      ? theme.colors.primaryForeground
-                      : theme.colors.text
-                  }
-                />
-                <Text
-                  style={[
-                    styles.modalPresetText,
-                    {
-                      color:
-                        pickerWakeTime === (goals?.targetWakeUp || '06:00')
-                          ? theme.colors.primaryForeground
-                          : theme.colors.text,
-                    },
-                  ]}>
-                  Target ({formatWakeTimeDisplay(goals?.targetWakeUp || '06:00')})
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* CTA Buttons */}
-            <View style={styles.modalActionsRow}>
-              {routine?.wakeUpTime ? (
-                <Pressable
-                  onPress={() => {
-                    handleResetWakeUp();
-                    setWakeModalVisible(false);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Reset wake-up time"
-                  style={({ pressed }) => [
-                    styles.modalResetBtn,
-                    { borderColor: theme.colors.borderSubtle },
-                    pressed && { opacity: 0.7 },
-                  ]}>
-                  <Ionicons name="trash-outline" size={15} color={theme.colors.error} />
-                  <Text style={[styles.modalResetBtnText, { color: theme.colors.error }]}>
-                    Reset
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              <Pressable
-                onPress={() => {
-                  handleLogWakeUp(pickerWakeTime);
-                  setWakeModalVisible(false);
-                }}
-                accessibilityRole="button"
-                accessibilityLabel="Save wake-up time"
-                style={({ pressed }) => [
-                  styles.modalSaveBtn,
-                  { backgroundColor: theme.colors.primary },
-                  pressed && { opacity: 0.85 },
-                ]}>
-                <Ionicons
-                  name="checkmark"
-                  size={16}
-                  color={theme.colors.primaryForeground}
-                />
-                <Text
-                  style={[
-                    styles.modalSaveBtnText,
-                    { color: theme.colors.primaryForeground },
-                  ]}>
-                  Save Wake-up Time
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setWakeModalVisible(false)}
+        onSave={(time) => handleLogWakeUp(time)}
+        onReset={handleResetWakeUp}
+        currentWakeUpTime={routine?.wakeUpTime}
+        targetWakeUp={goals?.targetWakeUp || '06:00'}
+      />
 
       {/* Screen Header */}
       <View
@@ -1654,7 +1058,7 @@ export default function TodayScreen() {
                             styles.wakeAwakeBtnText,
                             { color: PrimitiveTokens.color.neutral[950] },
                           ]}>
-                          I'm Awake
+                          {"I'm Awake"}
                         </Text>
                       </Pressable>
 
@@ -2460,196 +1864,5 @@ const styles = StyleSheet.create({
     fontSize: TypographyScale.bodySm.fontSize,
     fontFamily: TypographyScale.bodySm.fontFamily,
     textAlign: 'center',
-  },
-
-  // In-app Wake-up Time Picker Modal Styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: PrimitiveTokens.space[4],
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: PrimitiveTokens.radius['2xl'],
-    borderWidth: 1,
-    padding: PrimitiveTokens.space[5],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: PrimitiveTokens.space[4],
-  },
-  modalTitle: {
-    fontSize: TypographyScale.h4.fontSize,
-    fontFamily: TypographyScale.h4.fontFamily,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  modalSubtitle: {
-    fontSize: TypographyScale.captionSm.fontSize,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    marginTop: 2,
-  },
-  modalCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalClockBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: PrimitiveTokens.space[3],
-    paddingVertical: PrimitiveTokens.space[4],
-    paddingHorizontal: PrimitiveTokens.space[4],
-    borderRadius: PrimitiveTokens.radius.xl,
-    borderWidth: 1,
-    marginBottom: PrimitiveTokens.space[4],
-  },
-  modalClockText: {
-    fontSize: 26,
-    fontFamily: TypographyScale.h3.fontFamily,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-  },
-  modalPtsBadge: {
-    paddingHorizontal: PrimitiveTokens.space[2],
-    paddingVertical: 3,
-    borderRadius: PrimitiveTokens.radius.full,
-    borderWidth: 1,
-  },
-  modalPtsText: {
-    fontSize: 11,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '700',
-  },
-  modalSteppersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: PrimitiveTokens.space[3],
-    marginBottom: PrimitiveTokens.space[4],
-  },
-  // Hour & Minute Selector Chips & Micro Steppers
-  pickerSectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: PrimitiveTokens.space[1],
-  },
-  pickerSectionLabel: {
-    fontSize: 10,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  fineTuneRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: PrimitiveTokens.space[1],
-  },
-  microStepBtn: {
-    paddingHorizontal: PrimitiveTokens.space[2],
-    paddingVertical: 3,
-    borderRadius: PrimitiveTokens.radius.full,
-    borderWidth: 1,
-  },
-  microStepText: {
-    fontSize: 11,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '700',
-  },
-  pickerChipsScroll: {
-    flexDirection: 'row',
-    gap: PrimitiveTokens.space[1],
-    paddingVertical: PrimitiveTokens.space[1],
-  },
-  pickerChip: {
-    paddingHorizontal: PrimitiveTokens.space[3],
-    paddingVertical: PrimitiveTokens.space[2],
-    borderRadius: PrimitiveTokens.radius.md,
-    borderWidth: 1,
-    minWidth: 54,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pickerChipText: {
-    fontSize: TypographyScale.caption.fontSize,
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontWeight: '700',
-  },
-  modalPresetsHeading: {
-    fontSize: 10,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '700',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-  },
-  modalPresetsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: PrimitiveTokens.space[1],
-    marginBottom: PrimitiveTokens.space[5],
-  },
-  modalPresetPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: PrimitiveTokens.space['2_5'],
-    paddingVertical: PrimitiveTokens.space['1_5'],
-    borderRadius: PrimitiveTokens.radius.full,
-    borderWidth: 1,
-  },
-  modalPresetText: {
-    fontSize: 11,
-    fontFamily: TypographyScale.captionSm.fontFamily,
-    fontWeight: '600',
-  },
-  modalActionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: PrimitiveTokens.space[2],
-  },
-  modalResetBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: PrimitiveTokens.space[3],
-    height: 44,
-    borderRadius: PrimitiveTokens.radius.md,
-    borderWidth: 1,
-    justifyContent: 'center',
-  },
-  modalResetBtnText: {
-    fontSize: TypographyScale.caption.fontSize,
-    fontFamily: TypographyScale.caption.fontFamily,
-    fontWeight: '600',
-  },
-  modalSaveBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: PrimitiveTokens.space[1],
-    height: 44,
-    borderRadius: PrimitiveTokens.radius.md,
-  },
-  modalSaveBtnText: {
-    fontSize: TypographyScale.bodySm.fontSize,
-    fontFamily: TypographyScale.bodySm.fontFamily,
-    fontWeight: '700',
   },
 });

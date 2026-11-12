@@ -37,6 +37,12 @@ export function getNextAlarmDate(config: CircadianAlarmConfig): Date | null {
     candidate.setDate(now.getDate() + offset);
     candidate.setHours(targetHour, targetMin, 0, 0);
 
+    const candidateDateStr = candidate.toISOString().split('T')[0];
+    // If alarm was already dismissed today, advance to the next active day
+    if (offset === 0 && config.lastDismissedDate === candidateDateStr) {
+      continue;
+    }
+
     const dayOfWeek = candidate.getDay(); // 0 = Sun, 1 = Mon ...
     if (config.days.includes(dayOfWeek)) {
       if (candidate.getTime() > now.getTime()) {

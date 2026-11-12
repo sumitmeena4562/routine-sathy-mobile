@@ -38,9 +38,11 @@ interface AlarmRingingContentProps {
 }
 
 function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
-  const { config, dismissAlarm, snoozeAlarm } = useAlarmContext();
+  const { config, dismissAlarm, snoozeAlarm, snoozeCount, maxSnoozes } = useAlarmContext();
   const [mathProblem] = useState(createMathProblem);
   const [mathError, setMathError] = useState(false);
+  const snoozesLeft = Math.max(0, maxSnoozes - snoozeCount);
+  const canSnooze = snoozesLeft > 0;
 
   // Pulse animation for sunrise emblem
   const pulseScale = useSharedValue(1);
@@ -211,10 +213,16 @@ function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
 
           {/* Action options: Snooze + Optional Stop Without Logging */}
           <HStack justify="center" align="center" gap={20} style={{ marginTop: 14, width: '100%' }}>
-            <TouchableOpacity onPress={handleSnooze} hitSlop={8} style={styles.subtleActionBtn}>
+            <TouchableOpacity
+              onPress={canSnooze ? handleSnooze : undefined}
+              disabled={!canSnooze}
+              hitSlop={8}
+              style={[styles.subtleActionBtn, !canSnooze && { opacity: 0.4 }]}>
               <HStack align="center" gap={6}>
                 <Ionicons name="time-outline" size={15} color="#94A3B8" />
-                <Text style={styles.subtleActionText}>Snooze (5m)</Text>
+                <Text style={styles.subtleActionText}>
+                  {canSnooze ? `Snooze (${config.snoozeMinutes || 5}m) · ${snoozesLeft} left` : 'No snoozes left'}
+                </Text>
               </HStack>
             </TouchableOpacity>
 

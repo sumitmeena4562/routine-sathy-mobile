@@ -6,6 +6,8 @@ import { getNextAlarmDate, calculateSleepCycles } from '../utils/circadianAlarm'
 const STORAGE_KEY = 'sathy_circadian_alarm_config';
 const ALARM_NOTIFICATION_TAG = 'sathy-alarm-notification';
 const BEDTIME_NOTIFICATION_TAG = 'sathy-bedtime-notification';
+const MORNING_REMINDER_TAG = 'sathy-morning-reminder';
+const EVENING_REMINDER_TAG = 'sathy-evening-reminder';
 
 // Safe lazy accessor for expo-notifications
 function getNotifications(): any {
@@ -260,6 +262,58 @@ class AlarmSchedulerService {
   }
 
   /**
+   * Schedule or cancel daily morning/evening reminder notifications
+   */
+  async scheduleDailyReminder(type: 'morning' | 'evening', enabled: boolean): Promise<void> {
+    const notif = getNotifications();
+    if (!notif?.scheduleNotificationAsync) return;
+
+    const tag = type === 'morning' ? MORNING_REMINDER_TAG : EVENING_REMINDER_TAG;
+
+    // Cancel existing reminder of this type
+    try {
+      const scheduled = await notif.getAllScheduledNotificationsAsync?.();
+      if (Array.isArray(scheduled)) {
+        for (const item of scheduled) {
+          if (item.content?.data?.type === tag) {
+            await notif.cancelScheduledNotificationAsync?.(item.identifier);
+          }
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    if (!enabled) return;
+
+    const hasPermission = await this.requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const targetHour = type === 'morning' ? 7 : 21;
+      const targetMinute = 0;
+
+      await notif.scheduleNotificationAsync({
+        content: {
+          title: type === 'morning' ? '🌅 Morning Mindset Check' : '🌙 Evening Routine Review',
+          body: type === 'morning'
+            ? 'Start your day with purpose! Log your wake time and morning habits.'
+            : "Protect your streak! Take 1 minute to reflect and log today's achievements.",
+          sound: true,
+          data: { type: tag },
+        },
+        trigger: {
+          type: notif.SchedulableTriggerInputTypes?.DAILY ?? 'daily',
+          hour: targetHour,
+          minute: targetMinute,
+        },
+      });
+    } catch {
+      // Reminder schedule fallback
+    }
+  }
+
+  /**
    * Listen for incoming notifications when app is foregrounded or clicked
    */
   registerListeners(onAlarmFired: (data: any) => void): () => void {
@@ -280,6 +334,14 @@ class AlarmSchedulerService {
           onAlarmFired(data);
         }
       });
+
+      // Cold start: Check if app was opened from an alarm notification while killed
+      notif.getLastNotificationResponseAsync?.().then((response: any) => {
+        const data = response?.notification?.request?.content?.data;
+        if (data?.type === ALARM_NOTIFICATION_TAG) {
+          onAlarmFired(data);
+        }
+      }).catch(() => {});
 
       return () => {
         sub1?.remove?.();

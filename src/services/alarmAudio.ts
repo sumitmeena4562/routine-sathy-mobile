@@ -2,12 +2,12 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { AlarmSoundId } from '../types/alarm';
 
-// Reliable high-quality royalty-free ambient circadian loops (Hosted on fast Google actions CDN)
-const SOUND_SOURCES: Record<AlarmSoundId, string> = {
-  'sunrise-forest': 'https://actions.google.com/sounds/v1/nature/morning_birds.ogg',
-  'ocean-waves': 'https://actions.google.com/sounds/v1/water/waves_crashing.ogg',
-  'zen-bowl': 'https://actions.google.com/sounds/v1/ambiences/temple_bell_reverb.ogg',
-  'energetic-dawn': 'https://actions.google.com/sounds/v1/foley/wind_chimes_ringing.ogg',
+// Bundled offline-first local circadian sound assets
+const LOCAL_SOUND_SOURCES: Record<AlarmSoundId, any> = {
+  'sunrise-forest': require('../../assets/sounds/sunrise-forest.wav'),
+  'ocean-waves': require('../../assets/sounds/ocean-waves.wav'),
+  'zen-bowl': require('../../assets/sounds/zen-bowl.wav'),
+  'energetic-dawn': require('../../assets/sounds/energetic-dawn.wav'),
 };
 
 // Safe runtime resolution for expo-audio
@@ -50,11 +50,11 @@ class AlarmAudioService {
     await this.initAudioMode();
 
     try {
-      const uri = SOUND_SOURCES[soundId] || SOUND_SOURCES['sunrise-forest'];
+      const soundSource = LOCAL_SOUND_SOURCES[soundId] || LOCAL_SOUND_SOURCES['sunrise-forest'];
       const audioMod = getAudioModule();
 
       if (audioMod?.createAudioPlayer) {
-        const player = audioMod.createAudioPlayer({ uri });
+        const player = audioMod.createAudioPlayer(soundSource);
         if (player) {
           player.volume = 0.8;
           player.loop = false;
@@ -91,13 +91,13 @@ class AlarmAudioService {
 
     await this.initAudioMode();
 
-    const uri = SOUND_SOURCES[soundId] || SOUND_SOURCES['sunrise-forest'];
+    const soundSource = LOCAL_SOUND_SOURCES[soundId] || LOCAL_SOUND_SOURCES['sunrise-forest'];
     this.currentVolume = rampMinutes === 0 ? 1.0 : 0.1;
 
     try {
       const audioMod = getAudioModule();
       if (audioMod?.createAudioPlayer) {
-        const player = audioMod.createAudioPlayer({ uri });
+        const player = audioMod.createAudioPlayer(soundSource);
         if (player) {
           player.volume = this.currentVolume;
           player.loop = true;

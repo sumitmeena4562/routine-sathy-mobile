@@ -11,17 +11,22 @@ interface AlarmContextType {
   toggleAlarm: (enabled: boolean) => Promise<void>;
   isRinging: boolean;
   dismissAlarm: (opts?: { waterLogged?: number }) => Promise<void>;
-  snoozeAlarm: (minutes?: number) => Promise<void>;
+  snoozeAlarm: (minutes?: number) => Promise<boolean>;
   triggerTestAlarm: () => Promise<void>;
   countdownText: string;
+  snoozeCount: number;
+  maxSnoozes: number;
 }
 
 const AlarmContext = createContext<AlarmContextType | null>(null);
+
+const MAX_SNOOZES = 3;
 
 export function AlarmProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<CircadianAlarmConfig>(DEFAULT_ALARM_CONFIG);
   const [isRinging, setIsRinging] = useState(false);
   const [countdownText, setCountdownText] = useState('Alarm Off');
+  const [snoozeCount, setSnoozeCount] = useState(0);
 
   // Load saved alarm config on mount
   useEffect(() => {
@@ -73,6 +78,7 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
 
   const dismissAlarm = useCallback(async (opts?: { waterLogged?: number }) => {
     setIsRinging(false);
+    setSnoozeCount(0);
     await alarmAudio.stop();
     // Record last dismissed date
     const todayStr = new Date().toISOString().split('T')[0];
@@ -98,12 +104,17 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     }
   }, [updateConfig, config.time]);
 
-  const snoozeAlarm = useCallback(async (minutes?: number) => {
+  const snoozeAlarm = useCallback(async (minutes?: number): Promise<boolean> => {
+    if (snoozeCount >= MAX_SNOOZES) {
+      return false;
+    }
     setIsRinging(false);
     await alarmAudio.stop();
+    setSnoozeCount((prev) => prev + 1);
     const snoozeDuration = minutes || config.snoozeMinutes || 5;
     await alarmScheduler.scheduleSnooze(snoozeDuration, config);
-  }, [config]);
+    return true;
+  }, [config, snoozeCount]);
 
   // For developer/user test trigger
   const triggerTestAlarm = useCallback(async () => {
@@ -122,6 +133,8 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
         snoozeAlarm,
         triggerTestAlarm,
         countdownText,
+        snoozeCount,
+        maxSnoozes: MAX_SNOOZES,
       }}
     >
       {children}

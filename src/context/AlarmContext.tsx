@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, typ
 import { CircadianAlarmConfig, DEFAULT_ALARM_CONFIG } from '../types/alarm';
 import { alarmScheduler } from '../services/alarmScheduler';
 import { alarmAudio } from '../services/alarmAudio';
-import { getAlarmCountdown } from '../utils/circadianAlarm';
+import { getAlarmCountdown, getNextAlarmDate } from '../utils/circadianAlarm';
 import { routineService, getTodayDateString } from '../services/routine';
 
 interface AlarmContextType {
@@ -47,9 +47,31 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
       setCountdownText(getAlarmCountdown(config));
     };
     updateCountdown();
-    const timer = setInterval(updateCountdown, 60000);
+    const timer = setInterval(updateCountdown, 15000);
     return () => clearInterval(timer);
   }, [config]);
+
+  // Active foreground trigger: If app is open when alarm time arrives, trigger immediately!
+  useEffect(() => {
+    if (!config.enabled || isRinging) return;
+
+    const nextDate = getNextAlarmDate(config);
+    if (!nextDate) return;
+
+    const msUntilAlarm = nextDate.getTime() - Date.now();
+    // Only schedule timer if alarm is within the next 24 hours
+    if (msUntilAlarm > 0 && msUntilAlarm <= 24 * 60 * 60 * 1000) {
+      const timer = setTimeout(() => {
+        setIsRinging(true);
+        alarmAudio.startRinging(
+          config.sound || 'sunrise-forest',
+          config.gradualRampMinutes ?? 2
+        );
+      }, msUntilAlarm);
+
+      return () => clearTimeout(timer);
+    }
+  }, [config, isRinging]);
 
   // Listen for alarm notifications received while app is running
   useEffect(() => {
@@ -73,16 +95,20 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
   }, [config]);
 
   const toggleAlarm = useCallback(async (enabled: boolean) => {
-    await updateConfig({ enabled });
+    // When re-enabling alarm, clear dismissal flags so it can trigger today if time is future
+    await updateConfig({
+      enabled,
+      ...(enabled ? { lastDismissedDate: undefined, lastDismissedTime: undefined } : {}),
+    });
   }, [updateConfig]);
 
   const dismissAlarm = useCallback(async (opts?: { waterLogged?: number }) => {
     setIsRinging(false);
     setSnoozeCount(0);
     await alarmAudio.stop();
-    // Record last dismissed date
+    // Record last dismissed date and time
     const todayStr = new Date().toISOString().split('T')[0];
-    await updateConfig({ lastDismissedDate: todayStr });
+    await updateConfig({ lastDismissedDate: todayStr, lastDismissedTime: config.time });
 
     // If user completed water challenge, auto-log water intake and wakeUpTime
     if (opts?.waterLogged) {

@@ -285,6 +285,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
       mission: selectedMission,
       bedtimeReminderEnabled: bedtimeNudge,
       lastDismissedDate: undefined,
+      lastDismissedTime: undefined,
     });
 
     onClose();

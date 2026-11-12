@@ -48,12 +48,14 @@ class AlarmSchedulerService {
 
       await notif.setNotificationChannelAsync('circadian-alarm', {
         name: 'Circadian Wake Alarm',
-        importance: notif.AndroidImportance?.MAX ?? 5,
+        importance: notif.AndroidImportance?.MAX ?? 7,
         vibrationPattern: [0, 500, 250, 500],
+        enableVibrate: true,
+        enableLights: true,
         lightColor: '#F59E0B',
         lockscreenVisibility: notif.AndroidNotificationVisibility?.PUBLIC ?? 1,
         bypassDnd: true,
-        sound: 'sunrise-forest.wav',
+        sound: 'default',
         audioAttributes: {
           usage: notif.AndroidAudioUsage?.ALARM ?? 4,
           contentType: notif.AndroidAudioContentType?.SONIFICATION ?? 4,
@@ -184,6 +186,7 @@ class AlarmSchedulerService {
               type: notif.SchedulableTriggerInputTypes?.DATE ?? 'date',
               date: nextAlarmDate,
               channelId: 'circadian-alarm',
+              delivery: 'alarmClock',
             },
           });
         } catch {

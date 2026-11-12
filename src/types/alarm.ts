@@ -11,6 +11,7 @@ export interface CircadianAlarmConfig {
   snoozeMinutes: number; // e.g. 5 or 10
   bedtimeReminderEnabled: boolean;
   lastDismissedDate?: string; // "YYYY-MM-DD"
+  lastDismissedTime?: string; // "HH:mm" of the dismissed alarm
 }
 
 export interface BedtimeRecommendation {

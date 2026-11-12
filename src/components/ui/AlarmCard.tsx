@@ -9,11 +9,12 @@ import { formatAlarmTime12hr } from '@/utils/circadianAlarm';
 
 interface AlarmCardProps {
   onOpenSettings: () => void;
+  embedded?: boolean;
 }
 
-export function AlarmCard({ onOpenSettings }: AlarmCardProps) {
+export function AlarmCard({ onOpenSettings, embedded = false }: AlarmCardProps) {
   const theme = useTheme();
-  const { config, toggleAlarm, countdownText, triggerTestAlarm } = useAlarmContext();
+  const { config, toggleAlarm, countdownText } = useAlarmContext();
 
   const handleToggle = (val: boolean) => {
     if (Platform.OS !== 'web') {
@@ -31,11 +32,15 @@ export function AlarmCard({ onOpenSettings }: AlarmCardProps) {
 
   const formattedTime = formatAlarmTime12hr(config.time);
 
+  const amberBg = theme.isDark ? 'rgba(245, 158, 11, 0.15)' : PrimitiveTokens.color.amber[100];
+  const amberBorder = theme.isDark ? 'rgba(245, 158, 11, 0.3)' : PrimitiveTokens.color.amber[300];
+  const amberText = theme.isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[800];
+
   return (
     <View
       style={[
-        styles.anchorCard,
-        {
+        embedded ? styles.embeddedContainer : styles.standaloneCard,
+        !embedded && {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
         },
@@ -45,94 +50,58 @@ export function AlarmCard({ onOpenSettings }: AlarmCardProps) {
         onPress={handleCardPress}
         accessibilityRole="button"
         accessibilityLabel="Customize Circadian Wake Alarm"
-        style={({ pressed }) => [styles.anchorLeft, pressed && { opacity: 0.8 }]}
+        style={({ pressed }) => [styles.anchorLeft, pressed && { opacity: 0.75 }]}
       >
         <View
           style={[
-            styles.anchorIconTile,
+            styles.miniIconTile,
             {
-              backgroundColor: theme.isDark
-                ? 'rgba(245, 158, 11, 0.15)'
-                : PrimitiveTokens.color.amber[100],
+              backgroundColor: config.enabled ? amberBg : theme.colors.surfaceAlt,
+              borderColor: config.enabled ? amberBorder : theme.colors.borderSubtle,
             },
           ]}
         >
           <Ionicons
             name={config.enabled ? 'alarm' : 'alarm-outline'}
-            size={20}
-            color={
-              theme.isDark
-                ? PrimitiveTokens.color.amber[400]
-                : PrimitiveTokens.color.amber[700]
-            }
+            size={16}
+            color={config.enabled ? amberText : theme.colors.textMuted}
           />
         </View>
 
         <View style={styles.anchorDetails}>
           <View style={styles.anchorTitleRow}>
-            <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+            <Text style={[styles.alarmTitle, { color: theme.colors.text }]}>
               Circadian Alarm
             </Text>
             <View
               style={[
                 styles.timeBadge,
                 {
-                  backgroundColor: config.enabled
-                    ? (theme.isDark ? 'rgba(245, 158, 11, 0.15)' : PrimitiveTokens.color.amber[100])
-                    : theme.colors.surfaceAlt,
-                  borderColor: config.enabled
-                    ? (theme.isDark ? 'rgba(245, 158, 11, 0.3)' : PrimitiveTokens.color.amber[300])
-                    : theme.colors.borderSubtle,
+                  backgroundColor: config.enabled ? amberBg : theme.colors.surfaceAlt,
+                  borderColor: config.enabled ? amberBorder : theme.colors.borderSubtle,
                 },
               ]}
             >
               <Text
                 style={[
                   styles.timeBadgeText,
-                  {
-                    color: config.enabled
-                      ? (theme.isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[800])
-                      : theme.colors.textMuted,
-                  },
+                  { color: config.enabled ? amberText : theme.colors.textMuted },
                 ]}
               >
                 {formattedTime}
               </Text>
             </View>
+            <Ionicons name="chevron-forward" size={14} color={theme.colors.textMuted} style={{ marginLeft: 2 }} />
           </View>
 
           <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-            {config.enabled ? `🔔 ${countdownText}` : 'Alarm is disabled'}
+            {config.enabled ? `🔔 ${countdownText}` : 'Alarm is turned off'}
           </Text>
         </View>
       </Pressable>
 
-      {/* Right controls: Play test button + Toggle switch */}
+      {/* Right toggle */}
       <View style={styles.rightControls}>
-        {__DEV__ && config.enabled && (
-          <Pressable
-            onPress={() => {
-              if (Platform.OS !== 'web') {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-              }
-              triggerTestAlarm();
-            }}
-            hitSlop={8}
-            accessibilityRole="button"
-            accessibilityLabel="Test Alarm Ringing Screen"
-            style={({ pressed }) => [
-              styles.testBtn,
-              {
-                backgroundColor: theme.colors.surfaceAlt,
-                borderColor: theme.colors.borderSubtle,
-              },
-              pressed && { opacity: 0.75 },
-            ]}
-          >
-            <Ionicons name="play" size={13} color={theme.colors.textSecondary} />
-          </Pressable>
-        )}
-
         <Switch
           value={config.enabled}
           onValueChange={handleToggle}
@@ -148,7 +117,15 @@ export function AlarmCard({ onOpenSettings }: AlarmCardProps) {
 }
 
 const styles = StyleSheet.create({
-  anchorCard: {
+  embeddedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 8,
+    paddingBottom: 2,
+    width: '100%',
+  },
+  standaloneCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -161,13 +138,14 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: PrimitiveTokens.space[3],
-    paddingRight: PrimitiveTokens.space[2],
+    gap: 10,
+    paddingRight: 8,
   },
-  anchorIconTile: {
-    width: 44,
-    height: 44,
-    borderRadius: PrimitiveTokens.radius.lg,
+  miniIconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -177,41 +155,32 @@ const styles = StyleSheet.create({
   anchorTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
-  anchorTitle: {
-    fontSize: TypographyScale.bodySm.fontSize,
-    lineHeight: TypographyScale.bodySm.lineHeight,
+  alarmTitle: {
+    fontSize: TypographyScale.caption.fontSize,
+    lineHeight: TypographyScale.caption.lineHeight,
     fontWeight: '700',
   },
   timeBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
     borderRadius: PrimitiveTokens.radius.sm,
     borderWidth: 1,
   },
   timeBadgeText: {
-    fontSize: TypographyScale.captionSm.fontSize,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   anchorMeta: {
-    fontSize: TypographyScale.captionSm.fontSize,
-    lineHeight: TypographyScale.captionSm.lineHeight,
-    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 1,
     fontWeight: '500',
   },
   rightControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  testBtn: {
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: PrimitiveTokens.radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

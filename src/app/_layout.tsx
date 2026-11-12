@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { LogBox, Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -25,6 +25,7 @@ import { PrimitiveTokens } from '@/theme/tokens.generated';
 
 // Freeze inactive background screens to prevent stutter/jank during transitions
 enableFreeze(true);
+LogBox.ignoreLogs(['Cannot connect to Expo CLI', 'Expo CLI']);
 
 // Lock native Android substrate window background to Dark Forest (#052418)
 SystemUI.setBackgroundColorAsync(PrimitiveTokens.color.forest[950]).catch(() => {});

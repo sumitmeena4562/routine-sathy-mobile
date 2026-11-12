@@ -209,10 +209,24 @@ function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
             </TouchableOpacity>
           )}
 
-          {/* Subtle Snooze button */}
-          <TouchableOpacity onPress={handleSnooze} style={styles.snoozeBtn}>
-            <Text style={styles.snoozeText}>Snooze for 5 minutes</Text>
-          </TouchableOpacity>
+          {/* Action options: Snooze + Optional Stop Without Logging */}
+          <HStack justify="center" align="center" gap={20} style={{ marginTop: 14, width: '100%' }}>
+            <TouchableOpacity onPress={handleSnooze} hitSlop={8} style={styles.subtleActionBtn}>
+              <HStack align="center" gap={6}>
+                <Ionicons name="time-outline" size={15} color="#94A3B8" />
+                <Text style={styles.subtleActionText}>Snooze (5m)</Text>
+              </HStack>
+            </TouchableOpacity>
+
+            {config.mission !== 'none' && (
+              <TouchableOpacity onPress={handleNormalDismiss} hitSlop={8} style={styles.subtleActionBtn}>
+                <HStack align="center" gap={6}>
+                  <Ionicons name="close-circle-outline" size={15} color="#94A3B8" />
+                  <Text style={styles.subtleActionText}>Stop Without Logging</Text>
+                </HStack>
+              </TouchableOpacity>
+            )}
+          </HStack>
         </View>
       </VStack>
     </LinearGradient>
@@ -358,6 +372,17 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 18,
+  },
+  subtleActionBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  subtleActionText: {
+    color: '#CBD5E1',
+    fontSize: 12,
+    fontWeight: '600',
   },
   snoozeBtn: {
     marginTop: 12,

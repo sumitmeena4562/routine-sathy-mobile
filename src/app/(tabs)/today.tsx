@@ -1539,145 +1539,150 @@ export default function TodayScreen() {
             </View>
 
             <View style={styles.anchorsGroup}>
-              {/* Anchor A: Wake-up */}
+              {/* Anchor A: Wake-up with Integrated Circadian Alarm */}
               <View
                 style={[
-                  styles.anchorCard,
+                  styles.anchorCardCol,
                   {
                     backgroundColor: theme.colors.surface,
                     borderColor: theme.colors.border,
                   },
                 ]}>
-                <Pressable
-                  onPress={openWakePicker}
-                  accessibilityRole="button"
-                  accessibilityLabel="Tap to set or edit wake-up time"
-                  style={({ pressed }) => [styles.anchorLeft, pressed && { opacity: 0.8 }]}>
-                  <View
-                    style={[
-                      styles.anchorIconTile,
-                      {
-                        backgroundColor: theme.isDark
-                          ? SemanticDarkTokens.color.bg.tileAmber
-                          : SemanticLightTokens.color.bg.tileAmber,
-                      },
-                    ]}>
-                    <Ionicons
-                      name="sunny"
-                      size={20}
-                      color={
-                        theme.isDark
-                          ? PrimitiveTokens.color.amber[400]
-                          : PrimitiveTokens.color.amber[700]
-                      }
-                    />
-                  </View>
-                  <View style={styles.anchorDetails}>
-                    <View style={styles.anchorTitleRow}>
-                      <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                        Wake-up
-                      </Text>
-                      {routine?.wakeUpTime ? (
-                        <Text style={[styles.anchorBadaText, { color: theme.colors.text }]}>
-                          · {formatWakeTimeDisplay(routine?.wakeUpTime)}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
-                      Target: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
-                      {' · '}
-                      <Text style={{ color: wakeGoalMet ? theme.colors.success : theme.colors.textMuted }}>
-                        {routine?.wakeUpTime ? `${breakdown.wakePts}/30 pts` : '0/30 pts'}
-                      </Text>
-                    </Text>
-                  </View>
-                </Pressable>
-
-                {/* Wake-up Status / Action Button */}
-                {routine?.wakeUpTime ? (
+                <View style={styles.anchorMainRow}>
                   <Pressable
                     onPress={openWakePicker}
-                    hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel={`Wake-up logged at ${formatWakeTimeDisplay(routine?.wakeUpTime)}, tap to change`}
-                    style={({ pressed }) => [
-                      styles.loggedPill,
-                      wakeGoalMet
-                        ? {
-                            backgroundColor: theme.colors.successMuted,
-                            borderColor: theme.colors.successBorder,
-                            borderWidth: 1,
-                          }
-                        : {
-                            backgroundColor: theme.colors.surfaceAlt,
-                            borderColor: theme.colors.borderSubtle,
-                            borderWidth: 1,
-                          },
-                      pressed && { opacity: 0.75 },
-                    ]}>
-                    <Ionicons
-                      name="create-outline"
-                      size={13}
-                      color={wakeGoalMet ? theme.colors.success : theme.colors.textSecondary}
-                    />
-                    <Text
+                    accessibilityLabel="Tap to set or edit wake-up time"
+                    style={({ pressed }) => [styles.anchorLeft, pressed && { opacity: 0.8 }]}>
+                    <View
                       style={[
-                        styles.loggedPillText,
-                        { color: wakeGoalMet ? theme.colors.success : theme.colors.textSecondary },
-                      ]}>
-                      Edit
-                    </Text>
-                  </Pressable>
-                ) : (
-                  <View style={styles.wakeActionRow}>
-                    <Pressable
-                      onPress={() => handleLogWakeUp()}
-                      accessibilityRole="button"
-                      accessibilityLabel="Log awake now"
-                      style={({ pressed }) => [
-                        styles.wakeAwakeBtn,
+                        styles.anchorIconTile,
                         {
                           backgroundColor: theme.isDark
-                            ? PrimitiveTokens.color.amber[400]
-                            : PrimitiveTokens.color.amber[500],
+                            ? SemanticDarkTokens.color.bg.tileAmber
+                            : SemanticLightTokens.color.bg.tileAmber,
                         },
-                        pressed && { opacity: 0.8 },
                       ]}>
                       <Ionicons
                         name="sunny"
-                        size={13}
-                        color={PrimitiveTokens.color.neutral[950]}
+                        size={20}
+                        color={
+                          theme.isDark
+                            ? PrimitiveTokens.color.amber[400]
+                            : PrimitiveTokens.color.amber[700]
+                        }
                       />
-                      <Text
-                        style={[
-                          styles.wakeAwakeBtnText,
-                          { color: PrimitiveTokens.color.neutral[950] },
-                        ]}>
-                        I&apos;m Awake
+                    </View>
+                    <View style={styles.anchorDetails}>
+                      <View style={styles.anchorTitleRow}>
+                        <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
+                          Wake-up
+                        </Text>
+                        {routine?.wakeUpTime ? (
+                          <Text style={[styles.anchorBadaText, { color: theme.colors.text }]}>
+                            · {formatWakeTimeDisplay(routine?.wakeUpTime)}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Text style={[styles.anchorMeta, { color: theme.colors.textSecondary }]}>
+                        Target: {formatWakeTimeDisplay(breakdown.targetWakeUp)}
+                        {' · '}
+                        <Text style={{ color: wakeGoalMet ? theme.colors.success : theme.colors.textMuted }}>
+                          {routine?.wakeUpTime ? `${breakdown.wakePts}/30 pts` : '0/30 pts'}
+                        </Text>
                       </Text>
-                    </Pressable>
+                    </View>
+                  </Pressable>
 
+                  {/* Wake-up Status / Action Button */}
+                  {routine?.wakeUpTime ? (
                     <Pressable
                       onPress={openWakePicker}
                       hitSlop={8}
                       accessibilityRole="button"
-                      accessibilityLabel="Set custom wake-up time"
+                      accessibilityLabel={`Wake-up logged at ${formatWakeTimeDisplay(routine?.wakeUpTime)}, tap to change`}
                       style={({ pressed }) => [
-                        styles.wakeCustomBtn,
-                        {
-                          backgroundColor: theme.colors.surfaceAlt,
-                          borderColor: theme.colors.borderSubtle,
-                        },
+                        styles.loggedPill,
+                        wakeGoalMet
+                          ? {
+                              backgroundColor: theme.colors.successMuted,
+                              borderColor: theme.colors.successBorder,
+                              borderWidth: 1,
+                            }
+                          : {
+                              backgroundColor: theme.colors.surfaceAlt,
+                              borderColor: theme.colors.borderSubtle,
+                              borderWidth: 1,
+                            },
                         pressed && { opacity: 0.75 },
                       ]}>
-                      <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
+                      <Ionicons
+                        name="create-outline"
+                        size={13}
+                        color={wakeGoalMet ? theme.colors.success : theme.colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.loggedPillText,
+                          { color: wakeGoalMet ? theme.colors.success : theme.colors.textSecondary },
+                        ]}>
+                        Edit
+                      </Text>
                     </Pressable>
-                  </View>
-                )}
-              </View>
+                  ) : (
+                    <View style={styles.wakeActionRow}>
+                      <Pressable
+                        onPress={() => handleLogWakeUp()}
+                        accessibilityRole="button"
+                        accessibilityLabel="Log awake now"
+                        style={({ pressed }) => [
+                          styles.wakeAwakeBtn,
+                          {
+                            backgroundColor: theme.isDark
+                              ? PrimitiveTokens.color.amber[400]
+                              : PrimitiveTokens.color.amber[500],
+                          },
+                          pressed && { opacity: 0.8 },
+                        ]}>
+                        <Ionicons
+                          name="sunny"
+                          size={13}
+                          color={PrimitiveTokens.color.neutral[950]}
+                        />
+                        <Text
+                          style={[
+                            styles.wakeAwakeBtnText,
+                            { color: PrimitiveTokens.color.neutral[950] },
+                          ]}>
+                          I&apos;m Awake
+                        </Text>
+                      </Pressable>
 
-              {/* Circadian Wake Alarm Card */}
-              <AlarmCard onOpenSettings={() => setShowAlarmModal(true)} />
+                      <Pressable
+                        onPress={openWakePicker}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Set custom wake-up time"
+                        style={({ pressed }) => [
+                          styles.wakeCustomBtn,
+                          {
+                            backgroundColor: theme.colors.surfaceAlt,
+                            borderColor: theme.colors.borderSubtle,
+                          },
+                          pressed && { opacity: 0.75 },
+                        ]}>
+                        <Ionicons name="time-outline" size={14} color={theme.colors.textSecondary} />
+                      </Pressable>
+                    </View>
+                  )}
+                </View>
+
+                {/* Sub-row Divider */}
+                <View style={[styles.anchorDivider, { backgroundColor: theme.colors.borderSubtle }]} />
+
+                {/* Integrated Circadian Alarm Ribbon */}
+                <AlarmCard onOpenSettings={() => setShowAlarmModal(true)} embedded />
+              </View>
 
               {/* Anchor B: Water Intake */}
               <View
@@ -2284,6 +2289,23 @@ const styles = StyleSheet.create({
     borderRadius: PrimitiveTokens.radius.xl,
     borderWidth: 1,
     padding: PrimitiveTokens.space[3],
+  },
+  anchorCardCol: {
+    flexDirection: 'column',
+    borderRadius: PrimitiveTokens.radius.xl,
+    borderWidth: 1,
+    padding: PrimitiveTokens.space[3],
+  },
+  anchorMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  anchorDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: 8,
+    width: '100%',
   },
   anchorLeft: {
     flex: 1,

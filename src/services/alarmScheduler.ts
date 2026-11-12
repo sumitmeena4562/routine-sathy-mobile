@@ -53,6 +53,11 @@ class AlarmSchedulerService {
         lightColor: '#F59E0B',
         lockscreenVisibility: notif.AndroidNotificationVisibility?.PUBLIC ?? 1,
         bypassDnd: true,
+        sound: 'sunrise-forest.wav',
+        audioAttributes: {
+          usage: notif.AndroidAudioUsage?.ALARM ?? 4,
+          contentType: notif.AndroidAudioContentType?.SONIFICATION ?? 4,
+        },
       });
 
       await notif.setNotificationChannelAsync('circadian-bedtime', {

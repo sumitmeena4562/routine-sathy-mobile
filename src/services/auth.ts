@@ -5,7 +5,7 @@ import {
   User,
 } from '@/types/auth';
 import { Storage } from '@/utils/storage';
-import { api, AUTH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from './api';
+import { api, AUTH_TOKEN_STORAGE_KEY, REFRESH_TOKEN_STORAGE_KEY, USER_STORAGE_KEY } from './api';
 
 export const authService = {
   /**
@@ -49,6 +49,9 @@ export const authService = {
     if (auth.token) {
       await Storage.setItem(AUTH_TOKEN_STORAGE_KEY, auth.token);
     }
+    if (auth.refreshToken) {
+      await Storage.setItem(REFRESH_TOKEN_STORAGE_KEY, auth.refreshToken);
+    }
     const userProfile: User = {
       _id: auth._id,
       name: auth.name,
@@ -64,6 +67,7 @@ export const authService = {
    */
   async clearSession(): Promise<void> {
     await Storage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    await Storage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     await Storage.removeItem(USER_STORAGE_KEY);
     if (__DEV__) console.log('🚪 [AUTH] Session cleared / user logged out');
   },
@@ -73,6 +77,13 @@ export const authService = {
    */
   async getSavedToken(): Promise<string | null> {
     return await Storage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  },
+
+  /**
+   * Retrieve saved refresh token.
+   */
+  async getSavedRefreshToken(): Promise<string | null> {
+    return await Storage.getItem(REFRESH_TOKEN_STORAGE_KEY);
   },
 
   /**

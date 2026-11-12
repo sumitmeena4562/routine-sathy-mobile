@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -13,12 +13,12 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import { useAlarmContext } from '@/context/AlarmContext';
-import { PrimitiveTokens } from '@/theme/tokens.generated';
+import { PrimitiveTokens, TypographyScale } from '@/theme/tokens.generated';
 import { Text } from './Text';
 import { HStack, VStack } from './Box';
 import { Button } from './Button';
 import { AlarmSoundId, AlarmMissionType } from '@/types/alarm';
-import { formatAlarmTime12hr, calculateSleepCycles } from '@/utils/circadianAlarm';
+import { formatAlarmTime12hr, calculateSleepCycles, getAlarmCountdown } from '@/utils/circadianAlarm';
 import { alarmAudio } from '@/services/alarmAudio';
 
 interface AlarmSetupModalProps {
@@ -26,34 +26,51 @@ interface AlarmSetupModalProps {
   onClose: () => void;
 }
 
-const SOUND_OPTIONS: { id: AlarmSoundId; label: string; icon: string; desc: string }[] = [
-  { id: 'sunrise-forest', label: 'Sunrise Forest', icon: 'sunny-outline', desc: 'Birds singing & soft morning breeze' },
-  { id: 'ocean-waves', label: 'Ocean Tide', icon: 'water-outline', desc: 'Rhythmic rolling waves' },
-  { id: 'zen-bowl', label: 'Tibetan Zen Bowl', icon: 'notifications-outline', desc: '528Hz acoustic temple chime' },
-  { id: 'energetic-dawn', label: 'Energetic Dawn', icon: 'flash-outline', desc: 'Upbeat acoustic wake rhythm' },
+const SOUND_OPTIONS: { id: AlarmSoundId; label: string; icon: keyof typeof Ionicons.glyphMap; desc: string }[] = [
+  { id: 'sunrise-forest', label: 'Sunrise Forest', icon: 'sunny', desc: 'Birds singing & morning breeze' },
+  { id: 'ocean-waves', label: 'Ocean Tide', icon: 'water', desc: 'Relaxing ambient ocean swell' },
+  { id: 'zen-bowl', label: 'Zen Temple Bowl', icon: 'notifications', desc: '528Hz acoustic meditation bell' },
+  { id: 'energetic-dawn', label: 'Energetic Dawn', icon: 'flash', desc: 'Upbeat crystalline chimes' },
 ];
 
-const MISSION_OPTIONS: { id: AlarmMissionType; label: string; icon: string; desc: string; badge?: string }[] = [
-  { id: 'water', label: 'Hydration Challenge', icon: 'water', desc: 'Drink 1 glass of water to silence & auto-log 250ml', badge: 'RECOMMENDED' },
-  { id: 'math', label: 'Quick Math Sum', icon: 'calculator-outline', desc: 'Solve a simple sum to awaken prefrontal cortex' },
-  { id: 'none', label: 'Normal Swipe', icon: 'hand-left-outline', desc: 'Simple tap to stop alarm' },
+const MISSION_OPTIONS: { id: AlarmMissionType; label: string; icon: keyof typeof Ionicons.glyphMap; desc: string }[] = [
+  {
+    id: 'water',
+    label: 'Drink Water',
+    icon: 'water',
+    desc: 'Drink 1 glass of water to stop alarm & auto-log 250ml hydration',
+  },
+  {
+    id: 'math',
+    label: 'Math Puzzle',
+    icon: 'calculator',
+    desc: 'Solve a simple sum to awaken your brain and silence alarm',
+  },
+  {
+    id: 'none',
+    label: 'Normal Tap',
+    icon: 'hand-left',
+    desc: 'Simple 1-tap dismiss without any morning challenge',
+  },
 ];
 
-const DAY_LABELS = [
-  { label: 'S', name: 'Sun' },
-  { label: 'M', name: 'Mon' },
-  { label: 'T', name: 'Tue' },
-  { label: 'W', name: 'Wed' },
-  { label: 'T', name: 'Thu' },
-  { label: 'F', name: 'Fri' },
-  { label: 'S', name: 'Sat' },
+// Monday to Sunday contiguous week layout
+const DAYS = [
+  { id: 1, label: 'M', name: 'Mon' },
+  { id: 2, label: 'T', name: 'Tue' },
+  { id: 3, label: 'W', name: 'Wed' },
+  { id: 4, label: 'T', name: 'Thu' },
+  { id: 5, label: 'F', name: 'Fri' },
+  { id: 6, label: 'S', name: 'Sat' },
+  { id: 0, label: 'S', name: 'Sun' },
 ];
 
-const TIME_PRESETS = [
+const QUICK_PRESETS = [
   { h: 5, m: 30, ampm: 'AM' as const, label: '5:30 AM' },
   { h: 6, m: 0, ampm: 'AM' as const, label: '6:00 AM' },
   { h: 6, m: 30, ampm: 'AM' as const, label: '6:30 AM' },
   { h: 7, m: 0, ampm: 'AM' as const, label: '7:00 AM' },
+  { h: 7, m: 30, ampm: 'AM' as const, label: '7:30 AM' },
 ];
 
 function AlarmSetupContent({ onClose }: { onClose: () => void }) {
@@ -67,15 +84,18 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
     h = h % 12 || 12;
     return h;
   });
+
   const [selectedMinute, setSelectedMinute] = useState(() => {
     const [, mStr] = (config.time || '06:00').split(':');
     return parseInt(mStr, 10) || 0;
   });
+
   const [selectedAmPm, setSelectedAmPm] = useState<'AM' | 'PM'>(() => {
     const [hStr] = (config.time || '06:00').split(':');
     const h = parseInt(hStr, 10) || 6;
     return h >= 12 ? 'PM' : 'AM';
   });
+
   const [selectedDays, setSelectedDays] = useState<number[]>(config.days || [1, 2, 3, 4, 5]);
   const [selectedSound, setSelectedSound] = useState<AlarmSoundId>(config.sound || 'sunrise-forest');
   const [selectedRamp, setSelectedRamp] = useState<0 | 2 | 5>(config.gradualRampMinutes ?? 2);
@@ -83,48 +103,65 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
   const [bedtimeNudge, setBedtimeNudge] = useState<boolean>(config.bedtimeReminderEnabled ?? true);
   const [previewingSound, setPreviewingSound] = useState<AlarmSoundId | null>(null);
 
-  // Clean up sound preview on unmount
+  // Stop sound preview when modal closes
   useEffect(() => {
     return () => {
       alarmAudio.stop();
     };
   }, []);
 
-  const time24hString = React.useMemo(() => {
+  const time24hString = useMemo(() => {
     let h24 = selectedHour;
     if (selectedAmPm === 'PM' && h24 < 12) h24 += 12;
     if (selectedAmPm === 'AM' && h24 === 12) h24 = 0;
     return `${h24 < 10 ? '0' : ''}${h24}:${selectedMinute < 10 ? '0' : ''}${selectedMinute}`;
   }, [selectedHour, selectedMinute, selectedAmPm]);
 
-  const sleepRecommendations = React.useMemo(() => {
+  const countdownPreview = useMemo(() => {
+    return getAlarmCountdown({
+      ...config,
+      enabled: true,
+      time: time24hString,
+      days: selectedDays,
+    });
+  }, [config, time24hString, selectedDays]);
+
+  const sleepRecommendations = useMemo(() => {
     return calculateSleepCycles(time24hString);
   }, [time24hString]);
 
-  const optimalBedtime = sleepRecommendations.find(r => r.isRecommended)?.bedtime || '22:30';
+  const optimalBedtime = sleepRecommendations.find((r) => r.isRecommended)?.bedtime || '22:30';
 
-  const toggleDay = (dayIndex: number) => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-    setSelectedDays(prev => {
-      if (prev.includes(dayIndex)) {
-        if (prev.length === 1) return prev; // At least 1 day
-        return prev.filter(d => d !== dayIndex);
+  // Step adjustment for minutes (-15m, +15m, etc.)
+  const adjustMinutes = (deltaMinutes: number) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    let totalMinutes = selectedHour * 60 + selectedMinute + deltaMinutes;
+    if (selectedAmPm === 'PM' && selectedHour < 12) totalMinutes += 12 * 60;
+    if (selectedAmPm === 'AM' && selectedHour === 12) totalMinutes -= 12 * 60;
+
+    // Wrap around 24 hours
+    totalMinutes = (totalMinutes + 24 * 60) % (24 * 60);
+
+    const newH24 = Math.floor(totalMinutes / 60);
+    const newM = totalMinutes % 60;
+    const newAmPm = newH24 >= 12 ? 'PM' : 'AM';
+    const newH12 = newH24 % 12 || 12;
+
+    setSelectedHour(newH12);
+    setSelectedMinute(newM);
+    setSelectedAmPm(newAmPm);
+  };
+
+  const toggleDay = (dayId: number) => {
+    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedDays((prev) => {
+      if (prev.includes(dayId)) {
+        if (prev.length === 1) return prev; // At least 1 day selected
+        return prev.filter((d) => d !== dayId);
       } else {
-        return [...prev, dayIndex].sort();
+        return [...prev, dayId].sort();
       }
     });
-  };
-
-  const setWeekdayPreset = () => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
-    setSelectedDays([1, 2, 3, 4, 5]);
-  };
-
-  const setEverydayPreset = () => {
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
-    setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
   };
 
   const handlePlayPreview = async (soundId: AlarmSoundId) => {
@@ -133,11 +170,10 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
       setPreviewingSound(null);
     } else {
       setPreviewingSound(soundId);
-      const stopFn = await alarmAudio.playPreview(soundId);
+      await alarmAudio.playPreview(soundId);
       setTimeout(() => {
         setPreviewingSound(null);
       }, 5000);
-      void stopFn;
     }
   };
 
@@ -168,13 +204,13 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
     }, 250);
   };
 
-  const amberLight = theme.isDark ? 'rgba(245, 158, 11, 0.15)' : PrimitiveTokens.color.amber[100];
-  const amberBorder = theme.isDark ? 'rgba(245, 158, 11, 0.35)' : PrimitiveTokens.color.amber[300];
-  const amberText = theme.isDark ? PrimitiveTokens.color.amber[400] : PrimitiveTokens.color.amber[800];
-  const amberSolid = PrimitiveTokens.color.amber[400];
-
-  const isWeekdaysOnly = selectedDays.length === 5 && [1, 2, 3, 4, 5].every(d => selectedDays.includes(d));
+  const isWeekdaysOnly =
+    selectedDays.length === 5 && [1, 2, 3, 4, 5].every((d) => selectedDays.includes(d));
   const isEveryday = selectedDays.length === 7;
+
+  const amberSolid = PrimitiveTokens.color.amber[400];
+  const amberBg = theme.isDark ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.10)';
+  const amberBorder = theme.isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.25)';
 
   return (
     <View style={[styles.modalSheet, { backgroundColor: theme.colors.background }]}>
@@ -183,116 +219,81 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
         <View style={[styles.grabHandle, { backgroundColor: theme.colors.borderSubtle }]} />
       </View>
 
-      {/* Header */}
+      {/* Header Bar */}
       <HStack justify="space-between" align="center" style={styles.sheetHeader}>
         <VStack gap={2}>
           <Text variant="h3" color="primary" style={styles.headerTitle}>
-            Circadian Wake Alarm
+            Set Alarm
           </Text>
           <Text variant="captionSm" color="muted">
-            Align morning anchor with natural sleep cycles
+            Gentle morning anchor & sleep alignment
           </Text>
         </VStack>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           onPress={() => {
             alarmAudio.stop();
             onClose();
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Close alarm settings"
           style={[styles.closeButton, { backgroundColor: theme.colors.surfaceAlt }]}
         >
           <Ionicons name="close" size={20} color={theme.colors.text} />
         </TouchableOpacity>
       </HStack>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 1. INTUITIVE TIME SELECTOR WITH STEPPERS & PRESETS */}
-        <View style={[styles.timeBox, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSubtle }]}>
-          <HStack align="center" justify="center" gap={12}>
-            {/* Hour Stepper */}
-            <VStack align="center" gap={2}>
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedHour(h => (h % 12) + 1);
-                }}
-                hitSlop={6}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}
-              >
-                <Ionicons name="chevron-up" size={18} color={theme.colors.text} />
-              </TouchableOpacity>
-
-              <Text variant="scoreDisplay" color="primary" style={styles.timeDigit}>
+        {/* ========================================================
+            1. HERO DIGITAL CLOCK DISPLAY (CLEAR & INTUITIVE)
+            ======================================================== */}
+        <View
+          style={[
+            styles.heroClockCard,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSubtle },
+          ]}
+        >
+          {/* Big Digital Readout */}
+          <HStack align="center" justify="center" gap={8} style={styles.digitsRow}>
+            {/* Hour Block */}
+            <View style={styles.digitBlock}>
+              <Text style={[styles.hugeDigit, { color: theme.colors.text }]}>
                 {selectedHour < 10 ? `0${selectedHour}` : selectedHour}
               </Text>
+              <Text style={[styles.digitLabel, { color: theme.colors.textMuted }]}>Hour</Text>
+            </View>
 
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedHour(h => (h === 1 ? 12 : h - 1));
-                }}
-                hitSlop={6}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}
-              >
-                <Ionicons name="chevron-down" size={18} color={theme.colors.text} />
-              </TouchableOpacity>
-              <Text variant="captionSm" color="muted" style={{ fontSize: 10 }}>Hour</Text>
-            </VStack>
+            <Text style={[styles.hugeSeparator, { color: PrimitiveTokens.color.amber[400] }]}>:</Text>
 
-            <Text variant="h1" color="muted" style={styles.timeSeparator}>:</Text>
-
-            {/* Minute Stepper */}
-            <VStack align="center" gap={2}>
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedMinute(m => (m + 5) % 60);
-                }}
-                hitSlop={6}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}
-              >
-                <Ionicons name="chevron-up" size={18} color={theme.colors.text} />
-              </TouchableOpacity>
-
-              <Text variant="scoreDisplay" color="primary" style={styles.timeDigit}>
+            {/* Minute Block */}
+            <View style={styles.digitBlock}>
+              <Text style={[styles.hugeDigit, { color: theme.colors.text }]}>
                 {selectedMinute < 10 ? `0${selectedMinute}` : selectedMinute}
               </Text>
+              <Text style={[styles.digitLabel, { color: theme.colors.textMuted }]}>Minute</Text>
+            </View>
 
-              <TouchableOpacity
-                onPress={() => {
-                  if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setSelectedMinute(m => (m === 0 ? 55 : m - 5));
-                }}
-                hitSlop={6}
-                style={[styles.stepperBtn, { backgroundColor: theme.colors.surfaceAlt }]}
-              >
-                <Ionicons name="chevron-down" size={18} color={theme.colors.text} />
-              </TouchableOpacity>
-              <Text variant="captionSm" color="muted" style={{ fontSize: 10 }}>Min</Text>
-            </VStack>
-
-            {/* AM / PM Toggle */}
-            <VStack gap={6} style={styles.amPmColumn}>
+            {/* AM / PM Toggle Pill */}
+            <View style={[styles.amPmContainer, { backgroundColor: theme.colors.surfaceAlt }]}>
               <TouchableOpacity
                 onPress={() => {
                   if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   setSelectedAmPm('AM');
                 }}
                 style={[
-                  styles.amPmPill,
-                  selectedAmPm === 'AM'
-                    ? { backgroundColor: amberSolid }
-                    : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle, borderWidth: 1 }
+                  styles.amPmSegment,
+                  selectedAmPm === 'AM' && { backgroundColor: amberSolid },
                 ]}
               >
                 <Text
-                  variant="captionSm"
                   style={[
                     styles.amPmText,
-                    selectedAmPm === 'AM' ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textMuted }
+                    selectedAmPm === 'AM'
+                      ? { color: '#000000', fontWeight: '800' }
+                      : { color: theme.colors.textMuted },
                   ]}
                 >
                   AM
@@ -305,114 +306,182 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
                   setSelectedAmPm('PM');
                 }}
                 style={[
-                  styles.amPmPill,
-                  selectedAmPm === 'PM'
-                    ? { backgroundColor: amberSolid }
-                    : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle, borderWidth: 1 }
+                  styles.amPmSegment,
+                  selectedAmPm === 'PM' && { backgroundColor: amberSolid },
                 ]}
               >
                 <Text
-                  variant="captionSm"
                   style={[
                     styles.amPmText,
-                    selectedAmPm === 'PM' ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textMuted }
+                    selectedAmPm === 'PM'
+                      ? { color: '#000000', fontWeight: '800' }
+                      : { color: theme.colors.textMuted },
                   ]}
                 >
                   PM
                 </Text>
               </TouchableOpacity>
-            </VStack>
+            </View>
           </HStack>
 
-          {/* Quick Preset Pills */}
-          <HStack gap={8} justify="center" style={styles.presetsRow}>
-            {TIME_PRESETS.map((preset) => {
-              const isMatch = selectedHour === preset.h && selectedMinute === preset.m && selectedAmPm === preset.ampm;
-              return (
-                <TouchableOpacity
-                  key={preset.label}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.selectionAsync();
-                    setSelectedHour(preset.h);
-                    setSelectedMinute(preset.m);
-                    setSelectedAmPm(preset.ampm);
-                  }}
-                  style={[
-                    styles.presetPill,
-                    isMatch
-                      ? { backgroundColor: amberSolid, borderColor: amberSolid }
-                      : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }
-                  ]}
-                >
-                  <Text
+          {/* Quick Adjustment Steppers (-1h, -15m, +15m, +1h) */}
+          <HStack justify="center" gap={8} style={styles.steppersRow}>
+            <TouchableOpacity
+              onPress={() => adjustMinutes(-60)}
+              style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>-1 hr</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => adjustMinutes(-15)}
+              style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>-15 min</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => adjustMinutes(15)}
+              style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>+15 min</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => adjustMinutes(60)}
+              style={[styles.stepBtn, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle }]}
+            >
+              <Text style={[styles.stepBtnText, { color: theme.colors.text }]}>+1 hr</Text>
+            </TouchableOpacity>
+          </HStack>
+
+          {/* 1-Tap Morning Presets */}
+          <View style={styles.presetsWrapper}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.presetsScroll}>
+              {QUICK_PRESETS.map((preset) => {
+                const isSelected =
+                  selectedHour === preset.h &&
+                  selectedMinute === preset.m &&
+                  selectedAmPm === preset.ampm;
+                return (
+                  <TouchableOpacity
+                    key={preset.label}
+                    onPress={() => {
+                      if (Platform.OS !== 'web') Haptics.selectionAsync();
+                      setSelectedHour(preset.h);
+                      setSelectedMinute(preset.m);
+                      setSelectedAmPm(preset.ampm);
+                    }}
                     style={[
-                      styles.presetText,
-                      isMatch ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textSecondary }
+                      styles.presetChip,
+                      isSelected
+                        ? { backgroundColor: amberSolid, borderColor: amberSolid }
+                        : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
                     ]}
                   >
-                    {preset.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </HStack>
-
-          {/* Circadian REM Sleep Cycle Advisor Card */}
-          <View style={[styles.remBanner, { backgroundColor: amberLight, borderColor: amberBorder }]}>
-            <Ionicons name="moon" size={18} color={amberText} style={{ marginTop: 2 }} />
-            <VStack gap={2} style={{ flex: 1 }}>
-              <Text variant="bodySm" style={{ color: amberText, fontWeight: '800' }}>
-                Ideal Bedtime: {formatAlarmTime12hr(optimalBedtime)}
-              </Text>
-              <Text variant="captionSm" style={{ color: amberText, opacity: 0.95, lineHeight: 17 }}>
-                5 full REM cycles (7h 30m sleep). Waking at the end of a cycle prevents morning sleep inertia.
-              </Text>
-            </VStack>
+                    <Text
+                      style={[
+                        styles.presetChipText,
+                        isSelected
+                          ? { color: '#000000', fontWeight: '800' }
+                          : { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      {preset.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
+
+          {/* Friendly Dynamic Ring Time Feedback */}
+          <HStack align="center" justify="center" gap={6} style={[styles.countdownPill, { backgroundColor: amberBg, borderColor: amberBorder }]}>
+            <Ionicons name="time" size={14} color={PrimitiveTokens.color.amber[400]} />
+            <Text style={[styles.countdownText, { color: PrimitiveTokens.color.amber[400] }]}>
+              Rings {countdownPreview}
+            </Text>
+          </HStack>
         </View>
 
-        {/* 2. REPEAT DAYS WITH QUICK PRESETS */}
-        <VStack gap={8} style={styles.section}>
+        {/* ========================================================
+            2. REPEAT DAYS (INTUITIVE & SIMPLE)
+            ======================================================== */}
+        <VStack gap={10} style={styles.sectionCard}>
           <HStack justify="space-between" align="center">
-            <Text variant="captionSm" color="muted" style={styles.sectionLabel}>
-              REPEAT SCHEDULE
+            <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+              Repeat
             </Text>
+            {/* Quick schedule buttons */}
             <HStack gap={6}>
-              <TouchableOpacity onPress={setWeekdayPreset} style={[styles.filterPill, isWeekdaysOnly && { backgroundColor: amberSolid }]}>
-                <Text style={[styles.filterPillText, isWeekdaysOnly ? { color: '#000000', fontWeight: '700' } : { color: theme.colors.textMuted }]}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  setSelectedDays([1, 2, 3, 4, 5]);
+                }}
+                style={[
+                  styles.repeatShortcutBtn,
+                  isWeekdaysOnly
+                    ? { backgroundColor: amberSolid }
+                    : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle, borderWidth: 1 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.repeatShortcutText,
+                    isWeekdaysOnly ? { color: '#000000', fontWeight: '700' } : { color: theme.colors.textSecondary },
+                  ]}
+                >
                   Weekdays
                 </Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={setEverydayPreset} style={[styles.filterPill, isEveryday && { backgroundColor: amberSolid }]}>
-                <Text style={[styles.filterPillText, isEveryday ? { color: '#000000', fontWeight: '700' } : { color: theme.colors.textMuted }]}>
+
+              <TouchableOpacity
+                onPress={() => {
+                  if (Platform.OS !== 'web') Haptics.selectionAsync();
+                  setSelectedDays([0, 1, 2, 3, 4, 5, 6]);
+                }}
+                style={[
+                  styles.repeatShortcutBtn,
+                  isEveryday
+                    ? { backgroundColor: amberSolid }
+                    : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle, borderWidth: 1 },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.repeatShortcutText,
+                    isEveryday ? { color: '#000000', fontWeight: '700' } : { color: theme.colors.textSecondary },
+                  ]}
+                >
                   Every day
                 </Text>
               </TouchableOpacity>
             </HStack>
           </HStack>
 
-          <HStack justify="space-between" align="center">
-            {DAY_LABELS.map((day, idx) => {
-              const isActive = selectedDays.includes(idx);
+          {/* Monday to Sunday day circles */}
+          <HStack justify="space-between" align="center" style={styles.daysRow}>
+            {DAYS.map((d) => {
+              const active = selectedDays.includes(d.id);
               return (
                 <TouchableOpacity
-                  key={idx}
-                  onPress={() => toggleDay(idx)}
+                  key={d.name}
+                  onPress={() => toggleDay(d.id)}
                   style={[
-                    styles.dayCircle,
-                    {
-                      backgroundColor: isActive ? amberSolid : theme.colors.surfaceAlt,
-                      borderColor: isActive ? amberSolid : theme.colors.borderSubtle,
-                    }
+                    styles.dayPill,
+                    active
+                      ? { backgroundColor: amberSolid, borderColor: amberSolid }
+                      : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
                   ]}
                 >
-                  <Text 
+                  <Text
                     style={[
-                      styles.dayText, 
-                      { color: isActive ? '#000000' : theme.colors.textMuted }
+                      styles.dayPillText,
+                      active ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textMuted },
                     ]}
                   >
-                    {day.label}
+                    {d.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -420,127 +489,16 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
           </HStack>
         </VStack>
 
-        {/* 3. GENTLE VOLUME RAMP (CRESCENDO) */}
-        <VStack gap={8} style={styles.section}>
-          <HStack justify="space-between" align="center">
-            <Text variant="captionSm" color="muted" style={styles.sectionLabel}>
-              VOLUME CRESCENDO
-            </Text>
-            <Text variant="captionSm" color="primary">
-              {selectedRamp > 0 ? `Gentle ${selectedRamp}m ramp (10% → 100%)` : 'Instant 100% volume'}
-            </Text>
-          </HStack>
-          <HStack gap={8}>
-            {([0, 2, 5] as const).map((mins) => {
-              const isActive = selectedRamp === mins;
-              return (
-                <TouchableOpacity
-                  key={mins}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedRamp(mins);
-                  }}
-                  style={[
-                    styles.rampPill,
-                    {
-                      backgroundColor: isActive ? amberSolid : theme.colors.surfaceAlt,
-                      borderColor: isActive ? amberSolid : theme.colors.borderSubtle,
-                    }
-                  ]}
-                >
-                  <Text 
-                    style={[
-                      styles.rampText,
-                      { color: isActive ? '#000000' : theme.colors.textSecondary, fontWeight: isActive ? '800' : '600' }
-                    ]}
-                  >
-                    {mins === 0 ? 'Instant' : `${mins} Mins (Ideal)`}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </HStack>
-        </VStack>
-
-        {/* 4. NATURE SOUND SELECTION WITH EXPLICIT CHECKMARK */}
-        <VStack gap={8} style={styles.section}>
-          <Text variant="captionSm" color="muted" style={styles.sectionLabel}>
-            CIRCADIAN SOUND
+        {/* ========================================================
+            3. WAKE MISSION (ANTI-SNOOZE CHALLENGE)
+            ======================================================== */}
+        <VStack gap={10} style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Morning Mission (Anti-Snooze)
           </Text>
-          <VStack gap={8}>
-            {SOUND_OPTIONS.map((snd) => {
-              const isSelected = selectedSound === snd.id;
-              const isPreviewing = previewingSound === snd.id;
-              return (
-                <TouchableOpacity
-                  key={snd.id}
-                  onPress={() => {
-                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setSelectedSound(snd.id);
-                  }}
-                  style={[
-                    styles.optionCard,
-                    {
-                      backgroundColor: isSelected ? amberLight : theme.colors.surface,
-                      borderColor: isSelected ? amberSolid : theme.colors.borderSubtle,
-                      borderWidth: isSelected ? 1.5 : 1,
-                    }
-                  ]}
-                >
-                  <HStack justify="space-between" align="center" style={{ width: '100%' }}>
-                    <HStack align="center" gap={10} style={{ flex: 1 }}>
-                      <View style={[styles.soundIconBox, { backgroundColor: isSelected ? amberSolid : theme.colors.surfaceAlt }]}>
-                        <Ionicons 
-                          name={snd.icon as any} 
-                          size={18} 
-                          color={isSelected ? '#000000' : theme.colors.textMuted} 
-                        />
-                      </View>
-                      <VStack gap={2} style={{ flex: 1 }}>
-                        <HStack align="center" gap={6}>
-                          <Text variant="body" color="primary" style={{ fontWeight: isSelected ? '800' : '600', fontSize: 13 }}>
-                            {snd.label}
-                          </Text>
-                          {isSelected && (
-                            <Ionicons name="checkmark-circle" size={16} color={amberText} />
-                          )}
-                        </HStack>
-                        <Text variant="captionSm" color="muted" style={{ fontSize: 11 }}>
-                          {snd.desc}
-                        </Text>
-                      </VStack>
-                    </HStack>
 
-                    {/* Preview play button */}
-                    <TouchableOpacity
-                      onPress={() => handlePlayPreview(snd.id)}
-                      hitSlop={6}
-                      style={[
-                        styles.previewBtn,
-                        isPreviewing
-                          ? { backgroundColor: amberSolid, borderColor: amberSolid }
-                          : { borderColor: theme.colors.borderSubtle }
-                      ]}
-                    >
-                      <Ionicons 
-                        name={isPreviewing ? "stop" : "play"} 
-                        size={13} 
-                        color={isPreviewing ? '#000000' : theme.colors.textMuted} 
-                      />
-                    </TouchableOpacity>
-                  </HStack>
-                </TouchableOpacity>
-              );
-            })}
-          </VStack>
-        </VStack>
-
-        {/* 5. ANTI-SNOOZE MISSION SELECTION */}
-        <VStack gap={8} style={styles.section}>
-          <Text variant="captionSm" color="muted" style={styles.sectionLabel}>
-            WAKE MISSION (ANTI-SNOOZE)
-          </Text>
-          <VStack gap={8}>
+          {/* 3-way Segmented Control */}
+          <HStack gap={8} style={styles.missionTabsRow}>
             {MISSION_OPTIONS.map((msn) => {
               const isSelected = selectedMission === msn.id;
               return (
@@ -551,60 +509,204 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
                     setSelectedMission(msn.id);
                   }}
                   style={[
-                    styles.optionCard,
-                    {
-                      backgroundColor: isSelected ? amberLight : theme.colors.surface,
-                      borderColor: isSelected ? amberSolid : theme.colors.borderSubtle,
-                      borderWidth: isSelected ? 1.5 : 1,
-                    }
+                    styles.missionTab,
+                    isSelected
+                      ? { backgroundColor: amberSolid, borderColor: amberSolid }
+                      : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
                   ]}
                 >
-                  <HStack align="center" gap={10} style={{ width: '100%' }}>
-                    <View style={[styles.soundIconBox, { backgroundColor: isSelected ? amberSolid : theme.colors.surfaceAlt }]}>
-                      <Ionicons 
-                        name={msn.icon as any} 
-                        size={18} 
-                        color={isSelected ? '#000000' : theme.colors.textMuted} 
+                  <Ionicons
+                    name={msn.icon}
+                    size={16}
+                    color={isSelected ? '#000000' : theme.colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.missionTabText,
+                      isSelected ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    {msn.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </HStack>
+
+          {/* Active Mission Explanation */}
+          <View style={[styles.missionDescBox, { backgroundColor: theme.colors.surfaceAlt }]}>
+            <Ionicons
+              name="information-circle-outline"
+              size={16}
+              color={PrimitiveTokens.color.amber[400]}
+              style={{ marginTop: 1 }}
+            />
+            <Text style={[styles.missionDescText, { color: theme.colors.textSecondary }]}>
+              {MISSION_OPTIONS.find((m) => m.id === selectedMission)?.desc}
+            </Text>
+          </View>
+        </VStack>
+
+        {/* ========================================================
+            4. ALARM SOUND TONES (COMPACT LIST WITH 1-TAP PREVIEW)
+            ======================================================== */}
+        <VStack gap={10} style={styles.sectionCard}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+            Alarm Tone
+          </Text>
+
+          <VStack gap={8}>
+            {SOUND_OPTIONS.map((snd) => {
+              const isSelected = selectedSound === snd.id;
+              const isPlaying = previewingSound === snd.id;
+
+              return (
+                <TouchableOpacity
+                  key={snd.id}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedSound(snd.id);
+                  }}
+                  style={[
+                    styles.soundRow,
+                    isSelected
+                      ? { backgroundColor: amberBg, borderColor: amberSolid, borderWidth: 1.5 }
+                      : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle, borderWidth: 1 },
+                  ]}
+                >
+                  <HStack align="center" gap={10} style={{ flex: 1 }}>
+                    <View
+                      style={[
+                        styles.soundIconBadge,
+                        { backgroundColor: isSelected ? amberSolid : theme.colors.surface },
+                      ]}
+                    >
+                      <Ionicons
+                        name={snd.icon}
+                        size={16}
+                        color={isSelected ? '#000000' : theme.colors.textMuted}
                       />
                     </View>
+
                     <VStack gap={2} style={{ flex: 1 }}>
                       <HStack align="center" gap={6}>
-                        <Text variant="body" color="primary" style={{ fontWeight: isSelected ? '800' : '600', fontSize: 13 }}>
-                          {msn.label}
+                        <Text
+                          style={[
+                            styles.soundRowTitle,
+                            { color: theme.colors.text, fontWeight: isSelected ? '800' : '600' },
+                          ]}
+                        >
+                          {snd.label}
                         </Text>
                         {isSelected && (
-                          <Ionicons name="checkmark-circle" size={16} color={amberText} />
-                        )}
-                        {msn.badge && (
-                          <View style={[styles.missionBadge, { backgroundColor: amberSolid }]}>
-                            <Text variant="captionSm" style={{ fontSize: 9, fontWeight: '800', color: '#000000' }}>
-                              {msn.badge}
-                            </Text>
-                          </View>
+                          <Ionicons name="checkmark-circle" size={16} color={PrimitiveTokens.color.amber[400]} />
                         )}
                       </HStack>
-                      <Text variant="captionSm" color="muted" style={{ fontSize: 11 }}>
-                        {msn.desc}
+                      <Text style={[styles.soundRowDesc, { color: theme.colors.textSecondary }]}>
+                        {snd.desc}
                       </Text>
                     </VStack>
                   </HStack>
+
+                  {/* Play / Stop Preview Button */}
+                  <TouchableOpacity
+                    onPress={() => handlePlayPreview(snd.id)}
+                    hitSlop={8}
+                    style={[
+                      styles.soundPreviewPill,
+                      isPlaying
+                        ? { backgroundColor: amberSolid, borderColor: amberSolid }
+                        : { borderColor: theme.colors.borderSubtle },
+                    ]}
+                  >
+                    <Ionicons
+                      name={isPlaying ? 'stop' : 'play'}
+                      size={12}
+                      color={isPlaying ? '#000000' : theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.soundPreviewText,
+                        isPlaying ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      {isPlaying ? 'Stop' : 'Listen'}
+                    </Text>
+                  </TouchableOpacity>
                 </TouchableOpacity>
               );
             })}
           </VStack>
         </VStack>
 
-        {/* 6. BEDTIME REVERSE REMINDER SWITCH */}
-        <View style={[styles.settingRow, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSubtle }]}>
-          <HStack justify="space-between" align="center" style={{ width: '100%' }}>
-            <VStack gap={2} style={{ flex: 1, paddingRight: 10 }}>
-              <Text variant="body" color="primary" style={{ fontWeight: '700', fontSize: 13 }}>
-                Bedtime Wind-Down Alert
+        {/* ========================================================
+            5. GENTLE VOLUME RAMP (CRESCENDO) & BEDTIME WIND-DOWN
+            ======================================================== */}
+        <VStack gap={10} style={styles.sectionCard}>
+          <HStack justify="space-between" align="center">
+            <VStack gap={2}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                Volume Crescendo
               </Text>
-              <Text variant="captionSm" color="muted" style={{ fontSize: 11 }}>
-                Gentle reminder at {formatAlarmTime12hr(optimalBedtime)} to complete 5 REM cycles
+              <Text style={[styles.sectionSubtitle, { color: theme.colors.textMuted }]}>
+                Gradually wake up without high cortisol spikes
               </Text>
             </VStack>
+          </HStack>
+
+          <HStack gap={8}>
+            {([0, 2, 5] as const).map((mins) => {
+              const active = selectedRamp === mins;
+              return (
+                <TouchableOpacity
+                  key={mins}
+                  onPress={() => {
+                    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedRamp(mins);
+                  }}
+                  style={[
+                    styles.rampOptionPill,
+                    active
+                      ? { backgroundColor: amberSolid, borderColor: amberSolid }
+                      : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.rampOptionText,
+                      active ? { color: '#000000', fontWeight: '800' } : { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    {mins === 0 ? 'Instant' : `${mins} min (Soft)`}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </HStack>
+        </VStack>
+
+        {/* Bedtime Wind-Down Reminder Card */}
+        <View
+          style={[
+            styles.bedtimeRow,
+            { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderSubtle },
+          ]}
+        >
+          <HStack justify="space-between" align="center" style={{ width: '100%' }}>
+            <HStack align="center" gap={10} style={{ flex: 1, paddingRight: 10 }}>
+              <View style={[styles.bedtimeIconBadge, { backgroundColor: amberBg }]}>
+                <Ionicons name="moon" size={17} color={PrimitiveTokens.color.amber[400]} />
+              </View>
+              <VStack gap={2} style={{ flex: 1 }}>
+                <Text style={[styles.bedtimeTitle, { color: theme.colors.text }]}>
+                  Bedtime Reminder ({formatAlarmTime12hr(optimalBedtime)})
+                </Text>
+                <Text style={[styles.bedtimeSub, { color: theme.colors.textSecondary }]}>
+                  Sleep by {formatAlarmTime12hr(optimalBedtime)} for 5 full REM cycles (7.5h sleep)
+                </Text>
+              </VStack>
+            </HStack>
+
             <Switch
               value={bedtimeNudge}
               onValueChange={setBedtimeNudge}
@@ -614,35 +716,35 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
           </HStack>
         </View>
 
-        {/* 7. DEV/USER TEST TRIGGER BUTTON */}
+        {/* Test Ringing Screen Link */}
         <TouchableOpacity
           onPress={handleTestRingingScreen}
-          style={[styles.testRingingBtn, { borderColor: theme.colors.borderSubtle, backgroundColor: theme.colors.surface }]}
+          style={[styles.testRingingRow, { borderColor: theme.colors.borderSubtle }]}
         >
-          <HStack align="center" justify="center" gap={8}>
-            <Ionicons name="play-circle" size={18} color={theme.colors.textSecondary} />
-            <Text variant="caption" color="secondary" style={{ fontWeight: '700' }}>
-              Preview Full Ringing & Mission Screen
-            </Text>
-          </HStack>
+          <Ionicons name="notifications-outline" size={16} color={theme.colors.textMuted} />
+          <Text style={[styles.testRingingText, { color: theme.colors.textSecondary }]}>
+            Test Ringing & Wake Screen
+          </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 20 }} />
+        <View style={{ height: 24 }} />
       </ScrollView>
 
-      {/* FOOTER SAVE BUTTON WITH SAFE AREA PADDING */}
+      {/* ========================================================
+          6. FIXED FOOTER SAVE ACTION
+          ======================================================== */}
       <View
         style={[
-          styles.footer,
+          styles.footerBar,
           {
-            borderTopColor: theme.colors.borderSubtle,
             backgroundColor: theme.colors.background,
+            borderTopColor: theme.colors.borderSubtle,
             paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 16),
-          }
+          },
         ]}
       >
         <Button
-          title="Save & Activate Alarm"
+          title={`Set Alarm for ${selectedHour}:${selectedMinute < 10 ? `0${selectedMinute}` : selectedMinute} ${selectedAmPm}`}
           variant="primary"
           size="lg"
           fullWidth
@@ -657,53 +759,35 @@ export function AlarmSetupModal({ visible, onClose }: AlarmSetupModalProps) {
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={() => {
-        alarmAudio.stop();
-        onClose();
-      }}
-    >
-      <View style={styles.modalOverlay}>
-        <AlarmSetupContent onClose={onClose} />
-      </View>
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <AlarmSetupContent onClose={onClose} />
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    justifyContent: 'flex-end',
-  },
   modalSheet: {
+    flex: 1,
+    marginTop: Platform.OS === 'ios' ? 44 : 20,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    maxHeight: '92%',
   },
   grabHandleContainer: {
     alignItems: 'center',
-    paddingTop: 10,
-    paddingBottom: 4,
+    paddingVertical: 10,
   },
   grabHandle: {
-    width: 36,
+    width: 38,
     height: 4,
     borderRadius: 2,
   },
   sheetHeader: {
     paddingHorizontal: 20,
-    paddingTop: 8,
     paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.08)',
   },
   headerTitle: {
+    letterSpacing: -0.4,
     fontWeight: '800',
-    fontSize: 18,
   },
   closeButton: {
     width: 34,
@@ -713,39 +797,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scrollContent: {
-    padding: 20,
-    gap: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 24,
   },
-  timeBox: {
-    padding: 16,
-    borderRadius: 20,
+
+  // 1. Hero Digital Clock Styles
+  heroClockCard: {
+    borderRadius: 22,
     borderWidth: 1,
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  digitsRow: {
+    marginBottom: 14,
+  },
+  digitBlock: {
     alignItems: 'center',
   },
-  stepperBtn: {
-    width: 32,
-    height: 28,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timeDigit: {
-    fontSize: 44,
+  hugeDigit: {
+    fontSize: 54,
+    fontFamily: TypographyScale.h1.fontFamily,
     fontWeight: '900',
     letterSpacing: -1,
-    lineHeight: 52,
+    lineHeight: 62,
   },
-  timeSeparator: {
-    fontSize: 38,
+  digitLabel: {
+    fontSize: 10,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: -2,
+  },
+  hugeSeparator: {
+    fontSize: 48,
     fontWeight: '900',
-    lineHeight: 48,
-    marginTop: -10,
+    marginHorizontal: 4,
+    marginBottom: 12,
   },
-  amPmColumn: {
-    marginLeft: 8,
-    gap: 6,
+  amPmContainer: {
+    borderRadius: 12,
+    padding: 4,
+    marginLeft: 10,
+    gap: 4,
   },
-  amPmPill: {
+  amPmSegment: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -753,52 +850,85 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   amPmText: {
+    fontSize: 13,
+    fontFamily: TypographyScale.caption.fontFamily,
+  },
+  steppersRow: {
+    width: '100%',
+    marginBottom: 14,
+  },
+  stepBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBtnText: {
     fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
     fontWeight: '700',
   },
-  presetsRow: {
-    marginTop: 14,
+  presetsWrapper: {
     width: '100%',
+    marginBottom: 12,
   },
-  presetPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    borderWidth: 1,
+  presetsScroll: {
+    gap: 8,
+    paddingVertical: 2,
   },
-  presetText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  remBanner: {
-    marginTop: 14,
+  presetChip: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
     borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    width: '100%',
   },
-  section: {
-    width: '100%',
+  presetChipText: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
-  sectionLabel: {
+  countdownPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  countdownText: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '700',
+  },
+
+  // Section Styles
+  sectionCard: {
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontFamily: TypographyScale.h4.fontFamily,
     fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  sectionSubtitle: {
     fontSize: 11,
-    letterSpacing: 0.5,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
-  filterPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+
+  // Repeat Schedule Styles
+  repeatShortcutBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  filterPillText: {
-    fontSize: 10,
-    fontWeight: '600',
+  repeatShortcutText: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
-  dayCircle: {
+  daysRow: {
+    marginTop: 4,
+  },
+  dayPill: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -806,11 +936,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dayText: {
-    fontWeight: '800',
+  dayPillText: {
     fontSize: 13,
+    fontFamily: TypographyScale.caption.fontFamily,
   },
-  rampPill: {
+
+  // Wake Mission Styles
+  missionTabsRow: {
+    width: '100%',
+  },
+  missionTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  missionTabText: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+  },
+  missionDescBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+  },
+  missionDescText: {
+    flex: 1,
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+  },
+
+  // Sound Tone Styles
+  soundRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 14,
+  },
+  soundIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  soundRowTitle: {
+    fontSize: 13,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+  },
+  soundRowDesc: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+  },
+  soundPreviewPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  soundPreviewText: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+  },
+
+  // Crescendo Pill Styles
+  rampOptionPill: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
@@ -818,51 +1019,57 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rampText: {
+  rampOptionText: {
     fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
   },
-  optionCard: {
-    padding: 12,
-    borderRadius: 14,
+
+  // Bedtime Row Styles
+  bedtimeRow: {
+    borderRadius: 16,
     borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
   },
-  soundIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewBtn: {
+  bedtimeIconBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent',
   },
-  missionBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: 4,
+  bedtimeTitle: {
+    fontSize: 13,
+    fontFamily: TypographyScale.bodySm.fontFamily,
+    fontWeight: '800',
   },
-  settingRow: {
-    padding: 14,
-    borderRadius: 14,
-    borderWidth: 1,
+  bedtimeSub: {
+    fontSize: 11,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    lineHeight: 15,
   },
-  testRingingBtn: {
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
+
+  // Test Ringing Row Styles
+  testRingingRow: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
   },
-  footer: {
+  testRingingText: {
+    fontSize: 12,
+    fontFamily: TypographyScale.captionSm.fontFamily,
+    fontWeight: '600',
+  },
+
+  // Footer Styles
+  footerBar: {
     paddingHorizontal: 20,
     paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
   },
 });

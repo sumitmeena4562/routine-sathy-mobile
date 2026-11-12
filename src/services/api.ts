@@ -5,6 +5,7 @@ import * as Device from 'expo-device';
 import { Storage } from '@/utils/storage';
 
 export const AUTH_TOKEN_STORAGE_KEY = 'routine_sathy_auth_token_v1';
+export const REFRESH_TOKEN_STORAGE_KEY = 'routine_sathy_refresh_token_v1';
 export const USER_STORAGE_KEY = 'routine_sathy_auth_user_v1';
 
 /**
@@ -40,17 +41,7 @@ function getApiBaseUrl(): string {
     (configuredUrl && (configuredUrl.includes('localhost') || configuredUrl.includes('127.0.0.1') || configuredUrl.includes('10.0.2.2')));
 
   if (wantsLocal) {
-    // Android Emulator -> 10.0.2.2 maps to Mac localhost
-    if (Platform.OS === 'android' && !Device.isDevice) {
-      return 'http://10.0.2.2:5001/api';
-    }
-
-    // iOS Simulator & Web -> direct localhost
-    if (Platform.OS === 'ios' || Platform.OS === 'web') {
-      return 'http://localhost:5001/api';
-    }
-
-    // Physical Device via Expo Go -> dynamically resolve Mac's LAN IP from Metro connection
+    // 1. Dynamic Mac IP from Metro connection (works for physical devices AND emulators)
     const hostUri = Constants.expoConfig?.hostUri;
     if (hostUri) {
       const hostIp = hostUri.split(':')[0];
@@ -59,10 +50,17 @@ function getApiBaseUrl(): string {
       }
     }
 
+    // 2. Explicit Local IP from .env
     if (process.env.EXPO_PUBLIC_LOCAL_IP) {
       return `http://${process.env.EXPO_PUBLIC_LOCAL_IP}:5001/api`;
     }
 
+    // 3. Android Emulator fallback
+    if (Platform.OS === 'android' && !Device.isDevice) {
+      return 'http://10.0.2.2:5001/api';
+    }
+
+    // 4. iOS Simulator & Web -> direct localhost
     return 'http://localhost:5001/api';
   }
 
@@ -134,6 +132,25 @@ api.interceptors.request.use(
   }
 );
 
+interface FailedRequestQueueItem {
+  resolve: (token: string | null) => void;
+  reject: (error: unknown) => void;
+}
+
+let isRefreshing = false;
+let failedQueue: FailedRequestQueueItem[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 // Response Interceptor: Format error message cleanly & log response
 api.interceptors.response.use(
   (response) => {
@@ -161,9 +178,79 @@ api.interceptors.response.use(
     return response;
   },
   async (error: AxiosError<{ message?: string }>) => {
-    const config = error.config as (InternalAxiosRequestConfig & { _retryCount?: number }) | undefined;
+    const config = error.config as (InternalAxiosRequestConfig & { _retry?: boolean; _retryCount?: number }) | undefined;
+    const isAuthRoute =
+      config?.url?.includes('/auth/login') ||
+      config?.url?.includes('/auth/register') ||
+      config?.url?.includes('/auth/refresh');
 
-    // Auto-retry once for idempotent GET/HEAD requests on transient network drops or timeouts
+    // 1. Auto-refresh access token on 401 Unauthorized
+    if (error.response?.status === 401 && !isAuthRoute && config && !config._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            if (config.headers) {
+              config.headers.Authorization = `Bearer ${token}`;
+            }
+            return api(config);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      config._retry = true;
+      isRefreshing = true;
+
+      try {
+        const savedRefreshToken = await Storage.getItem(REFRESH_TOKEN_STORAGE_KEY);
+        if (!savedRefreshToken) {
+          throw new Error('No refresh token stored');
+        }
+
+        if (__DEV__) {
+          console.log('🔄 [API AUTH] Access token expired, requesting new token with refreshToken...');
+        }
+
+        const refreshRes = await axios.post<{ success: boolean; token: string; refreshToken?: string }>(
+          `${resolvedBaseUrl}/auth/refresh`,
+          { refreshToken: savedRefreshToken },
+          { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+        );
+
+        const newToken = refreshRes.data.token;
+        const newRefreshToken = refreshRes.data.refreshToken;
+
+        await Storage.setItem(AUTH_TOKEN_STORAGE_KEY, newToken);
+        if (newRefreshToken) {
+          await Storage.setItem(REFRESH_TOKEN_STORAGE_KEY, newRefreshToken);
+        }
+
+        if (config.headers) {
+          config.headers.Authorization = `Bearer ${newToken}`;
+        }
+
+        if (__DEV__) {
+          console.log('✅ [API AUTH] Access token refreshed successfully, replaying queued requests');
+        }
+
+        processQueue(null, newToken);
+        return api(config);
+      } catch (refreshErr) {
+        if (__DEV__) {
+          console.warn('❌ [API AUTH] Refresh token exchange failed, clearing session:', refreshErr);
+        }
+        processQueue(refreshErr, null);
+        await Storage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+        await Storage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+        await Storage.removeItem(USER_STORAGE_KEY);
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // 2. Auto-retry once for idempotent GET/HEAD requests on transient network drops or timeouts
     if (
       config &&
       (!config._retryCount || config._retryCount < 1) &&

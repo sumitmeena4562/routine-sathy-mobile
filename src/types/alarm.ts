@@ -27,7 +27,7 @@ export const DEFAULT_ALARM_CONFIG: CircadianAlarmConfig = {
   time: '06:00',
   days: [1, 2, 3, 4, 5], // Mon to Fri
   sound: 'sunrise-forest',
-  gradualRampMinutes: 2,
+  gradualRampMinutes: 0,
   mission: 'water',
   snoozeMinutes: 5,
   bedtimeReminderEnabled: true,

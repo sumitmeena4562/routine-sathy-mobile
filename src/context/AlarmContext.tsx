@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { CircadianAlarmConfig, DEFAULT_ALARM_CONFIG } from '../types/alarm';
 import { alarmScheduler } from '../services/alarmScheduler';
 import { alarmAudio } from '../services/alarmAudio';
@@ -51,40 +52,80 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [config]);
 
-  // Active foreground trigger: If app is open when alarm time arrives, trigger immediately!
+  // Central trigger function: starts ringing modal and full-volume sound immediately
+  const triggerAlarm = useCallback(async () => {
+    if (isRinging) return;
+    setIsRinging(true);
+    await alarmAudio.startRinging(config.sound || 'sunrise-forest', 0);
+  }, [isRinging, config.sound]);
+
+  // Active Foreground, Interval & AppState Monitoring
+  // Guarantees alarm triggers with 0 delay when alarm time arrives
   useEffect(() => {
     if (!config.enabled || isRinging) return;
 
+    const checkDueAlarm = () => {
+      if (!config.enabled || isRinging) return;
+
+      const now = new Date();
+      const todayDay = now.getDay();
+      if (!config.days.includes(todayDay)) return;
+
+      const todayStr = now.toISOString().split('T')[0];
+      if (config.lastDismissedDate === todayStr && config.lastDismissedTime === config.time) {
+        return; // Already dismissed today for this specific alarm time
+      }
+
+      const [hourStr, minStr] = config.time.split(':');
+      const target = new Date(now);
+      target.setHours(parseInt(hourStr, 10), parseInt(minStr, 10), 0, 0);
+
+      const diffMs = now.getTime() - target.getTime();
+
+      // If within 15 minutes past the alarm time, ring immediately!
+      if (diffMs >= 0 && diffMs < 15 * 60 * 1000) {
+        triggerAlarm();
+      }
+    };
+
+    // 1. Check immediately on mount/config update
+    checkDueAlarm();
+
+    // 2. Schedule precise timer for next upcoming alarm within next 24 hours
     const nextDate = getNextAlarmDate(config);
-    if (!nextDate) return;
-
-    const msUntilAlarm = nextDate.getTime() - Date.now();
-    // Only schedule timer if alarm is within the next 24 hours
-    if (msUntilAlarm > 0 && msUntilAlarm <= 24 * 60 * 60 * 1000) {
-      const timer = setTimeout(() => {
-        setIsRinging(true);
-        alarmAudio.startRinging(
-          config.sound || 'sunrise-forest',
-          config.gradualRampMinutes ?? 2
-        );
-      }, msUntilAlarm);
-
-      return () => clearTimeout(timer);
+    let exactTimer: ReturnType<typeof setTimeout> | null = null;
+    if (nextDate) {
+      const msUntilAlarm = nextDate.getTime() - Date.now();
+      if (msUntilAlarm > 0 && msUntilAlarm <= 24 * 60 * 60 * 1000) {
+        exactTimer = setTimeout(checkDueAlarm, msUntilAlarm);
+      }
     }
-  }, [config, isRinging]);
 
-  // Listen for alarm notifications received while app is running
+    // 3. High-frequency 3-second ticker while app is in foreground to prevent missed triggers
+    const ticker = setInterval(checkDueAlarm, 3000);
+
+    // 4. AppState listener: immediately check when user unlocks or re-enters app
+    const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
+      if (state === 'active') {
+        checkDueAlarm();
+      }
+    });
+
+    return () => {
+      if (exactTimer) clearTimeout(exactTimer);
+      clearInterval(ticker);
+      appStateSub.remove();
+    };
+  }, [config, isRinging, triggerAlarm]);
+
+  // Listen for alarm notifications received from OS while app is running
   useEffect(() => {
     const unsubscribe = alarmScheduler.registerListeners(() => {
-      setIsRinging(true);
-      alarmAudio.startRinging(
-        config.sound || 'sunrise-forest',
-        config.gradualRampMinutes ?? 2
-      );
+      triggerAlarm();
     });
 
     return unsubscribe;
-  }, [config.sound, config.gradualRampMinutes]);
+  }, [triggerAlarm]);
 
   const updateConfig = useCallback(async (updates: Partial<CircadianAlarmConfig>) => {
     const updated = { ...config, ...updates };

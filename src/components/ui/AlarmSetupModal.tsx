@@ -66,7 +66,6 @@ const DAYS = [
 ];
 
 const QUICK_PRESETS = [
-  { h: 5, m: 30, ampm: 'AM' as const, label: '5:30' },
   { h: 6, m: 0, ampm: 'AM' as const, label: '6:00' },
   { h: 6, m: 30, ampm: 'AM' as const, label: '6:30' },
   { h: 7, m: 0, ampm: 'AM' as const, label: '7:00' },
@@ -281,7 +280,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
       time: time24hString,
       days: selectedDays,
       sound: selectedSound,
-      gradualRampMinutes: config.gradualRampMinutes ?? 2,
+      gradualRampMinutes: 0,
       mission: selectedMission,
       bedtimeReminderEnabled: bedtimeNudge,
       lastDismissedDate: undefined,
@@ -412,7 +411,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
                   ]}
                 >
                   <TouchableOpacity
-                    onPress={() => stepMinute(5)}
+                    onPress={() => stepMinute(1)}
                     hitSlop={{ top: 12, bottom: 6, left: 14, right: 14 }}
                     style={styles.stepperArrow}
                   >
@@ -430,7 +429,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() => stepMinute(-5)}
+                    onPress={() => stepMinute(-1)}
                     hitSlop={{ top: 6, bottom: 12, left: 14, right: 14 }}
                     style={styles.stepperArrow}
                   >
@@ -501,7 +500,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
               </VStack>
             </HStack>
 
-            {/* Quick Presets with +5m Shortcut */}
+            {/* Quick Presets with +5m & +10m Shortcuts */}
             <HStack justify="space-between" gap={6} style={styles.presetRow}>
               <TouchableOpacity
                 onPress={() => handleSetQuickNap(5)}
@@ -515,6 +514,21 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
                   style={[styles.presetChipText, { color: amberSolid, fontWeight: '800' }]}
                 >
                   +5m
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => handleSetQuickNap(10)}
+                style={[
+                  styles.presetChip,
+                  { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
+                ]}
+              >
+                <Text
+                  variant="captionSm"
+                  style={[styles.presetChipText, { color: amberSolid, fontWeight: '800' }]}
+                >
+                  +10m
                 </Text>
               </TouchableOpacity>
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,60 +18,91 @@ import Animated, {
   withTiming,
   withSequence,
 } from 'react-native-reanimated';
+
 import { useAlarmContext } from '@/context/AlarmContext';
+import { PrimitiveTokens } from '@/theme/tokens.generated';
 import { Text } from './Text';
 import { HStack, VStack } from './Box';
-import { formatAlarmTime12hr } from '@/utils/circadianAlarm';
 
-interface AlarmRingingModalProps {
+export interface AlarmRingingModalProps {
   onWakeCompleted?: (result: { wakeUpTime: string; waterLogged?: number }) => void;
 }
 
+// ----------------------------------------------------------------------------
+// Simple Random Math Question Generator
+// ----------------------------------------------------------------------------
 function createMathProblem(): { q: string; ans: number; options: number[] } {
-  const n1 = Math.floor(Math.random() * 20) + 11;
-  const n2 = Math.floor(Math.random() * 20) + 11;
+  const n1 = Math.floor(Math.random() * 15) + 6; // 6 to 20
+  const n2 = Math.floor(Math.random() * 15) + 4; // 4 to 18
   const sum = n1 + n2;
-  const opts = [sum, sum - 2, sum + 3, sum + 1].sort(() => Math.random() - 0.5);
+  const wrong1 = sum - 2;
+  const wrong2 = sum + 3;
+  const wrong3 = sum + 1;
+  const opts = Array.from(new Set([sum, wrong1, wrong2, wrong3])).slice(0, 4);
+  opts.sort(() => Math.random() - 0.5);
   return { q: `${n1} + ${n2}`, ans: sum, options: opts };
 }
 
-interface AlarmRingingContentProps {
-  onWakeCompleted?: (result: { wakeUpTime: string; waterLogged?: number }) => void;
-}
-
-function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
+// ----------------------------------------------------------------------------
+// Main Alarm Ringing Content
+// ----------------------------------------------------------------------------
+function AlarmRingingContent({ onWakeCompleted }: AlarmRingingModalProps) {
+  const insets = useSafeAreaInsets();
   const { config, dismissAlarm, snoozeAlarm, snoozeCount, maxSnoozes } = useAlarmContext();
+
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [mathProblem] = useState(createMathProblem);
   const [mathError, setMathError] = useState(false);
+
+  // Live real-time clock tick every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const snoozesLeft = Math.max(0, maxSnoozes - snoozeCount);
   const canSnooze = snoozesLeft > 0;
 
-  // Pulse animation for sunrise emblem
+  // Gentle breathing pulse animation for the sunrise orb
   const pulseScale = useSharedValue(1);
+  const pulseGlow = useSharedValue(0.6);
 
   useEffect(() => {
     pulseScale.value = withRepeat(
       withSequence(
-        withTiming(1.12, { duration: 1200 }),
-        withTiming(1.0, { duration: 1200 })
+        withTiming(1.1, { duration: 1400 }),
+        withTiming(1.0, { duration: 1400 })
       ),
       -1,
       true
     );
-  }, [pulseScale]);
+    pulseGlow.value = withRepeat(
+      withSequence(
+        withTiming(0.9, { duration: 1400 }),
+        withTiming(0.4, { duration: 1400 })
+      ),
+      -1,
+      true
+    );
+  }, [pulseScale, pulseGlow]);
 
-  const animatedIconStyle = useAnimatedStyle(() => ({
+  const animatedOrbStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
   }));
 
+  const animatedGlowStyle = useAnimatedStyle(() => ({
+    opacity: pulseGlow.value,
+  }));
+
+  // Handlers
   const handleWaterDismiss = async () => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     await dismissAlarm({ waterLogged: 0.25 });
-    if (onWakeCompleted) {
-      onWakeCompleted({ wakeUpTime: config.time, waterLogged: 0.25 });
-    }
+    onWakeCompleted?.({ wakeUpTime: config.time, waterLogged: 0.25 });
   };
 
   const handleMathAnswer = async (selected: number) => {
@@ -78,9 +111,7 @@ function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
       await dismissAlarm();
-      if (onWakeCompleted) {
-        onWakeCompleted({ wakeUpTime: config.time });
-      }
+      onWakeCompleted?.({ wakeUpTime: config.time });
     } else {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -95,9 +126,7 @@ function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     await dismissAlarm();
-    if (onWakeCompleted) {
-      onWakeCompleted({ wakeUpTime: config.time });
-    }
+    onWakeCompleted?.({ wakeUpTime: config.time });
   };
 
   const handleSnooze = async () => {
@@ -107,140 +136,237 @@ function AlarmRingingContent({ onWakeCompleted }: AlarmRingingContentProps) {
     await snoozeAlarm(5);
   };
 
-  const formattedTime = formatAlarmTime12hr(config.time);
+  // Formatted Current Time & Date
+  const { timeString, ampmString, dateString } = useMemo(() => {
+    let hours = currentTime.getHours();
+    const minutes = currentTime.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
+    const formattedMinutes = minutes < 10 ? `0${minutes}` : `${minutes}`;
+
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const dateFormatted = `${days[currentTime.getDay()]}, ${months[currentTime.getMonth()]} ${currentTime.getDate()}`;
+
+    return {
+      timeString: `${formattedHours}:${formattedMinutes}`,
+      ampmString: ampm,
+      dateString: dateFormatted,
+    };
+  }, [currentTime]);
+
+  const amberSolid = PrimitiveTokens.color.amber[400];
+  const darkForest = PrimitiveTokens.color.forest[950];
 
   return (
     <LinearGradient
-      colors={['#0F2D20', '#1C4A36', '#091A13']}
+      colors={['#051810', '#0A2D20', '#03120B']}
       style={styles.container}
     >
-      <VStack align="center" justify="space-between" style={styles.contentWrap}>
-        {/* Top Branding Header */}
+      <StatusBar style="light" />
+
+      <View
+        style={[
+          styles.contentWrap,
+          {
+            paddingTop: Math.max(insets.top + 16, 44),
+            paddingBottom: Math.max(insets.bottom + 16, 28),
+          },
+        ]}
+      >
+        {/* Top Header Tag */}
         <VStack align="center" gap={4} style={styles.topHeader}>
-          <Text variant="captionSm" style={styles.appHeaderTag}>
-            ROUTINE SATHY · CIRCADIAN ANCHOR
-          </Text>
-          <Text variant="captionSm" style={styles.dawnSubtitle}>
-            Sunrise synchronization active
-          </Text>
+          <HStack align="center" gap={6}>
+            <Ionicons name="sunny-outline" size={14} color={amberSolid} />
+            <Text style={[styles.headerTag, { color: amberSolid }]}>
+              ROUTINE SATHY
+            </Text>
+          </HStack>
+          <Text style={styles.dateText}>{dateString}</Text>
         </VStack>
 
-        {/* Center Pulsing Sunrise Emblem & Clock */}
-        <VStack align="center" gap={16} style={styles.centerClockGroup}>
-          <Animated.View style={[styles.sunriseOrb, animatedIconStyle]}>
-            <LinearGradient
-              colors={['#F59E0B', '#D97706', '#B45309']}
-              style={styles.orbGradient}
-            >
-              <Ionicons name="sunny" size={48} color="#FFFFFF" />
-            </LinearGradient>
-          </Animated.View>
+        {/* Center Section: Glowing Sunrise Emblem & Live Digital Clock */}
+        <VStack align="center" gap={20} style={styles.centerClockGroup}>
+          <View style={styles.orbWrapper}>
+            {/* Outer expanding glow ring */}
+            <Animated.View style={[styles.glowRing, animatedGlowStyle]} />
 
+            {/* Pulsing center sun orb */}
+            <Animated.View style={[styles.sunriseOrb, animatedOrbStyle]}>
+              <LinearGradient
+                colors={['#FCD34D', '#F59E0B', '#D97706']}
+                style={styles.orbGradient}
+              >
+                <Ionicons name="sunny" size={44} color={darkForest} />
+              </LinearGradient>
+            </Animated.View>
+          </View>
+
+          {/* Large, Beautiful Digital Clock Display */}
           <VStack align="center" gap={4}>
-            <Text style={styles.clockDisplay}>{formattedTime}</Text>
+            <HStack align="flex-end" justify="center" gap={6}>
+              <Text style={styles.clockDigits}>{timeString}</Text>
+              <Text style={styles.clockAmPm}>{ampmString}</Text>
+            </HStack>
             <Text style={styles.morningGreeting}>
-              Good morning! Time to anchor your circadian rhythm.
+              Good morning! Time to start your day.
             </Text>
           </VStack>
         </VStack>
 
-        {/* Wake-Up Mission Interactive Section */}
-        <View style={styles.missionCard}>
+        {/* Bottom Interactive Action Card */}
+        <View style={styles.actionCard}>
+          {/* ========================================================
+              CASE 1: WATER CHALLENGE
+              ======================================================== */}
           {config.mission === 'water' ? (
-            <VStack align="center" gap={14}>
-              <HStack align="center" gap={8}>
-                <Ionicons name="water" size={20} color="#38BDF8" />
-                <Text style={styles.missionTitle}>HYDRATION MISSION</Text>
+            <VStack align="center" gap={12} style={{ width: '100%' }}>
+              <HStack align="center" gap={6}>
+                <Ionicons name="water" size={18} color="#38BDF8" />
+                <Text style={styles.missionTitle}>Drink 1 Glass of Water</Text>
               </HStack>
-              <Text style={styles.missionDesc}>
-                Drink 1 glass of water (250ml) to awaken your digestion and stop the alarm.
+
+              <Text style={styles.missionHint}>
+                Drink 250ml water to silence alarm & log hydration
               </Text>
 
+              {/* Primary Stop & Log Button */}
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handleWaterDismiss}
-                style={styles.waterActionBtn}
+                style={styles.primaryActionBtn}
               >
                 <LinearGradient
-                  colors={['#F59E0B', '#D97706']}
-                  style={styles.waterBtnGradient}
+                  colors={['#FDE68A', '#F59E0B']}
+                  style={styles.btnGradient}
                 >
-                  <Ionicons name="water" size={22} color="#000000" />
-                  <Text style={styles.waterBtnText}>
-                    I Drank 250ml Water (Stop Alarm)
+                  <Ionicons name="water" size={20} color={darkForest} />
+                  <Text style={[styles.btnText, { color: darkForest }]}>
+                    I Drank Water (Stop Alarm)
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
+
+              {/* Snooze & Skip Row */}
+              <HStack justify="space-between" align="center" style={styles.subActionsRow}>
+                <TouchableOpacity
+                  onPress={canSnooze ? handleSnooze : undefined}
+                  disabled={!canSnooze}
+                  hitSlop={8}
+                  style={[styles.secondaryPill, !canSnooze && { opacity: 0.4 }]}
+                >
+                  <Ionicons name="time-outline" size={14} color="#CBD5E1" />
+                  <Text style={styles.secondaryPillText}>
+                    {canSnooze ? `Snooze (${config.snoozeMinutes || 5}m)` : 'No snoozes'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleNormalDismiss}
+                  hitSlop={8}
+                  style={styles.secondaryPill}
+                >
+                  <Text style={styles.secondaryPillText}>Just Stop</Text>
+                </TouchableOpacity>
+              </HStack>
             </VStack>
           ) : config.mission === 'math' ? (
-            <VStack align="center" gap={14}>
-              <HStack align="center" gap={8}>
-                <Ionicons name="calculator" size={20} color="#F59E0B" />
-                <Text style={styles.missionTitle}>PREFRONTAL WAKE SUM</Text>
-              </HStack>
+            /* ========================================================
+                CASE 2: MATH CHALLENGE
+                ======================================================== */
+            <VStack align="center" gap={12} style={{ width: '100%' }}>
+              <Text style={styles.missionTitle}>Solve to Stop Alarm</Text>
               <Text style={styles.mathQuestion}>{mathProblem.q} = ?</Text>
+
               {mathError && (
-                <Text style={styles.errorText}>Incorrect sum, try again!</Text>
+                <Text style={styles.mathErrorText}>Wrong sum! Try again.</Text>
               )}
 
-              <HStack gap={10} style={{ width: '100%' }}>
+              {/* 4 Answer Option Pads */}
+              <HStack gap={8} style={{ width: '100%' }}>
                 {mathProblem.options.map((opt, idx) => (
                   <TouchableOpacity
                     key={idx}
                     onPress={() => handleMathAnswer(opt)}
-                    style={styles.mathOptionBtn}
+                    style={styles.mathOptionPad}
                   >
                     <Text style={styles.mathOptionText}>{opt}</Text>
                   </TouchableOpacity>
                 ))}
               </HStack>
+
+              {/* Snooze & Skip */}
+              <HStack justify="space-between" align="center" style={styles.subActionsRow}>
+                <TouchableOpacity
+                  onPress={canSnooze ? handleSnooze : undefined}
+                  disabled={!canSnooze}
+                  hitSlop={8}
+                  style={[styles.secondaryPill, !canSnooze && { opacity: 0.4 }]}
+                >
+                  <Ionicons name="time-outline" size={14} color="#CBD5E1" />
+                  <Text style={styles.secondaryPillText}>
+                    {canSnooze ? `Snooze (${config.snoozeMinutes || 5}m)` : 'No snoozes'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={handleNormalDismiss}
+                  hitSlop={8}
+                  style={styles.secondaryPill}
+                >
+                  <Text style={styles.secondaryPillText}>Skip & Stop</Text>
+                </TouchableOpacity>
+              </HStack>
             </VStack>
           ) : (
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={handleNormalDismiss}
-              style={styles.waterActionBtn}
-            >
-              <LinearGradient
-                colors={['#F59E0B', '#D97706']}
-                style={styles.waterBtnGradient}
+            /* ========================================================
+                CASE 3: NORMAL 1-TAP ALARM
+                ======================================================== */
+            <VStack align="center" gap={12} style={{ width: '100%' }}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={handleNormalDismiss}
+                style={styles.primaryActionBtn}
               >
-                <Ionicons name="sunny" size={22} color="#000000" />
-                <Text style={styles.waterBtnText}>Stop Alarm & Start Day</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          )}
-
-          {/* Action options: Snooze + Optional Stop Without Logging */}
-          <HStack justify="center" align="center" gap={20} style={{ marginTop: 14, width: '100%' }}>
-            <TouchableOpacity
-              onPress={canSnooze ? handleSnooze : undefined}
-              disabled={!canSnooze}
-              hitSlop={8}
-              style={[styles.subtleActionBtn, !canSnooze && { opacity: 0.4 }]}>
-              <HStack align="center" gap={6}>
-                <Ionicons name="time-outline" size={15} color="#94A3B8" />
-                <Text style={styles.subtleActionText}>
-                  {canSnooze ? `Snooze (${config.snoozeMinutes || 5}m) · ${snoozesLeft} left` : 'No snoozes left'}
-                </Text>
-              </HStack>
-            </TouchableOpacity>
-
-            {config.mission !== 'none' && (
-              <TouchableOpacity onPress={handleNormalDismiss} hitSlop={8} style={styles.subtleActionBtn}>
-                <HStack align="center" gap={6}>
-                  <Ionicons name="close-circle-outline" size={15} color="#94A3B8" />
-                  <Text style={styles.subtleActionText}>Stop Without Logging</Text>
-                </HStack>
+                <LinearGradient
+                  colors={['#FDE68A', '#F59E0B']}
+                  style={styles.btnGradient}
+                >
+                  <Ionicons name="sunny" size={22} color={darkForest} />
+                  <Text style={[styles.btnText, { color: darkForest }]}>
+                    Stop Alarm
+                  </Text>
+                </LinearGradient>
               </TouchableOpacity>
-            )}
-          </HStack>
+
+              {/* Snooze Button */}
+              {canSnooze && (
+                <TouchableOpacity
+                  onPress={handleSnooze}
+                  hitSlop={8}
+                  style={styles.snoozePill}
+                >
+                  <Ionicons name="time-outline" size={15} color="#CBD5E1" />
+                  <Text style={styles.snoozePillText}>
+                    Snooze for {config.snoozeMinutes || 5} mins
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </VStack>
+          )}
         </View>
-      </VStack>
+      </View>
     </LinearGradient>
   );
 }
 
+// ----------------------------------------------------------------------------
+// Exported Modal Wrapper
+// ----------------------------------------------------------------------------
 export function AlarmRingingModal({ onWakeCompleted }: AlarmRingingModalProps) {
   const { isRinging } = useAlarmContext();
 
@@ -253,153 +379,194 @@ export function AlarmRingingModal({ onWakeCompleted }: AlarmRingingModalProps) {
   );
 }
 
+// ----------------------------------------------------------------------------
+// Styles
+// ----------------------------------------------------------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
   contentWrap: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'ios' ? 60 : 44,
-    paddingBottom: Platform.OS === 'ios' ? 44 : 28,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   topHeader: {
-    marginTop: 10,
+    alignItems: 'center',
+    marginTop: 6,
   },
-  appHeaderTag: {
-    color: '#F59E0B',
+  headerTag: {
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.5,
-    fontSize: 11,
   },
-  dawnSubtitle: {
-    color: 'rgba(255,255,255,0.6)',
+  dateText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
     fontWeight: '500',
-    fontSize: 12,
+    marginTop: 2,
   },
   centerClockGroup: {
+    alignItems: 'center',
     marginVertical: 'auto',
   },
+  orbWrapper: {
+    width: 110,
+    height: 110,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glowRing: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.35)',
+  },
   sunriseOrb: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 86,
+    height: 86,
+    borderRadius: 43,
     shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 20,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 18,
+    elevation: 10,
   },
   orbGradient: {
     width: '100%',
     height: '100%',
-    borderRadius: 50,
+    borderRadius: 43,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  clockDisplay: {
-    fontSize: 48,
+  clockDigits: {
+    fontSize: 54,
     fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -1.5,
+    letterSpacing: -1,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 60,
+  },
+  clockAmPm: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginBottom: 8,
+    marginLeft: 2,
   },
   morningGreeting: {
-    color: 'rgba(255,255,255,0.85)',
     fontSize: 14,
-    fontWeight: '600',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
     textAlign: 'center',
-    maxWidth: 280,
   },
-  missionCard: {
+  actionCard: {
     width: '100%',
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 24,
-    padding: 20,
+    borderRadius: 22,
+    padding: 18,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.14)',
     alignItems: 'center',
   },
   missionTitle: {
     color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 12,
-    letterSpacing: 1,
+    fontWeight: '700',
+    fontSize: 15,
   },
-  missionDesc: {
-    color: 'rgba(255, 255, 255, 0.75)',
+  missionHint: {
+    color: 'rgba(255, 255, 255, 0.65)',
     fontSize: 12,
-    fontWeight: '500',
     textAlign: 'center',
-    lineHeight: 18,
-    maxWidth: 270,
+    marginTop: -4,
   },
-  waterActionBtn: {
+  primaryActionBtn: {
     width: '100%',
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 10,
+    shadowRadius: 8,
     elevation: 6,
   },
-  waterBtnGradient: {
-    paddingVertical: 16,
+  btnGradient: {
+    paddingVertical: 15,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
-  waterBtnText: {
-    color: '#000000',
-    fontWeight: '900',
-    fontSize: 14,
+  btnText: {
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  subActionsRow: {
+    width: '100%',
+    marginTop: 4,
+  },
+  secondaryPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  secondaryPillText: {
+    color: '#E2E8F0',
+    fontSize: 12,
+    fontWeight: '600',
   },
   mathQuestion: {
-    fontSize: 32,
+    fontSize: 34,
     fontWeight: '900',
     color: '#FFFFFF',
     letterSpacing: 1,
   },
-  errorText: {
+  mathErrorText: {
     color: '#F87171',
     fontSize: 12,
     fontWeight: '700',
   },
-  mathOptionBtn: {
+  mathOptionPad: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    paddingVertical: 14,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   mathOptionText: {
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 18,
   },
-  subtleActionBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
+  snoozePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    width: '100%',
+    paddingVertical: 11,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
   },
-  subtleActionText: {
-    color: '#CBD5E1',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  snoozeBtn: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  snoozeText: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 12,
+  snoozePillText: {
+    color: '#E2E8F0',
+    fontSize: 13,
     fontWeight: '600',
   },
 });

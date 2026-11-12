@@ -70,7 +70,6 @@ const QUICK_PRESETS = [
   { h: 6, m: 0, ampm: 'AM' as const, label: '6:00' },
   { h: 6, m: 30, ampm: 'AM' as const, label: '6:30' },
   { h: 7, m: 0, ampm: 'AM' as const, label: '7:00' },
-  { h: 7, m: 30, ampm: 'AM' as const, label: '7:30' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -188,9 +187,27 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
       enabled: true,
       time: time24hString,
       days: selectedDays,
+      lastDismissedDate: undefined,
     });
     return raw.replace(/^in\s*/i, '');
   }, [config, time24hString, selectedDays]);
+
+  const handleSetQuickNap = (minutes: number = 5) => {
+    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    const target = new Date(Date.now() + minutes * 60 * 1000);
+    let h = target.getHours();
+    const m = target.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+
+    setSelectedHour(h);
+    setSelectedMinute(m);
+    setSelectedAmPm(ampm);
+
+    // Ensure today's day of week is selected so the alarm triggers today
+    const todayDay = new Date().getDay();
+    setSelectedDays((prev) => (prev.includes(todayDay) ? prev : [...prev, todayDay]));
+  };
 
   const sleepRecommendations = useMemo(() => {
     return calculateSleepCycles(time24hString);
@@ -267,6 +284,7 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
       gradualRampMinutes: config.gradualRampMinutes ?? 2,
       mission: selectedMission,
       bedtimeReminderEnabled: bedtimeNudge,
+      lastDismissedDate: undefined,
     });
 
     onClose();
@@ -482,8 +500,23 @@ function AlarmSetupContent({ onClose }: { onClose: () => void }) {
               </VStack>
             </HStack>
 
-            {/* Quick Presets */}
+            {/* Quick Presets with +5m Shortcut */}
             <HStack justify="space-between" gap={6} style={styles.presetRow}>
+              <TouchableOpacity
+                onPress={() => handleSetQuickNap(5)}
+                style={[
+                  styles.presetChip,
+                  { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.borderSubtle },
+                ]}
+              >
+                <Text
+                  variant="captionSm"
+                  style={[styles.presetChipText, { color: amberSolid, fontWeight: '800' }]}
+                >
+                  +5m
+                </Text>
+              </TouchableOpacity>
+
               {QUICK_PRESETS.map((preset) => {
                 const isSelected =
                   selectedHour === preset.h &&

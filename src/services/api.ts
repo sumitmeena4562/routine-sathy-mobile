@@ -269,10 +269,15 @@ api.interceptors.response.use(
       const method = (error.config?.method || 'GET').toUpperCase();
       const url = error.config?.url || '';
       const status = error.response?.status || 'ERR';
-      console.error(`❌ [API ERR] ${status} ${method} ${url}`);
-      console.error(`   Message:`, error.message);
+      const isClientError = typeof status === 'number' && status >= 400 && status < 500;
+
+      // Use console.warn for expected 4xx client responses (e.g. 401 wrong password)
+      // so Expo LogBox full-screen modal doesn't disrupt user testing
+      const logger = isClientError ? console.warn : console.error;
+      logger(`⚠️ [API ERR] ${status} ${method} ${url}`);
+      logger(`   Message:`, error.message);
       if (error.response?.data) {
-        console.error(`   Error Data:`, JSON.stringify(error.response.data, null, 2));
+        logger(`   Error Data:`, JSON.stringify(error.response.data, null, 2));
       }
     }
 

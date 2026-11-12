@@ -462,7 +462,7 @@ export default function StatsScreen() {
           <View style={styles.errorContainer}>
             <Ionicons name="cloud-offline-outline" size={32} color={theme.colors.textMuted} />
             <Text style={[styles.errorTitle, { color: theme.colors.text }]}>
-              Couldn&apos;t load progress
+              {"Couldn't load progress"}
             </Text>
             <Text style={[styles.errorSubtitle, { color: theme.colors.textSecondary }]}>
               Check your connection and tap below to retry.

@@ -33,10 +33,11 @@ export type TabBarProps = Parameters<
   NonNullable<React.ComponentProps<typeof Tabs>['tabBar']>
 >[0];
 
-export interface FloatingTabBarProps extends TabBarProps {
+export type FloatingTabBarProps = TabBarProps & {
+  navigation?: any;
   style?: StyleProp<ViewStyle>;
   capsuleWidth?: number;
-}
+};
 
 const CAPSULE_HEIGHT = 58;
 const CAPSULE_PAD_H = 6;
@@ -158,6 +159,8 @@ export function FloatingTabBar({
   state,
   descriptors,
   navigation,
+  emitter,
+  navigateToTab,
   style,
   capsuleWidth: customCapsuleWidth,
 }: FloatingTabBarProps) {
@@ -289,22 +292,40 @@ export function FloatingTabBar({
             const onPress = () => {
               triggerHaptic('light');
 
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
+              if (navigation) {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
 
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
+                if (!isFocused && !event?.defaultPrevented) {
+                  navigation.navigate(route.name);
+                }
+              } else if (navigateToTab) {
+                const event = emitter?.emit?.({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
+                if (!isFocused && !event?.defaultPrevented) {
+                  navigateToTab(route.key);
+                }
               }
             };
 
             const onLongPress = () => {
-              navigation.emit({
-                type: 'tabLongPress',
-                target: route.key,
-              });
+              if (navigation) {
+                navigation.emit({
+                  type: 'tabLongPress',
+                  target: route.key,
+                });
+              } else if (emitter) {
+                emitter.emit?.({
+                  type: 'tabLongPress',
+                  target: route.key,
+                });
+              }
             };
 
             return (

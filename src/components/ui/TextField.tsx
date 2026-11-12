@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useState, type ElementRef } from 'react';
 import {
   Pressable,
   StyleProp,
@@ -34,7 +34,7 @@ export interface TextFieldProps extends Omit<TextInputProps, 'style'> {
   inputStyle?: StyleProp<TextStyle>;
 }
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
+export const TextField = forwardRef<ElementRef<typeof TextInput>, TextFieldProps>(function TextField(
   {
     label,
     helperText,

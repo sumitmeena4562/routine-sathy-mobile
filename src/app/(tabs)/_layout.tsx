@@ -6,7 +6,6 @@ import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
 export default function TabLayout() {
   return (
     <Tabs
-      initialRouteName="today"
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,

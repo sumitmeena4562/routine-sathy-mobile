@@ -1317,7 +1317,7 @@ export default function TodayScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="small" color={theme.colors.success} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-              Aligning today&apos;s rhythm...
+              {"Aligning today's rhythm..."}
             </Text>
           </View>
         ) : (
@@ -1348,7 +1348,7 @@ export default function TodayScreen() {
               <View style={styles.heroTopRow}>
                 <View>
                   <Text style={[styles.heroLabel, { color: theme.colors.textSecondary }]}>
-                    TODAY&apos;S SCORE
+                    {"TODAY'S SCORE"}
                   </Text>
                   <View style={styles.scoreRow}>
                     <Text style={[styles.scoreNumber, { color: theme.colors.text }]}>
@@ -1654,7 +1654,7 @@ export default function TodayScreen() {
                             styles.wakeAwakeBtnText,
                             { color: PrimitiveTokens.color.neutral[950] },
                           ]}>
-                          I&apos;m Awake
+                          I'm Awake
                         </Text>
                       </Pressable>
 
@@ -1828,7 +1828,7 @@ export default function TodayScreen() {
                   <View style={styles.anchorDetails}>
                     <View style={styles.anchorTitleRow}>
                       <Text style={[styles.anchorTitle, { color: theme.colors.text }]}>
-                        Study &amp; Focus
+                        Study & Focus
                       </Text>
                       <Text
                         style={[
@@ -1913,7 +1913,7 @@ export default function TodayScreen() {
             <View style={styles.sectionHeadingRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={[styles.sectionHeading, { color: theme.colors.textSecondary }]}>
-                  TODAY&apos;S HABITS
+                  {"TODAY'S HABITS"}
                 </Text>
                 <Pressable
                   onPress={() => router.push('/add-routine')}

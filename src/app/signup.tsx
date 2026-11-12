@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, type ElementRef } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -31,9 +31,9 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const emailRef = useRef<ElementRef<typeof TextInput>>(null);
+  const passwordRef = useRef<ElementRef<typeof TextInput>>(null);
+  const confirmPasswordRef = useRef<ElementRef<typeof TextInput>>(null);
 
   const [errors, setErrors] = useState<{
     name?: string;

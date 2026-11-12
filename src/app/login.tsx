@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, type ElementRef } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -29,7 +29,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<ElementRef<typeof TextInput>>(null);
 
   const [errors, setErrors] = useState<{
     email?: string;
@@ -132,7 +132,7 @@ export default function LoginScreen() {
           {/* Bottom Switch to Sign Up */}
           <View style={styles.footerRow}>
             <Text style={styles.footerText}>
-              Don&apos;t have an account?{' '}
+              {"Don't have an account? "}
             </Text>
             <Pressable
               onPress={() => {

@@ -7,33 +7,14 @@
     "icon": "./assets/images/icon.png",
     "scheme": "routinesathymobile",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0A3326"
-    },
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.sathy.routinesathy",
-      "supportsTablet": true,
-      "splash": {
-        "image": "./assets/images/splash-icon.png",
-        "resizeMode": "contain",
-        "backgroundColor": "#0A3326"
-      }
+      "supportsTablet": true
     },
     "android": {
       "package": "com.sathy.routinesathy",
       "versionCode": 3,
-      "splash": {
-        "backgroundColor": "#0A3326",
-        "resizeMode": "contain",
-        "mdpi": "./assets/images/splash-icon.png",
-        "hdpi": "./assets/images/splash-icon.png",
-        "xhdpi": "./assets/images/splash-icon.png",
-        "xxhdpi": "./assets/images/splash-icon.png",
-        "xxxhdpi": "./assets/images/splash-icon.png"
-      },
       "adaptiveIcon": {
         "backgroundColor": "#0A3326",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -46,16 +27,7 @@
         "VIBRATE",
         "SCHEDULE_EXACT_ALARM",
         "USE_EXACT_ALARM"
-      ],
-      "navigationBar": {
-        "backgroundColor": "#052418",
-        "barStyle": "light-content"
-      }
-    },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive",
-      "barStyle": "light-content",
-      "backgroundColor": "#052418"
+      ]
     },
     "web": {
       "output": "server",
@@ -88,7 +60,8 @@
         }
       ],
       "expo-updates",
-      "expo-audio"
+      "expo-audio",
+      "expo-asset"
     ],
     "updates": {
       "url": "https://u.expo.dev/cf011c13-414a-48e2-9a4a-91ed457440f7"

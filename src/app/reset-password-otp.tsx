@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, type ElementRef } from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -29,8 +29,8 @@ export default function ResetPasswordOtpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const newPasswordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
+  const newPasswordRef = useRef<ElementRef<typeof TextInput>>(null);
+  const confirmPasswordRef = useRef<ElementRef<typeof TextInput>>(null);
 
   const [errors, setErrors] = useState<{
     otp?: string;
@@ -311,7 +311,7 @@ export default function ResetPasswordOtpScreen() {
         {/* Resend OTP Row */}
         <View style={styles.resendRow}>
           <Text style={styles.resendText}>
-            Didn&apos;t get the code?{' '}
+            {"Didn't get the code? "}
           </Text>
           {countdown > 0 ? (
             <Text style={styles.countdownText}>

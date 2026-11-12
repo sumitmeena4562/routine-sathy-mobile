@@ -401,7 +401,7 @@ export default function ProfileScreen() {
           },
         ]}>
         <View style={[styles.headerBarInner, { maxWidth: containerMaxWidth }]}>
-          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>ACCOUNT &amp; SETTINGS</Text>
+          <Text style={[styles.eyebrow, { color: eyebrowColor }]}>ACCOUNT & SETTINGS</Text>
           <Text style={[styles.title, { color: theme.colors.text }]}>
             Profile
           </Text>
@@ -623,7 +623,7 @@ export default function ProfileScreen() {
                 style={styles.targetIcon}
               />
               <View>
-                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Study &amp; Focus Target</Text>
+                <Text style={[styles.targetLabel, { color: theme.colors.text }]}>Study & Focus Target</Text>
                 <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
                   Daily deep focus aim
                 </Text>
@@ -685,7 +685,7 @@ export default function ProfileScreen() {
                   Mindful Habits
                 </Text>
                 <Text style={[styles.targetSub, { color: theme.colors.textSecondary }]}>
-                  Configure workout, meditation &amp; custom habits
+                  Configure workout, meditation & custom habits
                 </Text>
               </View>
             </View>
@@ -907,7 +907,7 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.sectionHeaderText}>
               <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-                Account &amp; Security
+                Account & Security
               </Text>
               <Text style={[styles.sectionSubtitle, { color: theme.colors.textSecondary }]}>
                 Credentials and system information

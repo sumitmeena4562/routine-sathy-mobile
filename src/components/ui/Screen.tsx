@@ -80,8 +80,7 @@ export function Screen({
     >
       <StatusBar
         barStyle={barStyle}
-        backgroundColor={theme.colors.background}
-        translucent
+        {...({ backgroundColor: Platform.OS === 'android' ? theme.colors.background : undefined, translucent: true } as any)}
       />
       {inner}
     </View>

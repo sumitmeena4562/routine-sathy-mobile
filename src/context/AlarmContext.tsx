@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { CircadianAlarmConfig, DEFAULT_ALARM_CONFIG } from '../types/alarm';
 import { alarmScheduler } from '../services/alarmScheduler';
@@ -29,6 +29,10 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
   const [countdownText, setCountdownText] = useState('Alarm Off');
   const [snoozeCount, setSnoozeCount] = useState(0);
 
+  // Synchronous refs to prevent race conditions during dismiss, snooze, and fast intervals
+  const lastDismissedRef = useRef<{ date: string; time: string } | null>(null);
+  const snoozedUntilRef = useRef<number | null>(null);
+
   // Load saved alarm config on mount
   useEffect(() => {
     let isMounted = true;
@@ -52,82 +56,85 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [config]);
 
-  // Central trigger function: starts ringing modal and full-volume sound immediately
+  // Central trigger function: starts ringing modal and audio immediately
   const triggerAlarm = useCallback(async () => {
     if (isRinging) return;
     setIsRinging(true);
     await alarmAudio.startRinging(config.sound || 'sunrise-forest', 0);
   }, [isRinging, config.sound]);
 
-  // Active Foreground, Interval & AppState Monitoring
-  // Guarantees alarm triggers with 0 delay when alarm time arrives
+  // Stable ref for triggerAlarm to prevent listener re-subscription loops
+  const triggerAlarmRef = useRef(triggerAlarm);
+  useEffect(() => {
+    triggerAlarmRef.current = triggerAlarm;
+  }, [triggerAlarm]);
+
+  // Precision in-app scheduling: fires at the exact millisecond of next alarm
   useEffect(() => {
     if (!config.enabled || isRinging) return;
 
-    const checkDueAlarm = () => {
-      if (!config.enabled || isRinging) return;
-
-      const now = new Date();
-      const todayDay = now.getDay();
-      if (!config.days.includes(todayDay)) return;
-
-      const todayStr = now.toISOString().split('T')[0];
-      if (config.lastDismissedDate === todayStr && config.lastDismissedTime === config.time) {
-        return; // Already dismissed today for this specific alarm time
-      }
-
-      const [hourStr, minStr] = config.time.split(':');
-      const target = new Date(now);
-      target.setHours(parseInt(hourStr, 10), parseInt(minStr, 10), 0, 0);
-
-      const diffMs = now.getTime() - target.getTime();
-
-      // If within 15 minutes past the alarm time, ring immediately!
-      if (diffMs >= 0 && diffMs < 15 * 60 * 1000) {
-        triggerAlarm();
-      }
-    };
-
-    // 1. Check immediately on mount/config update
-    checkDueAlarm();
-
-    // 2. Schedule precise timer for next upcoming alarm within next 24 hours
     const nextDate = getNextAlarmDate(config);
-    let exactTimer: ReturnType<typeof setTimeout> | null = null;
-    if (nextDate) {
-      const msUntilAlarm = nextDate.getTime() - Date.now();
-      if (msUntilAlarm > 0 && msUntilAlarm <= 24 * 60 * 60 * 1000) {
-        exactTimer = setTimeout(checkDueAlarm, msUntilAlarm);
-      }
+    if (!nextDate) return;
+
+    const msUntilAlarm = nextDate.getTime() - Date.now();
+    // Only schedule timer if alarm is within the next 24 hours
+    if (msUntilAlarm > 0 && msUntilAlarm <= 24 * 60 * 60 * 1000) {
+      const exactTimer = setTimeout(() => {
+        const todayStr = getTodayDateString();
+        if (
+          config.lastDismissedDate === todayStr &&
+          config.lastDismissedTime === config.time
+        ) {
+          return;
+        }
+        triggerAlarmRef.current();
+      }, msUntilAlarm);
+
+      return () => clearTimeout(exactTimer);
     }
+  }, [config, isRinging]);
 
-    // 3. High-frequency 3-second ticker while app is in foreground to prevent missed triggers
-    const ticker = setInterval(checkDueAlarm, 3000);
+  // AppState listener: If user re-opens app right when alarm is due
+  useEffect(() => {
+    if (!config.enabled || isRinging) return;
 
-    // 4. AppState listener: immediately check when user unlocks or re-enters app
-    const appStateSub = AppState.addEventListener('change', (state: AppStateStatus) => {
-      if (state === 'active') {
-        checkDueAlarm();
+    const handleAppState = (state: AppStateStatus) => {
+      if (state !== 'active') return;
+      const todayStr = getTodayDateString();
+      if (
+        config.lastDismissedDate === todayStr &&
+        config.lastDismissedTime === config.time
+      ) {
+        return;
       }
-    });
-
-    return () => {
-      if (exactTimer) clearTimeout(exactTimer);
-      clearInterval(ticker);
-      appStateSub.remove();
+      const [hourStr, minStr] = config.time.split(':');
+      const target = new Date();
+      target.setHours(parseInt(hourStr, 10), parseInt(minStr, 10), 0, 0);
+      const diffMs = Date.now() - target.getTime();
+      // Ring if alarm time passed within last 60 seconds and was not dismissed
+      if (diffMs >= 0 && diffMs < 60 * 1000) {
+        triggerAlarmRef.current();
+      }
     };
-  }, [config, isRinging, triggerAlarm]);
 
-  // Listen for alarm notifications received from OS while app is running
+    const sub = AppState.addEventListener('change', handleAppState);
+    return () => sub.remove();
+  }, [config, isRinging]);
+
+  // Listen for alarm notifications received from OS while app is running (once on mount)
   useEffect(() => {
     const unsubscribe = alarmScheduler.registerListeners(() => {
-      triggerAlarm();
+      triggerAlarmRef.current();
     });
 
     return unsubscribe;
-  }, [triggerAlarm]);
+  }, []);
 
   const updateConfig = useCallback(async (updates: Partial<CircadianAlarmConfig>) => {
+    if (updates.time && updates.time !== config.time) {
+      lastDismissedRef.current = null;
+      snoozedUntilRef.current = null;
+    }
     const updated = { ...config, ...updates };
     setConfig(updated);
     setCountdownText(getAlarmCountdown(updated));
@@ -136,6 +143,8 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
   }, [config]);
 
   const toggleAlarm = useCallback(async (enabled: boolean) => {
+    lastDismissedRef.current = null;
+    snoozedUntilRef.current = null;
     // When re-enabling alarm, clear dismissal flags so it can trigger today if time is future
     await updateConfig({
       enabled,
@@ -147,9 +156,21 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     setIsRinging(false);
     setSnoozeCount(0);
     await alarmAudio.stop();
-    // Record last dismissed date and time
-    const todayStr = new Date().toISOString().split('T')[0];
-    await updateConfig({ lastDismissedDate: todayStr, lastDismissedTime: config.time });
+
+    // Synchronously set dismissal ref so checkDueAlarm does not re-ring
+    const todayStr = getTodayDateString();
+    lastDismissedRef.current = { date: todayStr, time: config.time };
+    snoozedUntilRef.current = null;
+
+    const updated = {
+      ...config,
+      lastDismissedDate: todayStr,
+      lastDismissedTime: config.time,
+    };
+    setConfig(updated);
+    setCountdownText(getAlarmCountdown(updated));
+    await alarmScheduler.saveConfig(updated);
+    await alarmScheduler.syncScheduledAlarms(updated);
 
     // If user completed water challenge, auto-log water intake and wakeUpTime
     if (opts?.waterLogged) {
@@ -169,7 +190,7 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
         // Non-critical background sync
       }
     }
-  }, [updateConfig, config.time]);
+  }, [config]);
 
   const snoozeAlarm = useCallback(async (minutes?: number): Promise<boolean> => {
     if (snoozeCount >= MAX_SNOOZES) {
@@ -179,6 +200,7 @@ export function AlarmProvider({ children }: { children: ReactNode }) {
     await alarmAudio.stop();
     setSnoozeCount((prev) => prev + 1);
     const snoozeDuration = minutes || config.snoozeMinutes || 5;
+    snoozedUntilRef.current = Date.now() + snoozeDuration * 60 * 1000;
     await alarmScheduler.scheduleSnooze(snoozeDuration, config);
     return true;
   }, [config, snoozeCount]);
@@ -216,3 +238,4 @@ export function useAlarmContext() {
   }
   return context;
 }
+

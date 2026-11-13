@@ -39,6 +39,7 @@ try {
 
 class AlarmSchedulerService {
   private hasInitializedChannels = false;
+  private handledNotificationIds: Set<string> = new Set();
 
   async initChannels() {
     if (this.hasInitializedChannels || Platform.OS !== 'android') return;
@@ -328,28 +329,23 @@ class AlarmSchedulerService {
     const notif = getNotifications();
     if (!notif) return () => {};
 
+    const handleNotification = (identifier?: string, data?: any) => {
+      if (!data || data.type !== ALARM_NOTIFICATION_TAG) return;
+      if (identifier) {
+        if (this.handledNotificationIds.has(identifier)) return;
+        this.handledNotificationIds.add(identifier);
+      }
+      onAlarmFired(data);
+    };
+
     try {
       const sub1 = notif.addNotificationReceivedListener?.((notification: any) => {
-        const data = notification?.request?.content?.data;
-        if (data?.type === ALARM_NOTIFICATION_TAG) {
-          onAlarmFired(data);
-        }
+        handleNotification(notification?.request?.identifier, notification?.request?.content?.data);
       });
 
       const sub2 = notif.addNotificationResponseReceivedListener?.((response: any) => {
-        const data = response?.notification?.request?.content?.data;
-        if (data?.type === ALARM_NOTIFICATION_TAG) {
-          onAlarmFired(data);
-        }
+        handleNotification(response?.notification?.request?.identifier, response?.notification?.request?.content?.data);
       });
-
-      // Cold start: Check if app was opened from an alarm notification while killed
-      notif.getLastNotificationResponseAsync?.().then((response: any) => {
-        const data = response?.notification?.request?.content?.data;
-        if (data?.type === ALARM_NOTIFICATION_TAG) {
-          onAlarmFired(data);
-        }
-      }).catch(() => {});
 
       return () => {
         sub1?.remove?.();
